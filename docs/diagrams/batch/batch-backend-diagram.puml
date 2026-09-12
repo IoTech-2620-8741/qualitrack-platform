@@ -1,0 +1,371 @@
+@startuml batch-backend-diagram
+
+title QualiTrack - Batch Backend Class Diagram
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+
+package "shared" <<External>> {
+  abstract class AbstractDomainAggregateRoot
+  abstract class AuditableAbstractPersistenceEntity
+  class ApplicationError
+  class Result
+  class ResponseEntityAssembler
+}
+
+package "spring" <<External>> {
+  class ApplicationEventPublisher
+  interface JpaRepository
+  interface AttributeConverter
+}
+
+package "laboratory" <<External>> {
+  interface LaboratoryContextFacade
+  interface ProductRepository
+  interface RawMaterialRepository
+}
+
+package "ca" <<External>> {
+  interface ComplianceContextFacade
+}
+
+package "batch.domain.model.valueobjects" {
+  enum BatchStatus {
+    PENDING
+    IN_PROGRESS
+    RELEASED
+    REJECTED
+  }
+}
+
+package "batch.domain.model.aggregates" {
+  class Batch {
+    - id: Long
+    - labId: Long
+    - productId: Long
+    - productName: String
+    - batchNumber: String
+    - quantity: Double
+    - unit: String
+    - status: BatchStatus
+    - startDate: String
+    - endDate: String
+    - notes: String
+    + start(): void
+    + release(command: ReleaseBatchCommand): void
+    + reject(command: RejectBatchCommand): void
+  }
+}
+
+package "batch.domain.model.entities" {
+  class RawMaterialUsage {
+    - id: Long
+    - batchId: Long
+    - rawMaterialId: Long
+    - rawMaterialName: String
+    - quantityUsed: Double
+    - unit: String
+    - usageDate: String
+  }
+
+  class DigitalSignature {
+    - id: Long
+    - batchId: Long
+    - signedByUserId: Long
+    - signatureHash: String
+    - signedAt: String
+  }
+
+  class RejectionRecord {
+    - id: Long
+    - batchId: Long
+    - rejectionDate: String
+    - reason: String
+  }
+}
+
+Batch --|> AbstractDomainAggregateRoot
+Batch *-- BatchStatus
+Batch ..> RawMaterialUsage
+Batch ..> DigitalSignature
+Batch ..> RejectionRecord
+
+package "batch.domain.model.commands" {
+  class CreateBatchCommand <<record>>
+  class ReleaseBatchCommand <<record>>
+  class RejectBatchCommand <<record>>
+  class LinkRawMaterialCommand <<record>>
+}
+
+package "batch.domain.model.queries" {
+  class GetBatchByIdQuery <<record>>
+  class GetBatchesByLabIdQuery <<record>>
+  class GetBatchesByStatusQuery <<record>>
+  class GetRawMaterialUsageByBatchIdQuery <<record>>
+}
+
+package "batch.domain.model.events" {
+  class BatchCreatedEvent <<record>>
+  class BatchReleasedEvent <<record>>
+  class BatchRejectedEvent <<record>>
+  class RawMaterialLinkedToBatchEvent <<record>>
+}
+
+package "batch.domain.repositories" {
+  interface BatchRepository
+  interface RawMaterialUsageRepository
+}
+
+package "batch.domain.exceptions" {
+  class BatchNotFoundException
+  class RawMaterialUsageNotFoundException
+}
+
+package "batch.application.commandservices" {
+  interface BatchCommandService
+  interface RawMaterialUsageCommandService
+}
+
+package "batch.application.queryservices" {
+  interface BatchQueryService
+  interface RawMaterialUsageQueryService
+}
+
+package "batch.application.internal.commandservices" {
+  class BatchCommandServiceImpl
+  class RawMaterialUsageCommandServiceImpl
+}
+
+BatchCommandServiceImpl ..|> BatchCommandService
+RawMaterialUsageCommandServiceImpl ..|> RawMaterialUsageCommandService
+
+BatchCommandServiceImpl --> BatchRepository
+BatchCommandServiceImpl --> ExternalLaboratoryService
+BatchCommandServiceImpl --> ProductRepository
+BatchCommandServiceImpl --> ApplicationEventPublisher
+BatchCommandServiceImpl ..> BatchCreatedEvent
+BatchCommandServiceImpl ..> BatchReleasedEvent
+BatchCommandServiceImpl ..> BatchRejectedEvent
+
+RawMaterialUsageCommandServiceImpl --> RawMaterialUsageRepository
+RawMaterialUsageCommandServiceImpl --> BatchRepository
+RawMaterialUsageCommandServiceImpl --> RawMaterialRepository
+RawMaterialUsageCommandServiceImpl --> ApplicationEventPublisher
+RawMaterialUsageCommandServiceImpl ..> RawMaterialLinkedToBatchEvent
+
+package "batch.application.internal.queryservices" {
+  class BatchQueryServiceImpl
+  class RawMaterialUsageQueryServiceImpl
+}
+
+BatchQueryServiceImpl ..|> BatchQueryService
+RawMaterialUsageQueryServiceImpl ..|> RawMaterialUsageQueryService
+
+BatchQueryServiceImpl --> BatchRepository
+RawMaterialUsageQueryServiceImpl --> RawMaterialUsageRepository
+
+package "batch.application.internal.eventhandlers" {
+  class BatchCreatedEventHandler
+  class BatchReleasedEventHandler
+  class BatchRejectedEventHandler
+  class RawMaterialLinkedToBatchEventHandler
+}
+
+BatchCreatedEventHandler ..> BatchCreatedEvent
+BatchReleasedEventHandler ..> BatchReleasedEvent
+BatchRejectedEventHandler ..> BatchRejectedEvent
+RawMaterialLinkedToBatchEventHandler ..> RawMaterialLinkedToBatchEvent
+
+package "batch.application.internal.outboundservices.acl" {
+  class ExternalLaboratoryService {
+    + existsLaboratoryById(labId: Long): boolean
+  }
+
+  class BatchExternalComplianceService {
+    + canReleaseBatch(batchId: Long): boolean
+  }
+}
+
+ExternalLaboratoryService --> LaboratoryContextFacade
+BatchExternalComplianceService --> ComplianceContextFacade
+
+package "batch.application.acl" {
+  class BatchContextFacadeImpl {
+    + existsBatchById(batchId: Long): boolean
+    + belongsToLaboratory(batchId: Long, laboratoryId: Long): boolean
+    + isBatchReleased(batchId: Long): boolean
+    + isBatchRejected(batchId: Long): boolean
+  }
+}
+
+package "batch.interfaces.acl" {
+  interface BatchContextFacade
+}
+
+BatchContextFacadeImpl ..|> BatchContextFacade
+BatchContextFacadeImpl --> BatchQueryService
+
+package "batch.interfaces.events" {
+  class BatchCreatedIntegrationEvent <<record>>
+  class BatchReleasedIntegrationEvent <<record>>
+  class BatchRejectedIntegrationEvent <<record>>
+  class RawMaterialLinkedToBatchIntegrationEvent <<record>>
+}
+
+BatchCreatedEventHandler ..> BatchCreatedIntegrationEvent
+BatchReleasedEventHandler ..> BatchReleasedIntegrationEvent
+BatchRejectedEventHandler ..> BatchRejectedIntegrationEvent
+RawMaterialLinkedToBatchEventHandler ..> RawMaterialLinkedToBatchIntegrationEvent
+
+package "batch.infrastructure.persistence.jpa.entities" {
+  class BatchPersistenceEntity {
+    - labId: Long
+    - productId: Long
+    - productName: String
+    - batchNumber: String
+    - quantity: Double
+    - unit: String
+    - status: BatchStatus
+    - startDate: String
+    - endDate: String
+    - notes: String
+  }
+
+  class RawMaterialUsagePersistenceEntity {
+    - batchId: Long
+    - rawMaterialId: Long
+    - rawMaterialName: String
+    - quantityUsed: Double
+    - unit: String
+    - usageDate: String
+  }
+
+  class DigitalSignaturePersistenceEntity {
+    - batchId: Long
+    - signedByUserId: Long
+    - signatureHash: String
+    - signedAt: String
+  }
+
+  class RejectionRecordPersistenceEntity {
+    - batchId: Long
+    - rejectionDate: String
+    - reason: String
+  }
+}
+
+BatchPersistenceEntity --|> AuditableAbstractPersistenceEntity
+RawMaterialUsagePersistenceEntity --|> AuditableAbstractPersistenceEntity
+DigitalSignaturePersistenceEntity --|> AuditableAbstractPersistenceEntity
+RejectionRecordPersistenceEntity --|> AuditableAbstractPersistenceEntity
+
+package "batch.infrastructure.persistence.jpa.repositories" {
+  interface BatchPersistenceRepository
+  interface RawMaterialUsagePersistenceRepository
+  interface DigitalSignaturePersistenceRepository
+  interface RejectionRecordPersistenceRepository
+}
+
+BatchPersistenceRepository ..|> JpaRepository
+RawMaterialUsagePersistenceRepository ..|> JpaRepository
+DigitalSignaturePersistenceRepository ..|> JpaRepository
+RejectionRecordPersistenceRepository ..|> JpaRepository
+
+BatchPersistenceRepository --> BatchPersistenceEntity
+RawMaterialUsagePersistenceRepository --> RawMaterialUsagePersistenceEntity
+DigitalSignaturePersistenceRepository --> DigitalSignaturePersistenceEntity
+RejectionRecordPersistenceRepository --> RejectionRecordPersistenceEntity
+
+package "batch.infrastructure.persistence.jpa.assemblers" {
+  class BatchPersistenceAssembler
+  class RawMaterialUsagePersistenceAssembler
+  class DigitalSignaturePersistenceAssembler
+  class RejectionRecordPersistenceAssembler
+}
+
+BatchPersistenceAssembler ..> Batch
+BatchPersistenceAssembler ..> BatchPersistenceEntity
+RawMaterialUsagePersistenceAssembler ..> RawMaterialUsage
+RawMaterialUsagePersistenceAssembler ..> RawMaterialUsagePersistenceEntity
+DigitalSignaturePersistenceAssembler ..> DigitalSignature
+DigitalSignaturePersistenceAssembler ..> DigitalSignaturePersistenceEntity
+RejectionRecordPersistenceAssembler ..> RejectionRecord
+RejectionRecordPersistenceAssembler ..> RejectionRecordPersistenceEntity
+
+package "batch.infrastructure.persistence.jpa.adapters" {
+  class BatchRepositoryImpl
+  class RawMaterialUsageRepositoryImpl
+}
+
+BatchRepositoryImpl ..|> BatchRepository
+RawMaterialUsageRepositoryImpl ..|> RawMaterialUsageRepository
+
+BatchRepositoryImpl --> BatchPersistenceRepository
+BatchRepositoryImpl --> BatchPersistenceAssembler
+RawMaterialUsageRepositoryImpl --> RawMaterialUsagePersistenceRepository
+RawMaterialUsageRepositoryImpl --> RawMaterialUsagePersistenceAssembler
+
+package "batch.infrastructure.persistence.jpa.converters" {
+  class BatchStatusPersistenceConverter
+}
+
+BatchStatusPersistenceConverter ..|> AttributeConverter
+BatchStatusPersistenceConverter ..> BatchStatus
+
+package "batch.interfaces.rest.resources" {
+  class BatchResource <<record>>
+  class CreateBatchResource <<record>>
+  class ReleaseBatchResource <<record>>
+  class RejectBatchResource <<record>>
+  class LinkRawMaterialResource <<record>>
+  class RawMaterialUsageResource <<record>>
+}
+
+package "batch.interfaces.rest.transform" {
+  class BatchResourceFromEntityAssembler
+  class CreateBatchCommandFromResourceAssembler
+  class ReleaseBatchCommandFromResourceAssembler
+  class RejectBatchCommandFromResourceAssembler
+  class LinkRawMaterialCommandFromResourceAssembler
+  class RawMaterialUsageResourceFromEntityAssembler
+}
+
+BatchResourceFromEntityAssembler ..> Batch
+BatchResourceFromEntityAssembler ..> BatchResource
+CreateBatchCommandFromResourceAssembler ..> CreateBatchResource
+CreateBatchCommandFromResourceAssembler ..> CreateBatchCommand
+ReleaseBatchCommandFromResourceAssembler ..> ReleaseBatchResource
+ReleaseBatchCommandFromResourceAssembler ..> ReleaseBatchCommand
+RejectBatchCommandFromResourceAssembler ..> RejectBatchResource
+RejectBatchCommandFromResourceAssembler ..> RejectBatchCommand
+LinkRawMaterialCommandFromResourceAssembler ..> LinkRawMaterialResource
+LinkRawMaterialCommandFromResourceAssembler ..> LinkRawMaterialCommand
+RawMaterialUsageResourceFromEntityAssembler ..> RawMaterialUsage
+RawMaterialUsageResourceFromEntityAssembler ..> RawMaterialUsageResource
+
+package "batch.interfaces.rest" {
+  class BatchController
+  class BatchRawMaterialUsageController
+  class LaboratoryBatchesController
+}
+
+BatchController --> BatchCommandService
+BatchController --> BatchQueryService
+BatchController ..> BatchResourceFromEntityAssembler
+BatchController ..> CreateBatchCommandFromResourceAssembler
+BatchController ..> ReleaseBatchCommandFromResourceAssembler
+BatchController ..> RejectBatchCommandFromResourceAssembler
+BatchController ..> ResponseEntityAssembler
+
+BatchRawMaterialUsageController --> RawMaterialUsageCommandService
+BatchRawMaterialUsageController --> RawMaterialUsageQueryService
+BatchRawMaterialUsageController ..> LinkRawMaterialCommandFromResourceAssembler
+BatchRawMaterialUsageController ..> RawMaterialUsageResourceFromEntityAssembler
+BatchRawMaterialUsageController ..> ResponseEntityAssembler
+
+LaboratoryBatchesController --> BatchQueryService
+LaboratoryBatchesController ..> BatchResourceFromEntityAssembler
+
+@enduml

@@ -1,0 +1,52 @@
+@startuml equipment-database-diagram
+
+title QualiTrack - Equipment Backend Database Diagram
+
+hide methods
+hide stereotypes
+
+skinparam linetype ortho
+skinparam shadowing false
+
+entity "equipment" as equipment {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  laboratory_id : BIGINT FK NOT NULL
+  name : VARCHAR(150) NOT NULL
+  type : VARCHAR(100) NOT NULL
+  model : VARCHAR(100) NOT NULL
+  serial_number : VARCHAR(50) NOT NULL UNIQUE
+  status : VARCHAR(50) NOT NULL
+  sensor_external_id : VARCHAR(50)
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "bpm_parameter_configs" as bpm_parameter_configs {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  equipment_id : BIGINT FK NOT NULL
+  parameter_name : VARCHAR(100) NOT NULL
+  min_value : DOUBLE NOT NULL
+  max_value : DOUBLE NOT NULL
+  unit : VARCHAR(20) NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "maintenance_records" as maintenance_records {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  equipment_id : BIGINT FK NOT NULL
+  maintenance_date : DATE NOT NULL
+  technician_name : VARCHAR(150) NOT NULL
+  description : VARCHAR(1000) NOT NULL
+  type : VARCHAR(50) NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+equipment ||--o{ bpm_parameter_configs : "defines"
+equipment ||--o{ maintenance_records : "records"
+
+@enduml

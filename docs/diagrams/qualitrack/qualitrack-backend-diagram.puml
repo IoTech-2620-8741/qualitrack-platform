@@ -1,0 +1,506 @@
+@startuml qualitrack-backend-diagram
+title QualiTrack - Backend Complete Class Diagram
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+hide empty members
+
+package "shared" {
+  package "domain" {
+    abstract class AbstractDomainAggregateRoot<T>
+  }
+
+  package "application.result" {
+    class Result<T, E>
+    class ApplicationError
+  }
+
+  package "infrastructure.persistence.jpa" {
+    abstract class AuditableAbstractPersistenceEntity
+  }
+
+  package "interfaces.rest.transform" {
+    class ResponseEntityAssembler
+    class ErrorResponseAssembler
+  }
+}
+
+package "iam" {
+  package "domain" {
+    class User
+    class Role
+    class Username
+    class PasswordHash
+    enum Roles
+    enum UserStatus
+    interface UserRepository
+    interface RoleRepository
+  }
+
+  package "application" {
+    interface UserCommandService
+    interface UserQueryService
+    interface RoleCommandService
+    interface RoleQueryService
+    class UserCommandServiceImpl
+    class UserQueryServiceImpl
+    class RoleCommandServiceImpl
+    class RoleQueryServiceImpl
+    interface HashingService
+    interface TokenService
+  }
+
+  package "infrastructure" {
+    class WebSecurityConfiguration
+    class BearerAuthorizationRequestFilter
+    class UserDetailsServiceImpl
+    class BCryptHashingService
+    class BearerTokenService
+    class UserRepositoryImpl
+    class RoleRepositoryImpl
+    class UserPersistenceEntity
+    class RolePersistenceEntity
+    interface UserPersistenceRepository
+    interface RolePersistenceRepository
+  }
+
+  package "interfaces" {
+    class IamContextFacade
+    class AuthenticationController
+    class UsersController
+    class RolesController
+    class SignInResource
+    class SignUpResource
+    class AuthenticatedUserResource
+    class UserResource
+    class RoleResource
+  }
+}
+
+package "laboratory" {
+  package "domain" {
+    class Laboratory
+    class PharmaceuticalProduct
+    class RawMaterial
+    class StaffMember
+    class LaboratoryAddress
+    class LaboratoryName
+    class StockQuantity
+    enum LaboratoryStatus
+    enum Regulation
+    interface LaboratoryRepository
+    interface ProductRepository
+    interface RawMaterialRepository
+    interface StaffRepository
+  }
+
+  package "application" {
+    interface LaboratoryCommandService
+    interface LaboratoryQueryService
+    interface ProductCommandService
+    interface ProductQueryService
+    interface RawMaterialCommandService
+    interface RawMaterialQueryService
+    interface StaffCommandService
+    interface StaffQueryService
+    class LaboratoryCommandServiceImpl
+    class ProductCommandServiceImpl
+    class RawMaterialCommandServiceImpl
+    class StaffCommandServiceImpl
+    class LaboratoryExternalComplianceService
+  }
+
+  package "interfaces" {
+    class LaboratoryContextFacade
+    class LaboratoryController
+    class LaboratoryProductsController
+    class LaboratoryRawMaterialsController
+    class LaboratoryStaffController
+    class StaffController
+    class LaboratoryRegisteredIntegrationEvent
+    class ProductCreatedIntegrationEvent
+    class RawMaterialCreatedIntegrationEvent
+    class RawMaterialLowStockIntegrationEvent
+    class StaffRegisteredIntegrationEvent
+    class StaffDeactivatedIntegrationEvent
+  }
+}
+
+package "equipment" {
+  package "domain" {
+    class Equipment
+    class BpmParameterConfig
+    class MaintenanceRecord
+    enum EquipmentStatus
+    enum EquipmentType
+    enum CriticalVariable
+    enum MaintenanceType
+    class DeviceId
+    interface EquipmentRepository
+    interface BpmParameterConfigRepository
+    interface MaintenanceRepository
+  }
+
+  package "application" {
+    interface EquipmentCommandService
+    interface EquipmentQueryService
+    interface BpmConfigCommandService
+    interface BpmConfigQueryService
+    interface MaintenanceCommandService
+    interface MaintenanceQueryService
+    class EquipmentCommandServiceImpl
+    class BpmConfigCommandServiceImpl
+    class MaintenanceCommandServiceImpl
+    class ExternalLabService
+  }
+
+  package "interfaces" {
+    class EquipmentController
+    class EquipmentBpmConfigController
+    class EquipmentMaintenanceController
+    class EquipmentRegisteredIntegrationEvent
+    class BpmParameterConfiguredIntegrationEvent
+    class MaintenanceRegisteredIntegrationEvent
+    class SensorLinkedIntegrationEvent
+    class CalibrationExpiredIntegrationEvent
+  }
+}
+
+package "batch" {
+  package "domain" {
+    class Batch
+    class RawMaterialUsage
+    class DigitalSignature
+    class RejectionRecord
+    enum BatchStatus
+    interface BatchRepository
+    interface RawMaterialUsageRepository
+  }
+
+  package "application" {
+    interface BatchCommandService
+    interface BatchQueryService
+    interface RawMaterialUsageCommandService
+    interface RawMaterialUsageQueryService
+    class BatchCommandServiceImpl
+    class RawMaterialUsageCommandServiceImpl
+    class ExternalLaboratoryService
+    class BatchExternalComplianceService
+  }
+
+  package "interfaces" {
+    class BatchContextFacade
+    class BatchController
+    class BatchRawMaterialUsageController
+    class LaboratoryBatchesController
+    class BatchCreatedIntegrationEvent
+    class BatchReleasedIntegrationEvent
+    class BatchRejectedIntegrationEvent
+    class RawMaterialLinkedToBatchIntegrationEvent
+  }
+}
+
+package "tracking" {
+  package "domain" {
+    class EquipmentTelemetry
+    class EquipmentTelemetryStatus
+    class Measurement
+    class TelemetryHistoryPoint
+    enum TelemetryStatus
+    enum TelemetryParameterType
+    interface EquipmentTelemetryRepository
+    interface EquipmentTelemetryStatusRepository
+    interface MeasurementRepository
+    interface TelemetryHistoryPointRepository
+  }
+
+  package "application" {
+    interface TrackingCommandService
+    interface TrackingQueryService
+    class TrackingCommandServiceImpl
+    class TrackingQueryServiceImpl
+    class TrackingExternalEquipmentService
+    class TrackingExternalComplianceService
+    class TrackingExternalAuditService
+  }
+
+  package "interfaces" {
+    class TrackingContextFacade
+    class TelemetryController
+    class EquipmentTelemetryStatusUpdatedIntegrationEvent
+    class MeasurementRecordedIntegrationEvent
+    class TelemetryHistoryPointRecordedIntegrationEvent
+    class TelemetryAnomalyDetectedIntegrationEvent
+  }
+}
+
+package "ca" {
+  package "domain" {
+    class DeviationAlert
+    class ComplianceEvent
+    class NotificationPreference
+    enum AlertSeverity
+    enum AlertStatus
+    enum ComplianceEventType
+    interface DeviationAlertRepository
+    interface ComplianceEventRepository
+    interface NotificationPreferenceRepository
+  }
+
+  package "application" {
+    interface CaCommandService
+    interface CaQueryService
+    class CaCommandServiceImpl
+    class CaQueryServiceImpl
+    class CaExternalBatchService
+    class CaExternalEquipmentService
+    class BatchReleasedComplianceEventHandler
+    class BatchRejectedComplianceEventHandler
+    class CalibrationExpiredEventHandler
+    class RawMaterialLowStockComplianceEventHandler
+    class TelemetryAnomalyDetectedComplianceEventHandler
+  }
+
+  package "interfaces" {
+    class ComplianceContextFacade
+    class DeviationAlertController
+    class ComplianceEventController
+    class NotificationPreferenceController
+    class DeviationAlertCreatedIntegrationEvent
+    class DeviationAlertAcknowledgedIntegrationEvent
+    class DeviationAlertResolvedIntegrationEvent
+    class NotificationPreferenceUpdatedIntegrationEvent
+  }
+}
+
+package "ra" {
+  package "domain" {
+    class AuditReport
+    class AuditLogEntry
+    class KpiDashboard
+    class KpiMetric
+    class DeviationTrend
+    class TrendDataPoint
+    enum AuditAction
+    enum ReportType
+    enum ReportFormat
+    enum KpiMetricStatus
+    enum TrendDirection
+    interface AuditReportRepository
+    interface AuditLogRepository
+    interface KpiDashboardRepository
+    interface DeviationTrendRepository
+  }
+
+  package "application" {
+    interface RaCommandService
+    interface RaQueryService
+    interface AuditLogCommandService
+    class RaCommandServiceImpl
+    class RaQueryServiceImpl
+    class AuditLogCommandServiceImpl
+    class RaExternalLaboratoryService
+    class RaExternalEquipmentService
+    class RaExternalBatchService
+    class RaExternalComplianceService
+    class LaboratoryAuditEventHandler
+    class EquipmentAuditEventHandler
+    class BatchAuditEventHandler
+    class CaAuditEventHandler
+    class TrackingAuditEventHandler
+  }
+
+  package "interfaces" {
+    class RaContextFacade
+    class KpiDashboardController
+    class DeviationTrendController
+    class ReportController
+    class AuditLogController
+    class AuditReportGeneratedIntegrationEvent
+    class AuditLogEntryRecordedIntegrationEvent
+    class KpiDashboardCalculatedIntegrationEvent
+    class DeviationTrendCalculatedIntegrationEvent
+  }
+}
+
+package "subscription" {
+  package "domain" {
+    class Subscription
+    class SubscriptionPlan
+    class SubscriptionPayment
+    class Money
+    enum PlanCode
+    enum BillingCycle
+    enum SubscriptionStatus
+    enum PaymentProvider
+    enum PaymentStatus
+    interface SubscriptionRepository
+    interface SubscriptionPlanRepository
+    interface SubscriptionPaymentRepository
+  }
+
+  package "application" {
+    interface SubscriptionCommandService
+    interface SubscriptionQueryService
+    class SubscriptionCommandServiceImpl
+    class SubscriptionQueryServiceImpl
+    class ExternalStripeService
+    class StripeCheckoutSessionResult
+    class StripeSubscriptionDetails
+  }
+
+  package "interfaces" {
+    class SubscriptionContextFacade
+    class SubscriptionController
+    class StripeWebhookController
+    class CheckoutSessionCreatedIntegrationEvent
+    class SubscriptionActivatedIntegrationEvent
+    class SubscriptionCancelledIntegrationEvent
+    class SubscriptionPaymentRecordedIntegrationEvent
+  }
+}
+
+package "external systems" {
+  class Stripe
+}
+
+User --|> AbstractDomainAggregateRoot
+Laboratory --|> AbstractDomainAggregateRoot
+Equipment --|> AbstractDomainAggregateRoot
+Batch --|> AbstractDomainAggregateRoot
+Subscription --|> AbstractDomainAggregateRoot
+
+UserPersistenceEntity --|> AuditableAbstractPersistenceEntity
+RolePersistenceEntity --|> AuditableAbstractPersistenceEntity
+
+LaboratoryCommandServiceImpl ..|> LaboratoryCommandService
+ProductCommandServiceImpl ..|> ProductCommandService
+RawMaterialCommandServiceImpl ..|> RawMaterialCommandService
+StaffCommandServiceImpl ..|> StaffCommandService
+
+EquipmentCommandServiceImpl ..|> EquipmentCommandService
+BpmConfigCommandServiceImpl ..|> BpmConfigCommandService
+MaintenanceCommandServiceImpl ..|> MaintenanceCommandService
+
+BatchCommandServiceImpl ..|> BatchCommandService
+RawMaterialUsageCommandServiceImpl ..|> RawMaterialUsageCommandService
+
+TrackingCommandServiceImpl ..|> TrackingCommandService
+TrackingQueryServiceImpl ..|> TrackingQueryService
+
+CaCommandServiceImpl ..|> CaCommandService
+CaQueryServiceImpl ..|> CaQueryService
+
+RaCommandServiceImpl ..|> RaCommandService
+RaQueryServiceImpl ..|> RaQueryService
+AuditLogCommandServiceImpl ..|> AuditLogCommandService
+
+SubscriptionCommandServiceImpl ..|> SubscriptionCommandService
+SubscriptionQueryServiceImpl ..|> SubscriptionQueryService
+
+UserCommandServiceImpl ..|> UserCommandService
+UserQueryServiceImpl ..|> UserQueryService
+RoleCommandServiceImpl ..|> RoleCommandService
+RoleQueryServiceImpl ..|> RoleQueryService
+
+UserRepositoryImpl ..|> UserRepository
+RoleRepositoryImpl ..|> RoleRepository
+
+Laboratory o-- PharmaceuticalProduct
+Laboratory o-- RawMaterial
+Laboratory o-- StaffMember
+Equipment o-- BpmParameterConfig
+Equipment o-- MaintenanceRecord
+Batch o-- RawMaterialUsage
+Batch o-- DigitalSignature
+Batch o-- RejectionRecord
+KpiDashboard o-- KpiMetric
+DeviationTrend o-- TrendDataPoint
+SubscriptionPlan o-- Money
+SubscriptionPayment o-- Money
+
+AuthenticationController --> UserCommandService
+AuthenticationController --> TokenService
+WebSecurityConfiguration --> BearerAuthorizationRequestFilter
+BearerAuthorizationRequestFilter --> TokenService
+UserDetailsServiceImpl --> UserRepository
+BCryptHashingService ..|> HashingService
+BearerTokenService ..|> TokenService
+
+LaboratoryController --> LaboratoryCommandService
+LaboratoryController --> LaboratoryQueryService
+LaboratoryProductsController --> ProductCommandService
+LaboratoryRawMaterialsController --> RawMaterialCommandService
+LaboratoryStaffController --> StaffCommandService
+
+EquipmentController --> EquipmentCommandService
+EquipmentController --> EquipmentQueryService
+EquipmentBpmConfigController --> BpmConfigCommandService
+EquipmentMaintenanceController --> MaintenanceCommandService
+
+BatchController --> BatchCommandService
+BatchController --> BatchQueryService
+BatchRawMaterialUsageController --> RawMaterialUsageCommandService
+LaboratoryBatchesController --> BatchQueryService
+
+TelemetryController --> TrackingCommandService
+TelemetryController --> TrackingQueryService
+
+DeviationAlertController --> CaCommandService
+DeviationAlertController --> CaQueryService
+ComplianceEventController --> CaQueryService
+NotificationPreferenceController --> CaCommandService
+NotificationPreferenceController --> CaQueryService
+
+KpiDashboardController --> RaCommandService
+KpiDashboardController --> RaQueryService
+DeviationTrendController --> RaCommandService
+DeviationTrendController --> RaQueryService
+ReportController --> RaCommandService
+AuditLogController --> AuditLogCommandService
+AuditLogController --> RaQueryService
+
+SubscriptionController --> SubscriptionCommandService
+SubscriptionController --> SubscriptionQueryService
+StripeWebhookController --> SubscriptionCommandService
+StripeWebhookController --> SubscriptionQueryService
+StripeWebhookController --> ExternalStripeService
+ExternalStripeService --> Stripe
+
+ExternalLabService --> LaboratoryContextFacade
+ExternalLaboratoryService --> LaboratoryContextFacade
+BatchExternalComplianceService --> ComplianceContextFacade
+LaboratoryExternalComplianceService --> ComplianceContextFacade
+TrackingExternalEquipmentService --> EquipmentRepository
+TrackingExternalComplianceService --> ComplianceContextFacade
+TrackingExternalAuditService --> RaContextFacade
+CaExternalBatchService --> BatchContextFacade
+CaExternalEquipmentService --> EquipmentRepository
+RaExternalLaboratoryService --> LaboratoryContextFacade
+RaExternalEquipmentService --> EquipmentRepository
+RaExternalBatchService --> BatchContextFacade
+RaExternalComplianceService --> ComplianceContextFacade
+
+RawMaterialLowStockIntegrationEvent ..> RawMaterialLowStockComplianceEventHandler
+CalibrationExpiredIntegrationEvent ..> CalibrationExpiredEventHandler
+TelemetryAnomalyDetectedIntegrationEvent ..> TelemetryAnomalyDetectedComplianceEventHandler
+BatchReleasedIntegrationEvent ..> BatchReleasedComplianceEventHandler
+BatchRejectedIntegrationEvent ..> BatchRejectedComplianceEventHandler
+
+LaboratoryRegisteredIntegrationEvent ..> LaboratoryAuditEventHandler
+ProductCreatedIntegrationEvent ..> LaboratoryAuditEventHandler
+StaffRegisteredIntegrationEvent ..> LaboratoryAuditEventHandler
+EquipmentRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
+MaintenanceRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
+BatchCreatedIntegrationEvent ..> BatchAuditEventHandler
+RawMaterialLinkedToBatchIntegrationEvent ..> BatchAuditEventHandler
+DeviationAlertCreatedIntegrationEvent ..> CaAuditEventHandler
+MeasurementRecordedIntegrationEvent ..> TrackingAuditEventHandler
+TelemetryHistoryPointRecordedIntegrationEvent ..> TrackingAuditEventHandler
+
+SubscriptionActivatedIntegrationEvent ..> RaContextFacade
+SubscriptionPaymentRecordedIntegrationEvent ..> RaContextFacade
+
+@enduml

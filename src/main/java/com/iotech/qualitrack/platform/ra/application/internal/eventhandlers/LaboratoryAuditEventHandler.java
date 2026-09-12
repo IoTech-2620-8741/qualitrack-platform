@@ -1,0 +1,109 @@
+package com.iotech.qualitrack.platform.ra.application.internal.eventhandlers;
+
+import com.iotech.qualitrack.platform.laboratory.interfaces.events.LaboratoryRegisteredIntegrationEvent;
+import com.iotech.qualitrack.platform.laboratory.interfaces.events.ProductCreatedIntegrationEvent;
+import com.iotech.qualitrack.platform.laboratory.interfaces.events.RawMaterialCreatedIntegrationEvent;
+import com.iotech.qualitrack.platform.laboratory.interfaces.events.RawMaterialLowStockIntegrationEvent;
+import com.iotech.qualitrack.platform.laboratory.interfaces.events.StaffDeactivatedIntegrationEvent;
+import com.iotech.qualitrack.platform.laboratory.interfaces.events.StaffRegisteredIntegrationEvent;
+import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.AuditAction;
+import com.iotech.qualitrack.platform.ra.interfaces.acl.RaContextFacade;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Service;
+
+/**
+ * Handles Laboratory integration events and records audit logs in RA.
+ */
+@Service
+@Slf4j
+public class LaboratoryAuditEventHandler {
+
+    private final com.iotech.qualitrack.platform.shared.application.security.CurrentUser currentUser;
+
+    private final RaContextFacade raContextFacade;
+
+    public LaboratoryAuditEventHandler(RaContextFacade raContextFacade,
+            com.iotech.qualitrack.platform.shared.application.security.CurrentUser currentUser) {
+        this.currentUser = currentUser;
+        this.raContextFacade = raContextFacade;
+    }
+
+    @EventListener(LaboratoryRegisteredIntegrationEvent.class)
+    public void on(LaboratoryRegisteredIntegrationEvent event) {
+        log.info("RA received laboratory registered event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.REGISTER,
+                "LABORATORY",
+                event.laboratoryId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(ProductCreatedIntegrationEvent.class)
+    public void on(ProductCreatedIntegrationEvent event) {
+        log.info("RA received product created event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.REGISTER,
+                "PHARMACEUTICAL_PRODUCT",
+                event.productId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(RawMaterialCreatedIntegrationEvent.class)
+    public void on(RawMaterialCreatedIntegrationEvent event) {
+        log.info("RA received raw material created event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.REGISTER,
+                "RAW_MATERIAL",
+                event.rawMaterialId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(StaffRegisteredIntegrationEvent.class)
+    public void on(StaffRegisteredIntegrationEvent event) {
+        log.info("RA received staff registered event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.REGISTER,
+                "STAFF_MEMBER",
+                event.staffMemberId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(StaffDeactivatedIntegrationEvent.class)
+    public void on(StaffDeactivatedIntegrationEvent event) {
+        log.info("RA received staff deactivated event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.UPDATE,
+                "STAFF_MEMBER",
+                event.staffMemberId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(RawMaterialLowStockIntegrationEvent.class)
+    public void on(RawMaterialLowStockIntegrationEvent event) {
+        log.info("RA received raw material low stock event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.UPDATE,
+                "RAW_MATERIAL",
+                event.rawMaterialId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+}

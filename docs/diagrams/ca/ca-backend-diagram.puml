@@ -1,0 +1,450 @@
+@startuml ca-backend-diagram
+
+title QualiTrack - Compliance and Alerts Backend Class Diagram
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "shared" <<External>> {
+  abstract class AbstractDomainAggregateRoot
+  abstract class AuditableAbstractPersistenceEntity
+  class ApplicationError
+  class Result
+  class ResponseEntityAssembler
+}
+
+package "spring" <<External>> {
+  class ApplicationEventPublisher
+  interface JpaRepository
+  interface AttributeConverter
+}
+
+package "batch" <<External>> {
+  interface BatchRepository
+}
+
+package "equipment" <<External>> {
+  interface EquipmentRepository
+}
+
+package "ca.domain.model.valueobjects" {
+  enum AlertSeverity {
+    LOW
+    WARNING
+    CRITICAL
+  }
+
+  enum AlertStatus {
+    UNRESOLVED
+    ACKNOWLEDGED
+    RESOLVED
+  }
+
+  enum ComplianceEventType {
+    DEVIATION_ALERT_CREATED
+    DEVIATION_ALERT_ACKNOWLEDGED
+    DEVIATION_ALERT_RESOLVED
+    NOTIFICATION_PREFERENCE_UPDATED
+    BATCH_BLOCKED
+    BATCH_RELEASED
+    BATCH_REJECTED
+    RAW_MATERIAL_LOW_STOCK
+    EQUIPMENT_CALIBRATION_EXPIRED
+    EQUIPMENT_DEVIATION_DETECTED
+  }
+}
+
+package "ca.domain.model.commands" {
+  class CreateDeviationAlertCommand <<record>> {
+    + equipmentId: Long
+    + batchId: Long
+    + parameterName: String
+    + recordedValue: Double
+    + thresholdValue: Double
+    + unit: String
+    + timestamp: String
+    + severity: AlertSeverity
+  }
+
+  class AcknowledgeAlertCommand <<record>> {
+    + alertId: Long
+    + acknowledgedBy: Long
+  }
+
+  class ResolveAlertCommand <<record>> {
+    + alertId: Long
+    + resolvedBy: Long
+    + resolutionNotes: String
+  }
+
+  class UpdateNotificationPreferenceCommand <<record>> {
+    + userId: Long
+    + emailEnabled: Boolean
+    + smsEnabled: Boolean
+    + inAppEnabled: Boolean
+    + minimumSeverity: AlertSeverity
+  }
+}
+
+package "ca.domain.model.queries" {
+  class GetAlertsQuery <<record>> {
+    + equipmentId: Long
+    + batchId: Long
+    + status: AlertStatus
+    + severity: AlertSeverity
+  }
+
+  class GetAlertByIdQuery <<record>> {
+    + alertId: Long
+  }
+
+  class GetComplianceEventsByRelatedEntityIdQuery <<record>> {
+    + relatedEntityId: Long
+  }
+
+  class GetNotificationPreferenceByUserIdQuery <<record>> {
+    + userId: Long
+  }
+}
+
+package "ca.domain.model.events" {
+  class DeviationAlertCreatedEvent <<record>>
+  class DeviationAlertAcknowledgedEvent <<record>>
+  class DeviationAlertResolvedEvent <<record>>
+  class NotificationPreferenceUpdatedEvent <<record>>
+}
+
+package "ca.domain.model.aggregates" {
+  class DeviationAlert {
+    - id: Long
+    - equipmentId: Long
+    - batchId: Long
+    - parameterName: String
+    - recordedValue: Double
+    - thresholdValue: Double
+    - unit: String
+    - timestamp: String
+    - severity: AlertSeverity
+    - status: AlertStatus
+    - acknowledgedBy: Long
+    - resolvedBy: Long
+    - resolutionNotes: String
+    + acknowledge(command: AcknowledgeAlertCommand): void
+    + resolve(command: ResolveAlertCommand): void
+    + isUnresolved(): boolean
+    + isCritical(): boolean
+  }
+}
+
+package "ca.domain.model.entities" {
+  class ComplianceEvent {
+    - id: Long
+    - relatedEntityId: Long
+    - eventType: ComplianceEventType
+    - description: String
+    - timestamp: String
+    - resolvedBy: Long
+    + isResolved(): boolean
+    + isUnresolved(): boolean
+    + resolve(resolverId: Long): void
+  }
+
+  class NotificationPreference {
+    - id: Long
+    - userId: Long
+    - emailEnabled: Boolean
+    - smsEnabled: Boolean
+    - inAppEnabled: Boolean
+    - minimumSeverity: AlertSeverity
+    + update(command: UpdateNotificationPreferenceCommand): void
+  }
+}
+
+DeviationAlert --|> AbstractDomainAggregateRoot
+DeviationAlert --> AlertSeverity
+DeviationAlert --> AlertStatus
+DeviationAlert ..> CreateDeviationAlertCommand
+DeviationAlert ..> AcknowledgeAlertCommand
+DeviationAlert ..> ResolveAlertCommand
+
+ComplianceEvent --> ComplianceEventType
+NotificationPreference --> AlertSeverity
+NotificationPreference ..> UpdateNotificationPreferenceCommand
+
+package "ca.domain.repositories" {
+  interface DeviationAlertRepository {
+    + findById(id: Long): Optional<DeviationAlert>
+    + findAll(): List<DeviationAlert>
+    + findAllByEquipmentId(equipmentId: Long): List<DeviationAlert>
+    + findAllByBatchId(batchId: Long): List<DeviationAlert>
+    + findAllByStatus(status: AlertStatus): List<DeviationAlert>
+    + findAllBySeverity(severity: AlertSeverity): List<DeviationAlert>
+    + save(alert: DeviationAlert): DeviationAlert
+    + existsById(id: Long): boolean
+    + deleteById(id: Long): void
+  }
+
+  interface ComplianceEventRepository {
+    + findById(id: Long): Optional<ComplianceEvent>
+    + findAll(): List<ComplianceEvent>
+    + findAllByRelatedEntityId(relatedEntityId: Long): List<ComplianceEvent>
+    + findAllByEventType(eventType: ComplianceEventType): List<ComplianceEvent>
+    + save(complianceEvent: ComplianceEvent): ComplianceEvent
+    + existsById(id: Long): boolean
+    + deleteById(id: Long): void
+  }
+
+  interface NotificationPreferenceRepository {
+    + findById(id: Long): Optional<NotificationPreference>
+    + findByUserId(userId: Long): Optional<NotificationPreference>
+    + findAll(): List<NotificationPreference>
+    + save(preference: NotificationPreference): NotificationPreference
+    + existsById(id: Long): boolean
+    + existsByUserId(userId: Long): boolean
+    + deleteById(id: Long): void
+  }
+}
+
+DeviationAlertRepository --> DeviationAlert
+ComplianceEventRepository --> ComplianceEvent
+NotificationPreferenceRepository --> NotificationPreference
+
+package "ca.domain.exceptions" {
+  class DeviationAlertNotFoundException
+  class ComplianceEventNotFoundException
+  class NotificationPreferenceNotFoundException
+}
+
+package "ca.application.commandservices" {
+  interface CaCommandService {
+    + handle(command: CreateDeviationAlertCommand): Result<Long, ApplicationError>
+    + handle(command: AcknowledgeAlertCommand): Result<Long, ApplicationError>
+    + handle(command: ResolveAlertCommand): Result<Long, ApplicationError>
+    + handle(command: UpdateNotificationPreferenceCommand): Result<NotificationPreference, ApplicationError>
+  }
+}
+
+package "ca.application.queryservices" {
+  interface CaQueryService {
+    + handle(query: GetAlertsQuery): List<DeviationAlert>
+    + handle(query: GetAlertByIdQuery): Optional<DeviationAlert>
+    + handle(query: GetComplianceEventsByRelatedEntityIdQuery): List<ComplianceEvent>
+    + handle(query: GetNotificationPreferenceByUserIdQuery): Optional<NotificationPreference>
+  }
+}
+
+CaCommandService ..> Result
+CaCommandService ..> ApplicationError
+CaQueryService ..> DeviationAlert
+CaQueryService ..> ComplianceEvent
+CaQueryService ..> NotificationPreference
+
+package "ca.application.internal.commandservices" {
+  class CaCommandServiceImpl
+}
+
+package "ca.application.internal.queryservices" {
+  class CaQueryServiceImpl
+}
+
+CaCommandServiceImpl ..|> CaCommandService
+CaCommandServiceImpl --> DeviationAlertRepository
+CaCommandServiceImpl --> ComplianceEventRepository
+CaCommandServiceImpl --> NotificationPreferenceRepository
+CaCommandServiceImpl --> ApplicationEventPublisher
+
+CaQueryServiceImpl ..|> CaQueryService
+CaQueryServiceImpl --> DeviationAlertRepository
+CaQueryServiceImpl --> ComplianceEventRepository
+CaQueryServiceImpl --> NotificationPreferenceRepository
+
+package "ca.application.internal.outboundservices.acl" {
+  class CaExternalBatchService {
+    + existsBatchById(batchId: Long): boolean
+  }
+
+  class CaExternalEquipmentService {
+    + existsEquipmentById(equipmentId: Long): boolean
+  }
+}
+
+CaCommandServiceImpl --> CaExternalBatchService
+CaCommandServiceImpl --> CaExternalEquipmentService
+CaExternalBatchService --> BatchRepository
+CaExternalEquipmentService --> EquipmentRepository
+
+package "ca.application.internal.eventhandlers" {
+  class BatchRejectedComplianceEventHandler
+  class BatchReleasedComplianceEventHandler
+  class CalibrationExpiredEventHandler
+  class DeviationAlertAcknowledgedEventHandler
+  class DeviationAlertCreatedEventHandler
+  class DeviationAlertResolvedEventHandler
+  class NotificationPreferenceUpdatedEventHandler
+  class RawMaterialLowStockComplianceEventHandler
+  class TelemetryAnomalyDetectedComplianceEventHandler
+}
+
+BatchRejectedComplianceEventHandler --> ComplianceEventRepository
+BatchReleasedComplianceEventHandler --> ComplianceEventRepository
+RawMaterialLowStockComplianceEventHandler --> ComplianceEventRepository
+CalibrationExpiredEventHandler --> CaCommandService
+TelemetryAnomalyDetectedComplianceEventHandler --> CaCommandService
+
+DeviationAlertCreatedEventHandler ..> DeviationAlertCreatedEvent
+DeviationAlertAcknowledgedEventHandler ..> DeviationAlertAcknowledgedEvent
+DeviationAlertResolvedEventHandler ..> DeviationAlertResolvedEvent
+NotificationPreferenceUpdatedEventHandler ..> NotificationPreferenceUpdatedEvent
+
+package "ca.interfaces.events" {
+  class DeviationAlertCreatedIntegrationEvent <<record>>
+  class DeviationAlertAcknowledgedIntegrationEvent <<record>>
+  class DeviationAlertResolvedIntegrationEvent <<record>>
+  class NotificationPreferenceUpdatedIntegrationEvent <<record>>
+}
+
+DeviationAlertCreatedEventHandler ..> DeviationAlertCreatedIntegrationEvent
+DeviationAlertAcknowledgedEventHandler ..> DeviationAlertAcknowledgedIntegrationEvent
+DeviationAlertResolvedEventHandler ..> DeviationAlertResolvedIntegrationEvent
+NotificationPreferenceUpdatedEventHandler ..> NotificationPreferenceUpdatedIntegrationEvent
+
+package "ca.interfaces.acl" {
+  class ComplianceContextFacade {
+    + recordRawMaterialLowStockEvent(rawMaterialId: Long, laboratoryId: Long, materialName: String, currentStock: Integer, minimumThreshold: Integer): void
+    + canReleaseBatch(batchId: Long): boolean
+  }
+}
+
+ComplianceContextFacade --> ComplianceEventRepository
+
+package "ca.infrastructure.persistence.jpa.entities" {
+  class DeviationAlertPersistenceEntity
+  class ComplianceEventPersistenceEntity
+  class NotificationPreferencePersistenceEntity
+}
+
+DeviationAlertPersistenceEntity --|> AuditableAbstractPersistenceEntity
+ComplianceEventPersistenceEntity --|> AuditableAbstractPersistenceEntity
+NotificationPreferencePersistenceEntity --|> AuditableAbstractPersistenceEntity
+
+package "ca.infrastructure.persistence.jpa.repositories" {
+  interface DeviationAlertPersistenceRepository
+  interface ComplianceEventPersistenceRepository
+  interface NotificationPreferencePersistenceRepository
+}
+
+DeviationAlertPersistenceRepository --|> JpaRepository
+ComplianceEventPersistenceRepository --|> JpaRepository
+NotificationPreferencePersistenceRepository --|> JpaRepository
+
+DeviationAlertPersistenceRepository --> DeviationAlertPersistenceEntity
+ComplianceEventPersistenceRepository --> ComplianceEventPersistenceEntity
+NotificationPreferencePersistenceRepository --> NotificationPreferencePersistenceEntity
+
+package "ca.infrastructure.persistence.jpa.assemblers" {
+  class DeviationAlertPersistenceAssembler
+  class ComplianceEventPersistenceAssembler
+  class NotificationPreferencePersistenceAssembler
+}
+
+DeviationAlertPersistenceAssembler ..> DeviationAlert
+DeviationAlertPersistenceAssembler ..> DeviationAlertPersistenceEntity
+ComplianceEventPersistenceAssembler ..> ComplianceEvent
+ComplianceEventPersistenceAssembler ..> ComplianceEventPersistenceEntity
+NotificationPreferencePersistenceAssembler ..> NotificationPreference
+NotificationPreferencePersistenceAssembler ..> NotificationPreferencePersistenceEntity
+
+package "ca.infrastructure.persistence.jpa.adapters" {
+  class DeviationAlertRepositoryImpl
+  class ComplianceEventRepositoryImpl
+  class NotificationPreferenceRepositoryImpl
+}
+
+DeviationAlertRepositoryImpl ..|> DeviationAlertRepository
+ComplianceEventRepositoryImpl ..|> ComplianceEventRepository
+NotificationPreferenceRepositoryImpl ..|> NotificationPreferenceRepository
+
+DeviationAlertRepositoryImpl --> DeviationAlertPersistenceRepository
+DeviationAlertRepositoryImpl --> DeviationAlertPersistenceAssembler
+ComplianceEventRepositoryImpl --> ComplianceEventPersistenceRepository
+ComplianceEventRepositoryImpl --> ComplianceEventPersistenceAssembler
+NotificationPreferenceRepositoryImpl --> NotificationPreferencePersistenceRepository
+NotificationPreferenceRepositoryImpl --> NotificationPreferencePersistenceAssembler
+
+package "ca.infrastructure.persistence.jpa.converters" {
+  class AlertSeverityPersistenceConverter
+  class AlertStatusPersistenceConverter
+  class ComplianceEventTypePersistenceConverter
+}
+
+AlertSeverityPersistenceConverter ..|> AttributeConverter
+AlertStatusPersistenceConverter ..|> AttributeConverter
+ComplianceEventTypePersistenceConverter ..|> AttributeConverter
+
+AlertSeverityPersistenceConverter ..> AlertSeverity
+AlertStatusPersistenceConverter ..> AlertStatus
+ComplianceEventTypePersistenceConverter ..> ComplianceEventType
+
+package "ca.interfaces.rest.resources" {
+  class CreateDeviationAlertResource <<record>>
+  class DeviationAlertResource <<record>>
+  class AcknowledgeAlertResource <<record>>
+  class ResolveAlertResource <<record>>
+  class ComplianceEventResource <<record>>
+  class NotificationPreferenceResource <<record>>
+  class UpdateNotificationPreferenceResource <<record>>
+}
+
+package "ca.interfaces.rest.transform" {
+  class CreateDeviationAlertCommandFromResourceAssembler
+  class DeviationAlertResourceFromEntityAssembler
+  class AcknowledgeAlertCommandFromResourceAssembler
+  class ResolveAlertCommandFromResourceAssembler
+  class ComplianceEventResourceFromEntityAssembler
+  class NotificationPreferenceResourceFromEntityAssembler
+  class UpdateNotificationPreferenceCommandFromResourceAssembler
+}
+
+CreateDeviationAlertCommandFromResourceAssembler ..> CreateDeviationAlertResource
+CreateDeviationAlertCommandFromResourceAssembler ..> CreateDeviationAlertCommand
+DeviationAlertResourceFromEntityAssembler ..> DeviationAlert
+DeviationAlertResourceFromEntityAssembler ..> DeviationAlertResource
+
+AcknowledgeAlertCommandFromResourceAssembler ..> AcknowledgeAlertResource
+AcknowledgeAlertCommandFromResourceAssembler ..> AcknowledgeAlertCommand
+ResolveAlertCommandFromResourceAssembler ..> ResolveAlertResource
+ResolveAlertCommandFromResourceAssembler ..> ResolveAlertCommand
+
+ComplianceEventResourceFromEntityAssembler ..> ComplianceEvent
+ComplianceEventResourceFromEntityAssembler ..> ComplianceEventResource
+NotificationPreferenceResourceFromEntityAssembler ..> NotificationPreference
+NotificationPreferenceResourceFromEntityAssembler ..> NotificationPreferenceResource
+UpdateNotificationPreferenceCommandFromResourceAssembler ..> UpdateNotificationPreferenceResource
+UpdateNotificationPreferenceCommandFromResourceAssembler ..> UpdateNotificationPreferenceCommand
+
+package "ca.interfaces.rest" {
+  class DeviationAlertController
+  class ComplianceEventController
+  class NotificationPreferenceController
+}
+
+DeviationAlertController --> CaCommandService
+DeviationAlertController --> CaQueryService
+DeviationAlertController ..> ResponseEntityAssembler
+DeviationAlertController ..> CreateDeviationAlertCommandFromResourceAssembler
+DeviationAlertController ..> DeviationAlertResourceFromEntityAssembler
+DeviationAlertController ..> AcknowledgeAlertCommandFromResourceAssembler
+DeviationAlertController ..> ResolveAlertCommandFromResourceAssembler
+
+ComplianceEventController --> CaQueryService
+ComplianceEventController ..> ComplianceEventResourceFromEntityAssembler
+
+NotificationPreferenceController --> CaCommandService
+NotificationPreferenceController --> CaQueryService
+NotificationPreferenceController ..> NotificationPreferenceResourceFromEntityAssembler
+NotificationPreferenceController ..> UpdateNotificationPreferenceCommandFromResourceAssembler
+NotificationPreferenceController ..> ResponseEntityAssembler
+
+@enduml

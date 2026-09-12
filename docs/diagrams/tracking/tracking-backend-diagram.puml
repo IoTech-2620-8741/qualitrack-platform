@@ -1,0 +1,448 @@
+@startuml tracking-backend-diagram
+
+title QualiTrack - Tracking Backend Class Diagram
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "shared" <<External>> {
+  abstract class AbstractDomainAggregateRoot
+  abstract class AuditableAbstractPersistenceEntity
+  class ApplicationError
+  class Result
+  class ResponseEntityAssembler
+}
+
+package "spring" <<External>> {
+  class ApplicationEventPublisher
+  interface JpaRepository
+  interface AttributeConverter
+}
+
+package "external bounded contexts" <<External>> {
+  interface RaContextFacade
+  interface CaCommandService
+  interface EquipmentRepository
+  interface BpmParameterConfigRepository
+  class BpmParameterConfig
+}
+
+package "tracking.domain.model.valueobjects" {
+  enum TelemetryParameterType {
+    TEMPERATURE
+    HUMIDITY
+    PRESSURE
+    RPM
+    VOLTAGE
+    CUSTOM
+  }
+
+  enum TelemetryStatus {
+    OPERATIONAL
+    WARNING
+    CRITICAL
+    OFFLINE
+  }
+}
+
+package "tracking.domain.model.commands" {
+  class RecordMeasurementCommand <<record>> {
+    + equipmentId: Long
+    + parameterName: String
+    + value: Double
+    + unit: String
+    + timestamp: String
+  }
+
+  class RecordTelemetryHistoryPointCommand <<record>> {
+    + equipmentId: Long
+    + parameterName: String
+    + recordedValue: Double
+    + timestamp: String
+    + isAnomaly: Boolean
+  }
+
+  class UpdateEquipmentTelemetryStatusCommand <<record>> {
+    + equipmentId: Long
+    + isOnline: Boolean
+    + currentStatus: TelemetryStatus
+    + lastHeartbeat: String
+  }
+}
+
+package "tracking.domain.model.queries" {
+  class GetLatestMeasurementsQuery <<record>> {
+    + equipmentId: Long
+  }
+
+  class GetEquipmentTelemetryStatusByEquipmentIdQuery <<record>> {
+    + equipmentId: Long
+  }
+
+  class GetTelemetryHistoryQuery <<record>> {
+    + equipmentId: Long
+    + from: String
+    + to: String
+  }
+}
+
+package "tracking.domain.model.aggregates" {
+  class EquipmentTelemetry {
+    - id: Long
+    - equipmentId: Long
+    - status: EquipmentTelemetryStatus
+    - measurements: List<Measurement>
+    - historyPoints: List<TelemetryHistoryPoint>
+    + createForEquipment(equipmentId: Long): EquipmentTelemetry
+    + recordMeasurement(measurement: Measurement): void
+    + recordHistoryPoint(historyPoint: TelemetryHistoryPoint): void
+    + updateStatus(status: EquipmentTelemetryStatus): void
+    + hasAnomalies(): boolean
+    + anomalyCount(): long
+    + isOnline(): boolean
+  }
+}
+
+package "tracking.domain.model.entities" {
+  class Measurement {
+    - id: Long
+    - equipmentId: Long
+    - parameterName: String
+    - value: Double
+    - unit: String
+    - timestamp: String
+    - createdAt: String
+    + record(equipmentId: Long, parameterName: String, value: Double, unit: String, timestamp: String): Measurement
+  }
+
+  class TelemetryHistoryPoint {
+    - id: Long
+    - equipmentId: Long
+    - parameterName: String
+    - recordedValue: Double
+    - timestamp: String
+    - isAnomaly: Boolean
+    - createdAt: String
+    + record(equipmentId: Long, parameterName: String, recordedValue: Double, timestamp: String, isAnomaly: Boolean): TelemetryHistoryPoint
+    + isAnomaly(): boolean
+  }
+
+  class EquipmentTelemetryStatus {
+    - id: Long
+    - equipmentId: Long
+    - isOnline: Boolean
+    - currentStatus: TelemetryStatus
+    - lastHeartbeat: String
+    - createdAt: String
+    + update(equipmentId: Long, isOnline: Boolean, currentStatus: TelemetryStatus, lastHeartbeat: String): EquipmentTelemetryStatus
+    + isOperational(): boolean
+    + requiresAttention(): boolean
+  }
+}
+
+EquipmentTelemetry --|> AbstractDomainAggregateRoot
+EquipmentTelemetry *-- EquipmentTelemetryStatus
+EquipmentTelemetry *-- Measurement
+EquipmentTelemetry *-- TelemetryHistoryPoint
+
+EquipmentTelemetryStatus --> TelemetryStatus
+UpdateEquipmentTelemetryStatusCommand --> TelemetryStatus
+
+package "tracking.domain.model.events" {
+  class MeasurementRecordedEvent <<record>>
+  class TelemetryHistoryPointRecordedEvent <<record>>
+  class TelemetryAnomalyDetectedEvent <<record>>
+  class EquipmentTelemetryStatusUpdatedEvent <<record>>
+}
+
+EquipmentTelemetryStatusUpdatedEvent --> TelemetryStatus
+
+package "tracking.domain.repositories" {
+  interface EquipmentTelemetryRepository {
+    + findById(id: Long): Optional<EquipmentTelemetry>
+    + findByEquipmentId(equipmentId: Long): Optional<EquipmentTelemetry>
+    + save(equipmentTelemetry: EquipmentTelemetry): EquipmentTelemetry
+    + existsByEquipmentId(equipmentId: Long): boolean
+  }
+
+  interface MeasurementRepository {
+    + findById(id: Long): Optional<Measurement>
+    + findLatest(): List<Measurement>
+    + findLatestByEquipmentId(equipmentId: Long): List<Measurement>
+    + save(measurement: Measurement): Measurement
+    + existsById(id: Long): boolean
+  }
+
+  interface TelemetryHistoryPointRepository {
+    + findById(id: Long): Optional<TelemetryHistoryPoint>
+    + findByFilters(equipmentId: Long, from: String, to: String): List<TelemetryHistoryPoint>
+    + findAllByEquipmentId(equipmentId: Long): List<TelemetryHistoryPoint>
+    + findAllAnomaliesByEquipmentId(equipmentId: Long): List<TelemetryHistoryPoint>
+    + save(historyPoint: TelemetryHistoryPoint): TelemetryHistoryPoint
+    + existsById(id: Long): boolean
+  }
+
+  interface EquipmentTelemetryStatusRepository {
+    + findById(id: Long): Optional<EquipmentTelemetryStatus>
+    + findLatestByEquipmentId(equipmentId: Long): Optional<EquipmentTelemetryStatus>
+    + findAllLatest(): List<EquipmentTelemetryStatus>
+    + save(status: EquipmentTelemetryStatus): EquipmentTelemetryStatus
+    + existsById(id: Long): boolean
+  }
+}
+
+EquipmentTelemetryRepository --> EquipmentTelemetry
+MeasurementRepository --> Measurement
+TelemetryHistoryPointRepository --> TelemetryHistoryPoint
+EquipmentTelemetryStatusRepository --> EquipmentTelemetryStatus
+
+package "tracking.domain.exceptions" {
+  class EquipmentTelemetryNotFoundException
+  class EquipmentTelemetryStatusNotFoundException
+  class InvalidTelemetryDataException
+  class MeasurementNotFoundException
+  class MeasurementsNotFoundForEquipmentException
+  class TelemetryHistoryNotFoundForEquipmentException
+  class TelemetryHistoryPointNotFoundException
+}
+
+package "tracking.application.commandservices" {
+  interface TrackingCommandService {
+    + handle(command: RecordMeasurementCommand): Result<Long, ApplicationError>
+    + handle(command: RecordTelemetryHistoryPointCommand): Result<Long, ApplicationError>
+    + handle(command: UpdateEquipmentTelemetryStatusCommand): Result<Long, ApplicationError>
+  }
+}
+
+package "tracking.application.queryservices" {
+  interface TrackingQueryService {
+    + handle(query: GetLatestMeasurementsQuery): List<Measurement>
+    + handle(query: GetEquipmentTelemetryStatusByEquipmentIdQuery): Optional<EquipmentTelemetryStatus>
+    + handle(query: GetTelemetryHistoryQuery): List<TelemetryHistoryPoint>
+  }
+}
+
+TrackingCommandService ..> Result
+TrackingCommandService ..> ApplicationError
+
+package "tracking.application.internal.commandservices" {
+  class TrackingCommandServiceImpl
+}
+
+TrackingCommandServiceImpl ..|> TrackingCommandService
+TrackingCommandServiceImpl --> MeasurementRepository
+TrackingCommandServiceImpl --> EquipmentTelemetryStatusRepository
+TrackingCommandServiceImpl --> TelemetryHistoryPointRepository
+TrackingCommandServiceImpl --> EquipmentTelemetryRepository
+TrackingCommandServiceImpl --> ApplicationEventPublisher
+TrackingCommandServiceImpl ..> MeasurementRecordedEvent
+TrackingCommandServiceImpl ..> TelemetryHistoryPointRecordedEvent
+TrackingCommandServiceImpl ..> TelemetryAnomalyDetectedEvent
+TrackingCommandServiceImpl ..> EquipmentTelemetryStatusUpdatedEvent
+
+package "tracking.application.internal.queryservices" {
+  class TrackingQueryServiceImpl
+}
+
+TrackingQueryServiceImpl ..|> TrackingQueryService
+TrackingQueryServiceImpl --> MeasurementRepository
+TrackingQueryServiceImpl --> EquipmentTelemetryStatusRepository
+TrackingQueryServiceImpl --> TelemetryHistoryPointRepository
+
+package "tracking.application.internal.outboundservices.acl" {
+  class TrackingExternalAuditService {
+    + recordMeasurementAudit(measurementId: Long, equipmentId: Long): boolean
+    + recordStatusUpdateAudit(statusId: Long, equipmentId: Long): boolean
+    + recordHistoryPointAudit(historyPointId: Long, equipmentId: Long): boolean
+  }
+
+  class TrackingExternalComplianceService {
+    + createTelemetryDeviationAlert(equipmentId: Long, parameterName: String, recordedValue: Double, thresholdValue: Double, unit: String, timestamp: String, severity: AlertSeverity): boolean
+  }
+
+  class TrackingExternalEquipmentService {
+    + existsEquipmentById(equipmentId: Long): boolean
+    + findBpmConfigByEquipmentAndParameter(equipmentId: Long, parameterName: String): Optional<BpmParameterConfig>
+    + isTelemetryValueOutOfRange(equipmentId: Long, parameterName: String, value: Double): boolean
+    + resolveExceededThreshold(equipmentId: Long, parameterName: String, value: Double): Optional<Double>
+  }
+}
+
+TrackingExternalAuditService --> RaContextFacade
+TrackingExternalComplianceService --> CaCommandService
+TrackingExternalEquipmentService --> EquipmentRepository
+TrackingExternalEquipmentService --> BpmParameterConfigRepository
+TrackingExternalEquipmentService --> BpmParameterConfig
+
+package "tracking.application.internal.eventhandlers" {
+  class MeasurementRecordedEventHandler
+  class TelemetryHistoryPointRecordedEventHandler
+  class TelemetryAnomalyDetectedEventHandler
+  class EquipmentTelemetryStatusUpdatedEventHandler
+}
+
+MeasurementRecordedEventHandler ..> MeasurementRecordedEvent
+TelemetryHistoryPointRecordedEventHandler ..> TelemetryHistoryPointRecordedEvent
+TelemetryAnomalyDetectedEventHandler ..> TelemetryAnomalyDetectedEvent
+EquipmentTelemetryStatusUpdatedEventHandler ..> EquipmentTelemetryStatusUpdatedEvent
+
+MeasurementRecordedEventHandler --> TrackingExternalAuditService
+TelemetryHistoryPointRecordedEventHandler --> TrackingExternalAuditService
+TelemetryAnomalyDetectedEventHandler --> TrackingExternalComplianceService
+TelemetryAnomalyDetectedEventHandler --> TrackingExternalEquipmentService
+EquipmentTelemetryStatusUpdatedEventHandler --> TrackingExternalAuditService
+
+package "tracking.application.acl" {
+  class TrackingContextFacadeImpl
+}
+
+package "tracking.interfaces.acl" {
+  interface TrackingContextFacade {
+    + getLatestMeasurementsByEquipmentId(equipmentId: Long): List<Measurement>
+    + getEquipmentStatusByEquipmentId(equipmentId: Long): Optional<EquipmentTelemetryStatus>
+    + getTelemetryHistoryByEquipmentId(equipmentId: Long): List<TelemetryHistoryPoint>
+    + hasAnomaliesByEquipmentId(equipmentId: Long): boolean
+  }
+}
+
+TrackingContextFacadeImpl ..|> TrackingContextFacade
+TrackingContextFacadeImpl --> TrackingQueryService
+
+package "tracking.interfaces.events" {
+  class MeasurementRecordedIntegrationEvent <<record>>
+  class TelemetryHistoryPointRecordedIntegrationEvent <<record>>
+  class TelemetryAnomalyDetectedIntegrationEvent <<record>>
+  class EquipmentTelemetryStatusUpdatedIntegrationEvent <<record>>
+}
+
+EquipmentTelemetryStatusUpdatedIntegrationEvent --> TelemetryStatus
+MeasurementRecordedEventHandler ..> MeasurementRecordedIntegrationEvent
+TelemetryHistoryPointRecordedEventHandler ..> TelemetryHistoryPointRecordedIntegrationEvent
+TelemetryAnomalyDetectedEventHandler ..> TelemetryAnomalyDetectedIntegrationEvent
+EquipmentTelemetryStatusUpdatedEventHandler ..> EquipmentTelemetryStatusUpdatedIntegrationEvent
+
+package "tracking.infrastructure.persistence.jpa.entities" {
+  class EquipmentTelemetryPersistenceEntity
+  class MeasurementPersistenceEntity
+  class TelemetryHistoryPointPersistenceEntity
+  class EquipmentTelemetryStatusPersistenceEntity
+}
+
+EquipmentTelemetryPersistenceEntity --|> AuditableAbstractPersistenceEntity
+MeasurementPersistenceEntity --|> AuditableAbstractPersistenceEntity
+TelemetryHistoryPointPersistenceEntity --|> AuditableAbstractPersistenceEntity
+EquipmentTelemetryStatusPersistenceEntity --|> AuditableAbstractPersistenceEntity
+EquipmentTelemetryStatusPersistenceEntity --> TelemetryStatus
+
+package "tracking.infrastructure.persistence.jpa.repositories" {
+  interface EquipmentTelemetryPersistenceRepository
+  interface MeasurementPersistenceRepository
+  interface TelemetryHistoryPointPersistenceRepository
+  interface EquipmentTelemetryStatusPersistenceRepository
+}
+
+EquipmentTelemetryPersistenceRepository --|> JpaRepository
+MeasurementPersistenceRepository --|> JpaRepository
+TelemetryHistoryPointPersistenceRepository --|> JpaRepository
+EquipmentTelemetryStatusPersistenceRepository --|> JpaRepository
+
+EquipmentTelemetryPersistenceRepository --> EquipmentTelemetryPersistenceEntity
+MeasurementPersistenceRepository --> MeasurementPersistenceEntity
+TelemetryHistoryPointPersistenceRepository --> TelemetryHistoryPointPersistenceEntity
+EquipmentTelemetryStatusPersistenceRepository --> EquipmentTelemetryStatusPersistenceEntity
+
+package "tracking.infrastructure.persistence.jpa.assemblers" {
+  class EquipmentTelemetryPersistenceAssembler
+  class MeasurementPersistenceAssembler
+  class TelemetryHistoryPointPersistenceAssembler
+  class EquipmentTelemetryStatusPersistenceAssembler
+}
+
+EquipmentTelemetryPersistenceAssembler ..> EquipmentTelemetry
+EquipmentTelemetryPersistenceAssembler ..> EquipmentTelemetryPersistenceEntity
+MeasurementPersistenceAssembler ..> Measurement
+MeasurementPersistenceAssembler ..> MeasurementPersistenceEntity
+TelemetryHistoryPointPersistenceAssembler ..> TelemetryHistoryPoint
+TelemetryHistoryPointPersistenceAssembler ..> TelemetryHistoryPointPersistenceEntity
+EquipmentTelemetryStatusPersistenceAssembler ..> EquipmentTelemetryStatus
+EquipmentTelemetryStatusPersistenceAssembler ..> EquipmentTelemetryStatusPersistenceEntity
+
+package "tracking.infrastructure.persistence.jpa.adapters" {
+  class EquipmentTelemetryRepositoryImpl
+  class MeasurementRepositoryImpl
+  class TelemetryHistoryPointRepositoryImpl
+  class EquipmentTelemetryStatusRepositoryImpl
+}
+
+EquipmentTelemetryRepositoryImpl ..|> EquipmentTelemetryRepository
+MeasurementRepositoryImpl ..|> MeasurementRepository
+TelemetryHistoryPointRepositoryImpl ..|> TelemetryHistoryPointRepository
+EquipmentTelemetryStatusRepositoryImpl ..|> EquipmentTelemetryStatusRepository
+
+EquipmentTelemetryRepositoryImpl --> EquipmentTelemetryPersistenceRepository
+EquipmentTelemetryRepositoryImpl --> EquipmentTelemetryPersistenceAssembler
+MeasurementRepositoryImpl --> MeasurementPersistenceRepository
+MeasurementRepositoryImpl --> MeasurementPersistenceAssembler
+TelemetryHistoryPointRepositoryImpl --> TelemetryHistoryPointPersistenceRepository
+TelemetryHistoryPointRepositoryImpl --> TelemetryHistoryPointPersistenceAssembler
+EquipmentTelemetryStatusRepositoryImpl --> EquipmentTelemetryStatusPersistenceRepository
+EquipmentTelemetryStatusRepositoryImpl --> EquipmentTelemetryStatusPersistenceAssembler
+
+package "tracking.infrastructure.persistence.jpa.converters" {
+  class TelemetryStatusPersistenceConverter
+}
+
+TelemetryStatusPersistenceConverter ..|> AttributeConverter
+TelemetryStatusPersistenceConverter ..> TelemetryStatus
+
+package "tracking.interfaces.rest.resources" {
+  class MeasurementResource <<record>>
+  class EquipmentTelemetryStatusResource <<record>>
+  class TelemetryHistoryPointResource <<record>>
+  class RecordMeasurementResource <<record>>
+  class UpdateEquipmentTelemetryStatusResource <<record>>
+  class RecordTelemetryHistoryPointResource <<record>>
+}
+
+EquipmentTelemetryStatusResource --> TelemetryStatus
+UpdateEquipmentTelemetryStatusResource --> TelemetryStatus
+
+package "tracking.interfaces.rest.transform" {
+  class MeasurementResourceFromEntityAssembler
+  class EquipmentTelemetryStatusResourceFromEntityAssembler
+  class TelemetryHistoryPointResourceFromEntityAssembler
+  class RecordMeasurementCommandFromResourceAssembler
+  class UpdateEquipmentTelemetryStatusCommandFromResourceAssembler
+  class RecordTelemetryHistoryPointCommandFromResourceAssembler
+}
+
+MeasurementResourceFromEntityAssembler ..> Measurement
+MeasurementResourceFromEntityAssembler ..> MeasurementResource
+EquipmentTelemetryStatusResourceFromEntityAssembler ..> EquipmentTelemetryStatus
+EquipmentTelemetryStatusResourceFromEntityAssembler ..> EquipmentTelemetryStatusResource
+TelemetryHistoryPointResourceFromEntityAssembler ..> TelemetryHistoryPoint
+TelemetryHistoryPointResourceFromEntityAssembler ..> TelemetryHistoryPointResource
+RecordMeasurementCommandFromResourceAssembler ..> RecordMeasurementResource
+RecordMeasurementCommandFromResourceAssembler ..> RecordMeasurementCommand
+UpdateEquipmentTelemetryStatusCommandFromResourceAssembler ..> UpdateEquipmentTelemetryStatusResource
+UpdateEquipmentTelemetryStatusCommandFromResourceAssembler ..> UpdateEquipmentTelemetryStatusCommand
+RecordTelemetryHistoryPointCommandFromResourceAssembler ..> RecordTelemetryHistoryPointResource
+RecordTelemetryHistoryPointCommandFromResourceAssembler ..> RecordTelemetryHistoryPointCommand
+
+package "tracking.interfaces.rest" {
+  class TelemetryController
+}
+
+TelemetryController --> TrackingCommandService
+TelemetryController --> TrackingQueryService
+TelemetryController ..> ResponseEntityAssembler
+TelemetryController ..> MeasurementResourceFromEntityAssembler
+TelemetryController ..> EquipmentTelemetryStatusResourceFromEntityAssembler
+TelemetryController ..> TelemetryHistoryPointResourceFromEntityAssembler
+TelemetryController ..> RecordMeasurementCommandFromResourceAssembler
+TelemetryController ..> UpdateEquipmentTelemetryStatusCommandFromResourceAssembler
+TelemetryController ..> RecordTelemetryHistoryPointCommandFromResourceAssembler
+
+@enduml

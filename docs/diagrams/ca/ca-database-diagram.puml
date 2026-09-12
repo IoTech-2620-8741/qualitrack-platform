@@ -1,0 +1,51 @@
+@startuml ca-database-diagram
+
+title QualiTrack - Compliance and Alerts Database Diagram
+
+hide methods
+hide stereotypes
+
+entity "deviation_alerts" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  equipment_id : BIGINT NOT NULL
+  batch_id : BIGINT
+  parameter_name : VARCHAR(100) NOT NULL
+  recorded_value : DOUBLE NOT NULL
+  threshold_value : DOUBLE NOT NULL
+  unit : VARCHAR(20) NOT NULL
+  timestamp : VARCHAR(30) NOT NULL
+  severity : VARCHAR(50) NOT NULL
+  status : VARCHAR(50) NOT NULL
+  acknowledged_by : BIGINT
+  resolved_by : BIGINT
+  resolution_notes : VARCHAR(500)
+}
+
+entity "compliance_events" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  related_entity_id : BIGINT NOT NULL
+  event_type : VARCHAR(100) NOT NULL
+  description : VARCHAR(1000) NOT NULL
+  timestamp : VARCHAR(30) NOT NULL
+  resolved_by : BIGINT
+}
+
+entity "notification_preferences" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  user_id : BIGINT NOT NULL UNIQUE
+  email_enabled : BOOLEAN NOT NULL
+  sms_enabled : BOOLEAN NOT NULL
+  in_app_enabled : BOOLEAN NOT NULL
+  minimum_severity : VARCHAR(50) NOT NULL
+}
+
+@enduml

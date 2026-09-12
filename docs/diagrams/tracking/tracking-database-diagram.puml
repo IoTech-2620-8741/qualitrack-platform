@@ -1,0 +1,55 @@
+@startuml tracking-database-diagram
+
+title QualiTrack - Tracking Database Diagram
+
+hide methods
+hide stereotypes
+
+entity "equipment_telemetry" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  equipment_id : BIGINT NOT NULL UNIQUE
+}
+
+entity "equipment_telemetry_statuses" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  equipment_id : BIGINT NOT NULL
+  is_online : BOOLEAN NOT NULL
+  current_status : VARCHAR(40) NOT NULL
+  last_heartbeat : VARCHAR(50) NOT NULL
+}
+
+entity "telemetry_measurements" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  equipment_id : BIGINT NOT NULL
+  parameter_name : VARCHAR(120) NOT NULL
+  value : DOUBLE NOT NULL
+  unit : VARCHAR(40) NOT NULL
+  timestamp : VARCHAR(50) NOT NULL
+}
+
+entity "telemetry_history_points" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  equipment_id : BIGINT NOT NULL
+  parameter_name : VARCHAR(120) NOT NULL
+  recorded_value : DOUBLE NOT NULL
+  timestamp : VARCHAR(50) NOT NULL
+  is_anomaly : BOOLEAN NOT NULL
+}
+
+equipment_telemetry ||--o{ equipment_telemetry_statuses : equipment_id
+equipment_telemetry ||--o{ telemetry_measurements : equipment_id
+equipment_telemetry ||--o{ telemetry_history_points : equipment_id
+
+@enduml

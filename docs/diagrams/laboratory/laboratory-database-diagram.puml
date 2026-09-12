@@ -1,0 +1,74 @@
+@startuml laboratory-database-diagram
+
+title QualiTrack - Laboratory Backend Database Diagram
+
+hide methods
+hide stereotypes
+
+skinparam linetype ortho
+skinparam shadowing false
+
+entity "laboratories" as laboratories {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  name : VARCHAR(100) NOT NULL
+  ruc : VARCHAR(20) NOT NULL UNIQUE
+  address : VARCHAR(255) NOT NULL
+  phone : VARCHAR(50) NOT NULL
+  status : VARCHAR(255) NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "laboratory_regulations" as laboratory_regulations {
+  * <u>laboratory_id</u> : BIGINT FK
+  * <u>regulation</u> : VARCHAR(255)
+}
+
+entity "staff_members" as staff_members {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  laboratory_id : BIGINT FK NOT NULL
+  full_name : VARCHAR(150) NOT NULL
+  role : VARCHAR(100) NOT NULL
+  email : VARCHAR(150) NOT NULL UNIQUE
+  active : BOOLEAN NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "pharmaceutical_products" as pharmaceutical_products {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  laboratory_id : BIGINT FK NOT NULL
+  code : VARCHAR(50) NOT NULL UNIQUE
+  name : VARCHAR(150) NOT NULL
+  description : VARCHAR(500)
+  specifications : VARCHAR(1000) NOT NULL
+  active : BOOLEAN NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "raw_materials" as raw_materials {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  laboratory_id : BIGINT FK NOT NULL
+  name : VARCHAR(150) NOT NULL
+  code : VARCHAR(50) NOT NULL UNIQUE
+  supplier : VARCHAR(150) NOT NULL
+  batch_number : VARCHAR(50) NOT NULL
+  expiration_date : VARCHAR(20) NOT NULL
+  quantity_in_stock : INT NOT NULL
+  unit : VARCHAR(20) NOT NULL
+  minimum_stock : INT NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+laboratories ||--o{ laboratory_regulations : "has"
+laboratories ||--o{ staff_members : "employs"
+laboratories ||--o{ pharmaceutical_products : "catalogs"
+laboratories ||--o{ raw_materials : "manages"
+
+@enduml

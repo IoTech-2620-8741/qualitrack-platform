@@ -1,0 +1,35 @@
+@startuml iam-database-diagram
+
+title QualiTrack - IAM Database Diagram
+
+hide methods
+hide stereotypes
+
+entity "iam_users" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  username : VARCHAR(80) NOT NULL UNIQUE
+  password : VARCHAR(255) NOT NULL
+  laboratory_id : BIGINT
+  status : VARCHAR(50) NOT NULL
+}
+
+entity "iam_roles" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  name : VARCHAR(80) NOT NULL UNIQUE
+}
+
+entity "iam_user_roles" {
+  * user_id : BIGINT FK
+  * role_id : BIGINT FK
+}
+
+iam_users ||--o{ iam_user_roles : user_id
+iam_roles ||--o{ iam_user_roles : role_id
+
+@enduml

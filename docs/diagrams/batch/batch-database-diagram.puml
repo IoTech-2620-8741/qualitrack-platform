@@ -1,0 +1,66 @@
+@startuml batch-database-diagram
+
+title QualiTrack - Batch Backend Database Diagram
+
+hide methods
+hide stereotypes
+
+skinparam linetype ortho
+skinparam shadowing false
+
+entity "batches" as batches {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  laboratory_id : BIGINT FK NOT NULL
+  product_id : BIGINT FK NOT NULL
+  product_name : VARCHAR(150) NOT NULL
+  batch_number : VARCHAR(50) NOT NULL UNIQUE
+  quantity : DOUBLE NOT NULL
+  unit : VARCHAR(20) NOT NULL
+  status : VARCHAR(50) NOT NULL
+  start_date : VARCHAR(30) NOT NULL
+  end_date : VARCHAR(30)
+  notes : VARCHAR(500)
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "raw_material_usages" as raw_material_usages {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  batch_id : BIGINT FK NOT NULL
+  raw_material_id : BIGINT FK NOT NULL
+  raw_material_name : VARCHAR(150) NOT NULL
+  quantity_used : DOUBLE NOT NULL
+  unit : VARCHAR(20) NOT NULL
+  usage_date : VARCHAR(30) NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "digital_signatures" as digital_signatures {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  batch_id : BIGINT FK NOT NULL
+  signed_by_user_id : BIGINT FK NOT NULL
+  signature_hash : VARCHAR(255) NOT NULL
+  signed_at : VARCHAR(30) NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+entity "rejection_records" as rejection_records {
+  * <u>id</u> : BIGINT PK AUTO_INCREMENT
+  --
+  batch_id : BIGINT FK NOT NULL
+  rejection_date : VARCHAR(30) NOT NULL
+  reason : VARCHAR(500) NOT NULL
+  created_at : DATETIME(6) NOT NULL
+  updated_at : DATETIME(6) NOT NULL
+}
+
+batches ||--o{ raw_material_usages : "uses"
+batches ||--o{ digital_signatures : "signs"
+batches ||--o{ rejection_records : "rejects"
+
+@enduml

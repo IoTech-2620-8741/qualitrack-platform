@@ -1,0 +1,466 @@
+@startuml iam-backend-diagram
+
+title QualiTrack - IAM Backend Class Diagram
+
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+package "shared" <<External>> {
+  abstract class AbstractDomainAggregateRoot
+  abstract class AuditableAbstractPersistenceEntity
+  class ApplicationError
+  class Result
+  class ResponseEntityAssembler
+}
+
+package "spring" <<External>> {
+  interface JpaRepository
+  interface AttributeConverter
+  interface UserDetails
+  interface UserDetailsService
+  class BCryptPasswordEncoder
+  class OncePerRequestFilter
+  class AuthenticationEntryPoint
+  class SecurityFilterChain
+  class AuthenticationManager
+}
+
+package "iam.domain.model.valueobjects" {
+  class Username <<record>> {
+    + value: String
+  }
+
+  class PasswordHash <<record>> {
+    + value: String
+  }
+
+  enum Roles {
+    ROLE_ADMIN
+    ROLE_QA_MANAGER
+    ROLE_LAB_OPERATOR
+  }
+
+  enum UserStatus {
+    ACTIVE
+    INACTIVE
+    SUSPENDED
+  }
+}
+
+package "iam.domain.model.entities" {
+  class Role {
+    - id: Long
+    - name: Roles
+    + getStringName(): String
+    + hasName(roleName: String): boolean
+    + validateRoleSet(roles: Collection<Role>): Set<Role>
+  }
+}
+
+package "iam.domain.model.aggregates" {
+  class User {
+    - id: Long
+    - username: Username
+    - password: PasswordHash
+    - roles: Set<Role>
+    - laboratoryId: Long
+    - status: UserStatus
+    + addRole(role: Role): void
+    + addRoles(roles: Collection<Role>): void
+    + deactivate(): void
+    + isActive(): boolean
+    + getUsernameValue(): String
+    + getPasswordValue(): String
+  }
+}
+
+User --|> AbstractDomainAggregateRoot
+User *-- Username
+User *-- PasswordHash
+User *-- Role
+User --> UserStatus
+Role --> Roles
+
+package "iam.domain.model.commands" {
+  class SignInCommand <<record>> {
+    + username: String
+    + password: String
+  }
+
+  class SignUpCommand <<record>> {
+    + username: String
+    + password: String
+    + roles: List<String>
+    + laboratoryId: Long
+  }
+
+  class AssignRoleCommand <<record>> {
+    + userId: Long
+    + roleName: String
+  }
+
+  class DeactivateUserCommand <<record>> {
+    + userId: Long
+  }
+
+  class SeedRolesCommand <<record>>
+}
+
+package "iam.domain.model.queries" {
+  class GetUserByIdQuery <<record>> {
+    + userId: Long
+  }
+
+  class GetUserByUsernameQuery <<record>> {
+    + username: String
+  }
+
+  class GetAllUsersQuery <<record>>
+
+  class GetRoleByNameQuery <<record>> {
+    + roleName: String
+  }
+
+  class GetAllRolesQuery <<record>>
+}
+
+package "iam.domain.repositories" {
+  interface UserRepository {
+    + findById(id: Long): Optional<User>
+    + findByUsername(username: String): Optional<User>
+    + findAll(): List<User>
+    + save(user: User): User
+    + existsById(id: Long): boolean
+    + existsByUsername(username: String): boolean
+  }
+
+  interface RoleRepository {
+    + findById(id: Long): Optional<Role>
+    + findByName(name: Roles): Optional<Role>
+    + findAll(): List<Role>
+    + save(role: Role): Role
+    + existsByName(name: Roles): boolean
+  }
+}
+
+UserRepository --> User
+RoleRepository --> Role
+
+package "iam.domain.exceptions" {
+  class InactiveUserException
+  class InvalidCredentialsException
+  class RoleNotFoundException
+  class UsernameAlreadyExistsException
+  class UserNotFoundException
+}
+
+package "iam.application.internal.outboundservices.hashing" {
+  interface HashingService {
+    + encode(rawPassword: String): String
+    + matches(rawPassword: String, encodedPassword: String): boolean
+  }
+}
+
+package "iam.application.internal.outboundservices.tokens" {
+  interface TokenService {
+    + generateToken(user: User): String
+    + getUsernameFromToken(token: String): String
+    + validateToken(token: String): boolean
+  }
+}
+
+TokenService --> User
+
+package "iam.application.commandservices" {
+  interface UserCommandService {
+    + handle(command: SignInCommand): Result<AuthenticatedUser, ApplicationError>
+    + handle(command: SignUpCommand): Result<User, ApplicationError>
+    + handle(command: AssignRoleCommand): Result<Long, ApplicationError>
+    + handle(command: DeactivateUserCommand): Result<Long, ApplicationError>
+  }
+
+  class AuthenticatedUser <<record>> {
+    + user: User
+    + token: String
+  }
+
+  interface RoleCommandService {
+    + handle(command: SeedRolesCommand): Result<Integer, ApplicationError>
+  }
+}
+
+UserCommandService ..> Result
+UserCommandService ..> ApplicationError
+UserCommandService ..> AuthenticatedUser
+AuthenticatedUser --> User
+RoleCommandService ..> Result
+RoleCommandService ..> ApplicationError
+
+package "iam.application.queryservices" {
+  interface UserQueryService {
+    + handle(query: GetUserByIdQuery): Optional<User>
+    + handle(query: GetUserByUsernameQuery): Optional<User>
+    + handle(query: GetAllUsersQuery): List<User>
+  }
+
+  interface RoleQueryService {
+    + handle(query: GetRoleByNameQuery): Optional<Role>
+    + handle(query: GetAllRolesQuery): List<Role>
+  }
+}
+
+UserQueryService --> User
+RoleQueryService --> Role
+
+package "iam.application.internal.commandservices" {
+  class UserCommandServiceImpl
+  class RoleCommandServiceImpl
+}
+
+UserCommandServiceImpl ..|> UserCommandService
+UserCommandServiceImpl --> UserRepository
+UserCommandServiceImpl --> RoleRepository
+UserCommandServiceImpl --> HashingService
+UserCommandServiceImpl --> TokenService
+
+RoleCommandServiceImpl ..|> RoleCommandService
+RoleCommandServiceImpl --> RoleRepository
+
+package "iam.application.internal.queryservices" {
+  class UserQueryServiceImpl
+  class RoleQueryServiceImpl
+}
+
+UserQueryServiceImpl ..|> UserQueryService
+UserQueryServiceImpl --> UserRepository
+
+RoleQueryServiceImpl ..|> RoleQueryService
+RoleQueryServiceImpl --> RoleRepository
+
+package "iam.application.internal.eventhandlers" {
+  class ApplicationReadyEventHandler
+}
+
+ApplicationReadyEventHandler --> RoleCommandService
+ApplicationReadyEventHandler ..> SeedRolesCommand
+
+package "iam.interfaces.acl" {
+  class IamContextFacade {
+    + existsUserById(userId: Long): boolean
+    + getLaboratoryIdByUserId(userId: Long): Long
+    + getUsernameByUserId(userId: Long): String
+    + getRoleNamesByUserId(userId: Long): List<String>
+    + userHasRole(userId: Long, roleName: String): boolean
+  }
+}
+
+IamContextFacade --> UserQueryService
+
+package "iam.infrastructure.hashing.bcrypt" {
+  class BCryptHashingService {
+    + passwordEncoder(): BCryptPasswordEncoder
+  }
+}
+
+package "iam.infrastructure.hashing.bcrypt.services" {
+  class HashingServiceImpl
+}
+
+HashingServiceImpl ..|> HashingService
+HashingServiceImpl --> BCryptPasswordEncoder
+
+package "iam.infrastructure.tokens.jwt" {
+  class BearerTokenService {
+    + hasBearerToken(authorizationHeader: String): boolean
+    + extractToken(authorizationHeader: String): String
+  }
+}
+
+package "iam.infrastructure.tokens.jwt.services" {
+  class TokenServiceImpl
+}
+
+TokenServiceImpl ..|> TokenService
+TokenServiceImpl --> User
+
+package "iam.infrastructure.authorization.sfs.model" {
+  class UserDetailsImpl {
+    - id: Long
+    - username: String
+    - password: String
+    - laboratoryId: Long
+    - enabled: boolean
+    + fromUser(user: User): UserDetailsImpl
+    + getId(): Long
+    + getLaboratoryId(): Long
+  }
+
+  class UsernamePasswordAuthenticationTokenBuilder {
+    + build(userDetails: UserDetailsImpl): Authentication
+  }
+}
+
+UserDetailsImpl ..|> UserDetails
+UserDetailsImpl ..> User
+UsernamePasswordAuthenticationTokenBuilder ..> UserDetailsImpl
+
+package "iam.infrastructure.authorization.sfs.services" {
+  class UserDetailsServiceImpl {
+    + loadUserByUsername(username: String): UserDetails
+  }
+}
+
+UserDetailsServiceImpl ..|> UserDetailsService
+UserDetailsServiceImpl --> UserRepository
+UserDetailsServiceImpl ..> UserDetailsImpl
+
+package "iam.infrastructure.authorization.sfs.pipeline" {
+  class BearerAuthorizationRequestFilter
+  class UnauthorizedRequestHandlerEntryPoint
+}
+
+BearerAuthorizationRequestFilter --|> OncePerRequestFilter
+BearerAuthorizationRequestFilter --> BearerTokenService
+BearerAuthorizationRequestFilter --> TokenService
+BearerAuthorizationRequestFilter --> UserDetailsServiceImpl
+BearerAuthorizationRequestFilter ..> UsernamePasswordAuthenticationTokenBuilder
+
+UnauthorizedRequestHandlerEntryPoint ..|> AuthenticationEntryPoint
+
+package "iam.infrastructure.authorization.sfs.configuration" {
+  class WebSecurityConfiguration {
+    + authenticationManager(passwordEncoder: BCryptPasswordEncoder): AuthenticationManager
+    + bearerAuthorizationRequestFilter(): BearerAuthorizationRequestFilter
+    + securityFilterChain(http: HttpSecurity, bearerAuthorizationRequestFilter: BearerAuthorizationRequestFilter): SecurityFilterChain
+  }
+}
+
+WebSecurityConfiguration --> UserDetailsServiceImpl
+WebSecurityConfiguration --> UnauthorizedRequestHandlerEntryPoint
+WebSecurityConfiguration --> BearerTokenService
+WebSecurityConfiguration --> TokenService
+WebSecurityConfiguration --> BearerAuthorizationRequestFilter
+
+package "iam.infrastructure.persistence.jpa.entities" {
+  class UserPersistenceEntity {
+    - username: String
+    - password: String
+    - laboratoryId: Long
+    - status: UserStatus
+    - roles: Set<RolePersistenceEntity>
+  }
+
+  class RolePersistenceEntity {
+    - name: Roles
+  }
+}
+
+UserPersistenceEntity --|> AuditableAbstractPersistenceEntity
+RolePersistenceEntity --|> AuditableAbstractPersistenceEntity
+UserPersistenceEntity --> UserStatus
+UserPersistenceEntity "*" -- "*" RolePersistenceEntity
+RolePersistenceEntity --> Roles
+
+package "iam.infrastructure.persistence.jpa.repositories" {
+  interface UserPersistenceRepository {
+    + findByUsername(username: String): Optional<UserPersistenceEntity>
+    + existsByUsername(username: String): boolean
+  }
+
+  interface RolePersistenceRepository {
+    + findByName(name: Roles): Optional<RolePersistenceEntity>
+    + existsByName(name: Roles): boolean
+  }
+}
+
+UserPersistenceRepository --|> JpaRepository
+RolePersistenceRepository --|> JpaRepository
+UserPersistenceRepository --> UserPersistenceEntity
+RolePersistenceRepository --> RolePersistenceEntity
+
+package "iam.infrastructure.persistence.jpa.assemblers" {
+  class UserPersistenceAssembler
+  class RolePersistenceAssembler
+}
+
+UserPersistenceAssembler ..> User
+UserPersistenceAssembler ..> UserPersistenceEntity
+RolePersistenceAssembler ..> Role
+RolePersistenceAssembler ..> RolePersistenceEntity
+
+package "iam.infrastructure.persistence.jpa.adapters" {
+  class UserRepositoryImpl
+  class RoleRepositoryImpl
+}
+
+UserRepositoryImpl ..|> UserRepository
+UserRepositoryImpl --> UserPersistenceRepository
+UserRepositoryImpl --> UserPersistenceAssembler
+
+RoleRepositoryImpl ..|> RoleRepository
+RoleRepositoryImpl --> RolePersistenceRepository
+RoleRepositoryImpl --> RolePersistenceAssembler
+
+package "iam.infrastructure.persistence.jpa.converters" {
+  class RolesPersistenceConverter
+  class UserStatusPersistenceConverter
+}
+
+RolesPersistenceConverter ..|> AttributeConverter
+UserStatusPersistenceConverter ..|> AttributeConverter
+RolesPersistenceConverter ..> Roles
+UserStatusPersistenceConverter ..> UserStatus
+
+package "iam.interfaces.rest.resources" {
+  class SignInResource <<record>>
+  class SignUpResource <<record>>
+  class AuthenticatedUserResource <<record>>
+  class UserResource <<record>>
+  class RoleResource <<record>>
+}
+
+package "iam.interfaces.rest.transform" {
+  class SignInCommandFromResourceAssembler
+  class SignUpCommandFromResourceAssembler
+  class AuthenticatedUserResourceFromEntityAssembler
+  class UserResourceFromEntityAssembler
+  class RoleResourceFromEntityAssembler
+}
+
+SignInCommandFromResourceAssembler ..> SignInResource
+SignInCommandFromResourceAssembler ..> SignInCommand
+SignUpCommandFromResourceAssembler ..> SignUpResource
+SignUpCommandFromResourceAssembler ..> SignUpCommand
+AuthenticatedUserResourceFromEntityAssembler ..> AuthenticatedUser
+AuthenticatedUserResourceFromEntityAssembler ..> AuthenticatedUserResource
+UserResourceFromEntityAssembler ..> User
+UserResourceFromEntityAssembler ..> UserResource
+RoleResourceFromEntityAssembler ..> Role
+RoleResourceFromEntityAssembler ..> RoleResource
+
+package "iam.interfaces.rest" {
+  class AuthenticationController
+  class UsersController
+  class RolesController
+}
+
+AuthenticationController --> UserCommandService
+AuthenticationController ..> SignInCommandFromResourceAssembler
+AuthenticationController ..> SignUpCommandFromResourceAssembler
+AuthenticationController ..> AuthenticatedUserResourceFromEntityAssembler
+AuthenticationController ..> UserResourceFromEntityAssembler
+AuthenticationController ..> ResponseEntityAssembler
+
+UsersController --> UserQueryService
+UsersController --> UserCommandService
+UsersController ..> UserResourceFromEntityAssembler
+UsersController ..> AssignRoleCommand
+UsersController ..> DeactivateUserCommand
+UsersController ..> ResponseEntityAssembler
+
+RolesController --> RoleQueryService
+RolesController ..> RoleResourceFromEntityAssembler
+
+@enduml

@@ -1,0 +1,39 @@
+package com.iotech.qualitrack.platform.batch.domain.model.events;
+
+import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
+
+/**
+ * Domain event published when a production batch is released.
+ *
+ * <p>Can be listened to by reporting, audit, or compliance contexts to record
+ * the final approval of a manufactured batch.</p>
+ *
+ * @param batchId      The numeric identity of the released batch.
+ * @param laboratoryId The numeric identity of the laboratory responsible for the batch.
+ * @param productId    The numeric identity of the manufactured product.
+ * @param batchNumber  The traceability code assigned to the batch.
+ * @param releaseDate  The date when the batch was released.
+ */
+public record BatchReleasedEvent(
+        Long batchId,
+        Long laboratoryId,
+        Long productId,
+        String batchNumber,
+        String releaseDate) {
+
+    /**
+     * Convenience factory that extracts all needed fields from a released {@link Batch}.
+     *
+     * @param batch the released batch
+     * @return a fully populated {@link BatchReleasedEvent}
+     */
+    public static BatchReleasedEvent from(Batch batch) {
+        return new BatchReleasedEvent(
+                batch.getId(),
+                batch.getLabId(),
+                batch.getProductId(),
+                batch.getBatchNumber(),
+                batch.getEndDate()
+        );
+    }
+}

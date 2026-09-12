@@ -1,0 +1,671 @@
+@startuml subscription-backend-diagram
+title QualiTrack - Subscription Backend Class Diagram
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+hide circle
+hide empty members
+
+package "shared.application.result" {
+  class Result<T, E>
+  class ApplicationError
+}
+
+package "shared.domain.model.aggregates" {
+  abstract class AbstractDomainAggregateRoot<T>
+}
+
+package "shared.infrastructure.persistence.jpa.entities" {
+  abstract class AuditableAbstractPersistenceEntity
+}
+
+package "shared.interfaces.rest.transform" {
+  class ResponseEntityAssembler
+}
+
+package "subscription.domain.model.valueobjects" {
+  enum PlanCode {
+    FREE
+    BASIC
+    PROFESSIONAL
+    ENTERPRISE
+  }
+
+  enum BillingCycle {
+    MONTHLY
+    YEARLY
+  }
+
+  enum SubscriptionStatus {
+    ACTIVE
+    INACTIVE
+    PENDING_PAYMENT
+    CANCELLED
+    EXPIRED
+  }
+
+  enum PaymentProvider {
+    STRIPE
+    MOCK
+  }
+
+  enum PaymentStatus {
+    PENDING
+    PAID
+    FAILED
+    CANCELLED
+    REFUNDED
+  }
+
+  class Money <<record>> {
+    +amount: BigDecimal
+    +currency: String
+    +zero(currency: String): Money
+  }
+}
+
+package "subscription.domain.model.commands" {
+  class CreateCheckoutSessionCommand <<record>> {
+    +userId: Long
+    +laboratoryId: Long
+    +planCode: PlanCode
+    +billingCycle: BillingCycle
+    +successUrl: String
+    +cancelUrl: String
+  }
+
+  class ActivateSubscriptionCommand <<record>> {
+    +userId: Long
+    +laboratoryId: Long
+    +planCode: PlanCode
+    +billingCycle: BillingCycle
+    +stripeCustomerId: String
+    +stripeSubscriptionId: String
+    +stripeCheckoutSessionId: String
+    +currentPeriodStart: String
+    +currentPeriodEnd: String
+  }
+
+  class CancelSubscriptionCommand <<record>> {
+    +subscriptionId: Long
+    +cancelledBy: Long
+  }
+
+  class RecordStripePaymentCommand <<record>> {
+    +subscriptionId: Long
+    +stripePaymentIntentId: String
+    +stripeCheckoutSessionId: String
+    +amount: BigDecimal
+    +currency: String
+    +status: PaymentStatus
+    +paidAt: String
+  }
+}
+
+package "subscription.domain.model.queries" {
+  class GetSubscriptionPlansQuery <<record>>
+  class GetActiveSubscriptionByLaboratoryIdQuery <<record>> {
+    +laboratoryId: Long
+  }
+  class GetActiveSubscriptionByUserIdQuery <<record>> {
+    +userId: Long
+  }
+  class GetBillingSummaryByLaboratoryIdQuery <<record>> {
+    +laboratoryId: Long
+  }
+  class GetPaymentsBySubscriptionIdQuery <<record>> {
+    +subscriptionId: Long
+  }
+  class GetSubscriptionByStripeCheckoutSessionIdQuery <<record>> {
+    +stripeCheckoutSessionId: String
+  }
+}
+
+package "subscription.domain.model.aggregates" {
+  class Subscription {
+    -id: Long
+    -userId: Long
+    -laboratoryId: Long
+    -planCode: PlanCode
+    -billingCycle: BillingCycle
+    -status: SubscriptionStatus
+    -stripeCustomerId: String
+    -stripeSubscriptionId: String
+    -stripeCheckoutSessionId: String
+    -currentPeriodStart: String
+    -currentPeriodEnd: String
+    -cancelledAt: String
+    -cancelledBy: Long
+    +activate(command: ActivateSubscriptionCommand): Subscription
+    +cancel(cancelledBy: Long, cancelledAt: String): void
+    +isActive(): boolean
+  }
+}
+
+package "subscription.domain.model.entities" {
+  class SubscriptionPlan {
+    -id: Long
+    -code: PlanCode
+    -name: String
+    -description: String
+    -price: Money
+    -billingCycle: BillingCycle
+    -stripePriceId: String
+    -maxUsers: Integer
+    -maxEquipment: Integer
+    -active: Boolean
+    +isSelectable(): boolean
+  }
+
+  class SubscriptionPayment {
+    -id: Long
+    -subscriptionId: Long
+    -provider: PaymentProvider
+    -providerPaymentId: String
+    -stripeCheckoutSessionId: String
+    -amount: Money
+    -status: PaymentStatus
+    -paidAt: String
+    +stripePayment(subscriptionId: Long, stripePaymentIntentId: String, stripeCheckoutSessionId: String, amount: Money, status: PaymentStatus, paidAt: String): SubscriptionPayment
+    +isPaid(): boolean
+  }
+}
+
+package "subscription.domain.model.events" {
+  class CheckoutSessionCreatedEvent <<record>> {
+    +userId: Long
+    +laboratoryId: Long
+    +planCode: PlanCode
+    +billingCycle: BillingCycle
+    +stripeCheckoutSessionId: String
+    +checkoutUrl: String
+  }
+
+  class SubscriptionActivatedEvent <<record>> {
+    +subscriptionId: Long
+    +userId: Long
+    +laboratoryId: Long
+    +planCode: PlanCode
+    +billingCycle: BillingCycle
+    +stripeCustomerId: String
+    +stripeSubscriptionId: String
+    +from(subscription: Subscription): SubscriptionActivatedEvent
+  }
+
+  class SubscriptionCancelledEvent <<record>> {
+    +subscriptionId: Long
+    +userId: Long
+    +laboratoryId: Long
+    +cancelledBy: Long
+    +cancelledAt: String
+    +from(subscription: Subscription): SubscriptionCancelledEvent
+  }
+
+  class SubscriptionPaymentRecordedEvent <<record>> {
+    +paymentId: Long
+    +subscriptionId: Long
+    +providerPaymentId: String
+    +stripeCheckoutSessionId: String
+    +amount: BigDecimal
+    +currency: String
+    +status: PaymentStatus
+    +from(payment: SubscriptionPayment): SubscriptionPaymentRecordedEvent
+  }
+}
+
+package "subscription.domain.repositories" {
+  interface SubscriptionRepository {
+    +findById(id: Long): Optional<Subscription>
+    +findActiveByLaboratoryId(laboratoryId: Long): Optional<Subscription>
+    +findActiveByUserId(userId: Long): Optional<Subscription>
+    +findByStripeCheckoutSessionId(stripeCheckoutSessionId: String): Optional<Subscription>
+    +findByStripeSubscriptionId(stripeSubscriptionId: String): Optional<Subscription>
+    +findAllByLaboratoryId(laboratoryId: Long): List<Subscription>
+    +save(subscription: Subscription): Subscription
+    +existsById(id: Long): boolean
+  }
+
+  interface SubscriptionPlanRepository {
+    +findAll(): List<SubscriptionPlan>
+    +findAllActive(): List<SubscriptionPlan>
+    +findById(id: Long): Optional<SubscriptionPlan>
+    +findByCodeAndBillingCycle(code: PlanCode, billingCycle: BillingCycle): Optional<SubscriptionPlan>
+    +findByStripePriceId(stripePriceId: String): Optional<SubscriptionPlan>
+    +save(plan: SubscriptionPlan): SubscriptionPlan
+    +existsById(id: Long): boolean
+  }
+
+  interface SubscriptionPaymentRepository {
+    +findById(id: Long): Optional<SubscriptionPayment>
+    +findByProviderPaymentId(providerPaymentId: String): Optional<SubscriptionPayment>
+    +findByStripeCheckoutSessionId(stripeCheckoutSessionId: String): Optional<SubscriptionPayment>
+    +findAllBySubscriptionId(subscriptionId: Long): List<SubscriptionPayment>
+    +save(payment: SubscriptionPayment): SubscriptionPayment
+    +existsById(id: Long): boolean
+  }
+}
+
+package "subscription.domain.exceptions" {
+  class ActiveSubscriptionNotFoundException
+  class InvalidSubscriptionStateException
+  class StripeCheckoutSessionCreationException
+  class SubscriptionNotFoundException
+  class SubscriptionPaymentNotFoundException
+  class SubscriptionPlanNotFoundException
+}
+
+package "subscription.application.commandservices" {
+  interface SubscriptionCommandService {
+    +handle(command: CreateCheckoutSessionCommand): Result<String, ApplicationError>
+    +handle(command: ActivateSubscriptionCommand): Result<Long, ApplicationError>
+    +handle(command: CancelSubscriptionCommand): Result<Long, ApplicationError>
+    +handle(command: RecordStripePaymentCommand): Result<Long, ApplicationError>
+  }
+}
+
+package "subscription.application.queryservices" {
+  interface SubscriptionQueryService {
+    +handle(query: GetSubscriptionPlansQuery): List<SubscriptionPlan>
+    +handle(query: GetActiveSubscriptionByLaboratoryIdQuery): Optional<Subscription>
+    +handle(query: GetActiveSubscriptionByUserIdQuery): Optional<Subscription>
+    +handle(query: GetBillingSummaryByLaboratoryIdQuery): List<Subscription>
+    +handle(query: GetPaymentsBySubscriptionIdQuery): List<SubscriptionPayment>
+    +handle(query: GetSubscriptionByStripeCheckoutSessionIdQuery): Optional<Subscription>
+  }
+}
+
+package "subscription.application.internal.commandservices" {
+  class SubscriptionCommandServiceImpl
+}
+
+package "subscription.application.internal.queryservices" {
+  class SubscriptionQueryServiceImpl
+}
+
+package "subscription.application.internal.eventhandlers" {
+  class CheckoutSessionCreatedEventHandler {
+    +on(event: CheckoutSessionCreatedEvent): void
+  }
+
+  class SubscriptionActivatedEventHandler {
+    +on(event: SubscriptionActivatedEvent): void
+  }
+
+  class SubscriptionCancelledEventHandler {
+    +on(event: SubscriptionCancelledEvent): void
+  }
+
+  class SubscriptionPaymentRecordedEventHandler {
+    +on(event: SubscriptionPaymentRecordedEvent): void
+  }
+}
+
+package "subscription.application.internal.outboundservices.acl" {
+  class ExternalStripeService {
+    -stripeSecretKey: String
+    +createCheckoutSession(command: CreateCheckoutSessionCommand, stripePriceId: String): StripeCheckoutSessionResult
+    +retrieveSubscriptionDetails(stripeSubscriptionId: String): StripeSubscriptionDetails
+    +cancelSubscription(stripeSubscriptionId: String): void
+  }
+
+  class StripeCheckoutSessionResult <<record>> {
+    +stripeCheckoutSessionId: String
+    +checkoutUrl: String
+  }
+
+  class StripeSubscriptionDetails <<record>> {
+    +stripeCustomerId: String
+    +stripeSubscriptionId: String
+    +currentPeriodStart: String
+    +currentPeriodEnd: String
+  }
+}
+
+package "subscription.infrastructure.persistence.jpa.embeddables" {
+  class MoneyEmbeddable <<embeddable>> {
+    -amount: BigDecimal
+    -currency: String
+  }
+}
+
+package "subscription.infrastructure.persistence.jpa.entities" {
+  class SubscriptionPersistenceEntity <<entity>> {
+    -userId: Long
+    -laboratoryId: Long
+    -planCode: PlanCode
+    -billingCycle: BillingCycle
+    -status: SubscriptionStatus
+    -stripeCustomerId: String
+    -stripeSubscriptionId: String
+    -stripeCheckoutSessionId: String
+    -currentPeriodStart: String
+    -currentPeriodEnd: String
+    -cancelledAt: String
+    -cancelledBy: Long
+  }
+
+  class SubscriptionPlanPersistenceEntity <<entity>> {
+    -code: PlanCode
+    -name: String
+    -description: String
+    -price: MoneyEmbeddable
+    -billingCycle: BillingCycle
+    -stripePriceId: String
+    -maxUsers: Integer
+    -maxEquipment: Integer
+    -active: Boolean
+  }
+
+  class SubscriptionPaymentPersistenceEntity <<entity>> {
+    -subscriptionId: Long
+    -provider: PaymentProvider
+    -providerPaymentId: String
+    -stripeCheckoutSessionId: String
+    -amount: MoneyEmbeddable
+    -status: PaymentStatus
+    -paidAt: String
+  }
+}
+
+package "subscription.infrastructure.persistence.jpa.repositories" {
+  interface SubscriptionPersistenceRepository {
+    +findFirstByLaboratoryIdAndStatusOrderByIdDesc(laboratoryId: Long, status: SubscriptionStatus): Optional<SubscriptionPersistenceEntity>
+    +findFirstByUserIdAndStatusOrderByIdDesc(userId: Long, status: SubscriptionStatus): Optional<SubscriptionPersistenceEntity>
+    +findByStripeCheckoutSessionId(stripeCheckoutSessionId: String): Optional<SubscriptionPersistenceEntity>
+    +findByStripeSubscriptionId(stripeSubscriptionId: String): Optional<SubscriptionPersistenceEntity>
+    +findAllByLaboratoryIdOrderByIdDesc(laboratoryId: Long): List<SubscriptionPersistenceEntity>
+  }
+
+  interface SubscriptionPlanPersistenceRepository {
+    +findAllByActiveTrue(): List<SubscriptionPlanPersistenceEntity>
+    +findByCodeAndBillingCycle(code: PlanCode, billingCycle: BillingCycle): Optional<SubscriptionPlanPersistenceEntity>
+    +findByStripePriceId(stripePriceId: String): Optional<SubscriptionPlanPersistenceEntity>
+  }
+
+  interface SubscriptionPaymentPersistenceRepository {
+    +findByProviderPaymentId(providerPaymentId: String): Optional<SubscriptionPaymentPersistenceEntity>
+    +findByStripeCheckoutSessionId(stripeCheckoutSessionId: String): Optional<SubscriptionPaymentPersistenceEntity>
+    +findAllBySubscriptionIdOrderByIdDesc(subscriptionId: Long): List<SubscriptionPaymentPersistenceEntity>
+  }
+}
+
+package "subscription.infrastructure.persistence.jpa.assemblers" {
+  class MoneyPersistenceAssembler {
+    +toDomainFromPersistence(embeddable: MoneyEmbeddable): Money
+    +toPersistenceFromDomain(money: Money): MoneyEmbeddable
+  }
+
+  class SubscriptionPersistenceAssembler {
+    +toDomainFromPersistence(entity: SubscriptionPersistenceEntity): Subscription
+    +toPersistenceFromDomain(subscription: Subscription): SubscriptionPersistenceEntity
+  }
+
+  class SubscriptionPlanPersistenceAssembler {
+    +toDomainFromPersistence(entity: SubscriptionPlanPersistenceEntity): SubscriptionPlan
+    +toPersistenceFromDomain(plan: SubscriptionPlan): SubscriptionPlanPersistenceEntity
+  }
+
+  class SubscriptionPaymentPersistenceAssembler {
+    +toDomainFromPersistence(entity: SubscriptionPaymentPersistenceEntity): SubscriptionPayment
+    +toPersistenceFromDomain(payment: SubscriptionPayment): SubscriptionPaymentPersistenceEntity
+  }
+}
+
+package "subscription.infrastructure.persistence.jpa.adapters" {
+  class SubscriptionRepositoryImpl
+  class SubscriptionPlanRepositoryImpl
+  class SubscriptionPaymentRepositoryImpl
+}
+
+package "subscription.infrastructure.persistence.jpa.converters" {
+  class PlanCodePersistenceConverter
+  class BillingCyclePersistenceConverter
+  class SubscriptionStatusPersistenceConverter
+  class PaymentProviderPersistenceConverter
+  class PaymentStatusPersistenceConverter
+}
+
+package "subscription.interfaces.acl" {
+  class SubscriptionContextFacade {
+    +hasActiveSubscription(laboratoryId: Long): boolean
+    +hasActivePlan(laboratoryId: Long, planCode: PlanCode): boolean
+    +getActivePlanCode(laboratoryId: Long): String
+  }
+}
+
+package "subscription.interfaces.events" {
+  class CheckoutSessionCreatedIntegrationEvent <<record>>
+  class SubscriptionActivatedIntegrationEvent <<record>>
+  class SubscriptionCancelledIntegrationEvent <<record>>
+  class SubscriptionPaymentRecordedIntegrationEvent <<record>>
+}
+
+package "subscription.interfaces.rest.resources" {
+  class CreateCheckoutSessionResource <<record>> {
+    +userId: Long
+    +laboratoryId: Long
+    +planCode: String
+    +billingCycle: String
+    +successUrl: String
+    +cancelUrl: String
+  }
+
+  class CheckoutSessionResource <<record>> {
+    +checkoutUrl: String
+  }
+
+  class CancelSubscriptionResource <<record>> {
+    +cancelledBy: Long
+  }
+
+  class SubscriptionResource <<record>> {
+    +id: Long
+    +userId: Long
+    +laboratoryId: Long
+    +planCode: String
+    +billingCycle: String
+    +status: String
+    +stripeCustomerId: String
+    +stripeSubscriptionId: String
+    +stripeCheckoutSessionId: String
+    +currentPeriodStart: String
+    +currentPeriodEnd: String
+    +cancelledAt: String
+    +cancelledBy: Long
+  }
+
+  class SubscriptionPlanResource <<record>> {
+    +id: Long
+    +code: String
+    +name: String
+    +description: String
+    +amount: BigDecimal
+    +currency: String
+    +billingCycle: String
+    +stripePriceId: String
+    +maxUsers: Integer
+    +maxEquipment: Integer
+    +active: Boolean
+  }
+
+  class SubscriptionPaymentResource <<record>> {
+    +id: Long
+    +subscriptionId: Long
+    +provider: String
+    +providerPaymentId: String
+    +stripeCheckoutSessionId: String
+    +amount: BigDecimal
+    +currency: String
+    +status: String
+    +paidAt: String
+  }
+
+  class StripeWebhookResource <<record>> {
+    +status: String
+  }
+}
+
+package "subscription.interfaces.rest.transform" {
+  class CreateCheckoutSessionCommandFromResourceAssembler {
+    +toCommandFromResource(resource: CreateCheckoutSessionResource): CreateCheckoutSessionCommand
+  }
+
+  class CancelSubscriptionCommandFromResourceAssembler {
+    +toCommandFromResource(subscriptionId: Long, resource: CancelSubscriptionResource): CancelSubscriptionCommand
+  }
+
+  class SubscriptionResourceFromEntityAssembler {
+    +toResourceFromEntity(entity: Subscription): SubscriptionResource
+  }
+
+  class SubscriptionPlanResourceFromEntityAssembler {
+    +toResourceFromEntity(entity: SubscriptionPlan): SubscriptionPlanResource
+  }
+
+  class SubscriptionPaymentResourceFromEntityAssembler {
+    +toResourceFromEntity(entity: SubscriptionPayment): SubscriptionPaymentResource
+  }
+}
+
+package "subscription.interfaces.rest" {
+  class SubscriptionController {
+    +getPlans(): ResponseEntity<List<SubscriptionPlanResource>>
+    +createCheckoutSession(resource: CreateCheckoutSessionResource): ResponseEntity<?>
+    +getActiveSubscriptionByLaboratoryId(laboratoryId: Long): ResponseEntity<SubscriptionResource>
+    +getBillingSummaryByLaboratoryId(laboratoryId: Long): ResponseEntity<List<SubscriptionResource>>
+    +getPaymentsBySubscriptionId(subscriptionId: Long): ResponseEntity<List<SubscriptionPaymentResource>>
+    +cancelSubscription(subscriptionId: Long, resource: CancelSubscriptionResource): ResponseEntity<?>
+  }
+
+  class StripeWebhookController {
+    +handleStripeWebhook(payload: String, signatureHeader: String): ResponseEntity<StripeWebhookResource>
+  }
+}
+
+package "external.stripe" {
+  class StripeSession
+  class StripeSubscription
+  class Webhook
+}
+
+Subscription --|> AbstractDomainAggregateRoot
+SubscriptionPersistenceEntity --|> AuditableAbstractPersistenceEntity
+SubscriptionPlanPersistenceEntity --|> AuditableAbstractPersistenceEntity
+SubscriptionPaymentPersistenceEntity --|> AuditableAbstractPersistenceEntity
+
+Subscription --> PlanCode
+Subscription --> BillingCycle
+Subscription --> SubscriptionStatus
+SubscriptionPlan --> PlanCode
+SubscriptionPlan --> BillingCycle
+SubscriptionPlan *-- Money
+SubscriptionPayment --> PaymentProvider
+SubscriptionPayment --> PaymentStatus
+SubscriptionPayment *-- Money
+
+CreateCheckoutSessionCommand --> PlanCode
+CreateCheckoutSessionCommand --> BillingCycle
+ActivateSubscriptionCommand --> PlanCode
+ActivateSubscriptionCommand --> BillingCycle
+RecordStripePaymentCommand --> PaymentStatus
+
+SubscriptionRepository ..> Subscription
+SubscriptionPlanRepository ..> SubscriptionPlan
+SubscriptionPaymentRepository ..> SubscriptionPayment
+
+SubscriptionCommandServiceImpl ..|> SubscriptionCommandService
+SubscriptionCommandServiceImpl --> SubscriptionRepository
+SubscriptionCommandServiceImpl --> SubscriptionPlanRepository
+SubscriptionCommandServiceImpl --> SubscriptionPaymentRepository
+SubscriptionCommandServiceImpl --> ExternalStripeService
+SubscriptionCommandServiceImpl ..> CheckoutSessionCreatedEvent
+SubscriptionCommandServiceImpl ..> SubscriptionActivatedEvent
+SubscriptionCommandServiceImpl ..> SubscriptionCancelledEvent
+SubscriptionCommandServiceImpl ..> SubscriptionPaymentRecordedEvent
+
+SubscriptionQueryServiceImpl ..|> SubscriptionQueryService
+SubscriptionQueryServiceImpl --> SubscriptionRepository
+SubscriptionQueryServiceImpl --> SubscriptionPlanRepository
+SubscriptionQueryServiceImpl --> SubscriptionPaymentRepository
+
+ExternalStripeService ..> StripeCheckoutSessionResult
+ExternalStripeService ..> StripeSubscriptionDetails
+ExternalStripeService ..> StripeSession
+ExternalStripeService ..> StripeSubscription
+
+SubscriptionPersistenceEntity --> PlanCode
+SubscriptionPersistenceEntity --> BillingCycle
+SubscriptionPersistenceEntity --> SubscriptionStatus
+SubscriptionPlanPersistenceEntity --> PlanCode
+SubscriptionPlanPersistenceEntity --> BillingCycle
+SubscriptionPlanPersistenceEntity *-- MoneyEmbeddable
+SubscriptionPaymentPersistenceEntity --> PaymentProvider
+SubscriptionPaymentPersistenceEntity --> PaymentStatus
+SubscriptionPaymentPersistenceEntity *-- MoneyEmbeddable
+
+SubscriptionPersistenceRepository ..> SubscriptionPersistenceEntity
+SubscriptionPlanPersistenceRepository ..> SubscriptionPlanPersistenceEntity
+SubscriptionPaymentPersistenceRepository ..> SubscriptionPaymentPersistenceEntity
+
+SubscriptionRepositoryImpl ..|> SubscriptionRepository
+SubscriptionRepositoryImpl --> SubscriptionPersistenceRepository
+SubscriptionRepositoryImpl ..> SubscriptionPersistenceAssembler
+
+SubscriptionPlanRepositoryImpl ..|> SubscriptionPlanRepository
+SubscriptionPlanRepositoryImpl --> SubscriptionPlanPersistenceRepository
+SubscriptionPlanRepositoryImpl ..> SubscriptionPlanPersistenceAssembler
+
+SubscriptionPaymentRepositoryImpl ..|> SubscriptionPaymentRepository
+SubscriptionPaymentRepositoryImpl --> SubscriptionPaymentPersistenceRepository
+SubscriptionPaymentRepositoryImpl ..> SubscriptionPaymentPersistenceAssembler
+
+SubscriptionPersistenceAssembler ..> Subscription
+SubscriptionPersistenceAssembler ..> SubscriptionPersistenceEntity
+SubscriptionPlanPersistenceAssembler ..> SubscriptionPlan
+SubscriptionPlanPersistenceAssembler ..> SubscriptionPlanPersistenceEntity
+SubscriptionPaymentPersistenceAssembler ..> SubscriptionPayment
+SubscriptionPaymentPersistenceAssembler ..> SubscriptionPaymentPersistenceEntity
+MoneyPersistenceAssembler ..> Money
+MoneyPersistenceAssembler ..> MoneyEmbeddable
+
+SubscriptionContextFacade --> SubscriptionQueryService
+
+CheckoutSessionCreatedEventHandler ..> CheckoutSessionCreatedEvent
+CheckoutSessionCreatedEventHandler ..> CheckoutSessionCreatedIntegrationEvent
+SubscriptionActivatedEventHandler ..> SubscriptionActivatedEvent
+SubscriptionActivatedEventHandler ..> SubscriptionActivatedIntegrationEvent
+SubscriptionCancelledEventHandler ..> SubscriptionCancelledEvent
+SubscriptionCancelledEventHandler ..> SubscriptionCancelledIntegrationEvent
+SubscriptionPaymentRecordedEventHandler ..> SubscriptionPaymentRecordedEvent
+SubscriptionPaymentRecordedEventHandler ..> SubscriptionPaymentRecordedIntegrationEvent
+
+SubscriptionController --> SubscriptionCommandService
+SubscriptionController --> SubscriptionQueryService
+SubscriptionController ..> CreateCheckoutSessionCommandFromResourceAssembler
+SubscriptionController ..> CancelSubscriptionCommandFromResourceAssembler
+SubscriptionController ..> SubscriptionResourceFromEntityAssembler
+SubscriptionController ..> SubscriptionPlanResourceFromEntityAssembler
+SubscriptionController ..> SubscriptionPaymentResourceFromEntityAssembler
+SubscriptionController ..> ResponseEntityAssembler
+
+StripeWebhookController --> SubscriptionCommandService
+StripeWebhookController --> SubscriptionQueryService
+StripeWebhookController --> ExternalStripeService
+StripeWebhookController ..> ActivateSubscriptionCommand
+StripeWebhookController ..> RecordStripePaymentCommand
+StripeWebhookController ..> Webhook
+StripeWebhookController ..> StripeSession
+
+CreateCheckoutSessionCommandFromResourceAssembler ..> CreateCheckoutSessionResource
+CreateCheckoutSessionCommandFromResourceAssembler ..> CreateCheckoutSessionCommand
+CancelSubscriptionCommandFromResourceAssembler ..> CancelSubscriptionResource
+CancelSubscriptionCommandFromResourceAssembler ..> CancelSubscriptionCommand
+SubscriptionResourceFromEntityAssembler ..> Subscription
+SubscriptionResourceFromEntityAssembler ..> SubscriptionResource
+SubscriptionPlanResourceFromEntityAssembler ..> SubscriptionPlan
+SubscriptionPlanResourceFromEntityAssembler ..> SubscriptionPlanResource
+SubscriptionPaymentResourceFromEntityAssembler ..> SubscriptionPayment
+SubscriptionPaymentResourceFromEntityAssembler ..> SubscriptionPaymentResource
+
+@enduml

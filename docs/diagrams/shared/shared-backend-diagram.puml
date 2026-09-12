@@ -1,0 +1,168 @@
+@startuml shared-backend-diagram
+title QualiTrack - Shared Backend
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "shared" {
+
+  package "application.result" {
+    record ApplicationError {
+      +code: String
+      +message: String
+      +details: String
+      +ApplicationError(code: String, message: String)
+      +validationError(fieldOrConcept: String, reason: String): ApplicationError
+      +notFound(resourceType: String, identifier: String): ApplicationError
+      +notFound(resourceType: String, identifier: Object): ApplicationError
+      +businessRuleViolation(rule: String, reason: String): ApplicationError
+      +conflict(resource: String, reason: String): ApplicationError
+      +unexpected(context: String, reason: String): ApplicationError
+    }
+
+    interface Result<T, E> <<sealed>> {
+      +success(value: T): Result<T, E>
+      +failure(error: E): Result<T, E>
+      +isSuccess(): boolean
+      +isFailure(): boolean
+      +toOptional(): Optional<T>
+      +getOrElse(defaultValue: T): T
+      +mapError(f: Function<E, E2>): Result<T, E2>
+      +flatMap(f: Function<T, Result<T2, E>>): Result<T2, E>
+      +map(f: Function<T, T2>): Result<T2, E>
+      +recover(f: Function<E, Result<T, E>>): Result<T, E>
+    }
+
+    record Success<T, E> {
+      +value: T
+    }
+
+    record Failure<T, E> {
+      +error: E
+    }
+  }
+
+  package "domain.model.aggregates" {
+    abstract class AbstractDomainAggregateRoot<T> {
+      #registerDomainEvent(event: Object): void
+      +domainEvents(): Collection<Object>
+      +clearDomainEvents(): void
+    }
+  }
+
+  package "infrastructure.persistence.jpa.entities" {
+    abstract class AuditableAbstractPersistenceEntity {
+      -id: Long
+      -createdAt: Date
+      -updatedAt: Date
+      +getId(): Long
+      +getCreatedAt(): Date
+      +getUpdatedAt(): Date
+      +setId(id: Long): void
+    }
+  }
+
+  package "infrastructure.persistence.jpa.configuration.strategy" {
+    class SnakeCaseWithPluralizedTablePhysicalNamingStrategy {
+      +toPhysicalCatalogName(identifier: Identifier, jdbcEnvironment: JdbcEnvironment): Identifier
+      +toPhysicalSchemaName(identifier: Identifier, jdbcEnvironment: JdbcEnvironment): Identifier
+      +toPhysicalTableName(identifier: Identifier, jdbcEnvironment: JdbcEnvironment): Identifier
+      +toPhysicalSequenceName(identifier: Identifier, jdbcEnvironment: JdbcEnvironment): Identifier
+      +toPhysicalColumnName(identifier: Identifier, jdbcEnvironment: JdbcEnvironment): Identifier
+      -toSnakeCase(identifier: Identifier): Identifier
+      -toPlural(identifier: Identifier): Identifier
+    }
+  }
+
+  package "infrastructure.i18n.configuration" {
+    class LocaleConfiguration {
+      +localeResolver(): LocaleResolver
+    }
+  }
+
+  package "infrastructure.documentation.openapi.configuration" {
+    class OpenApiConfiguration {
+      -applicationName: String
+      -applicationDescription: String
+      -applicationVersion: String
+      +QualiTrackPlatformOpenApi(): OpenAPI
+    }
+  }
+
+  package "interfaces.rest.resources" {
+    record ErrorResource {
+      +code: String
+      +message: String
+      +details: String
+      +ErrorResource(code: String, message: String)
+    }
+
+    record MessageResource {
+      +message: String
+    }
+  }
+
+  package "interfaces.rest.transform" {
+    class ErrorResponseAssembler <<final>> {
+      -MESSAGES_BASENAME: String
+      +toErrorResponseFromApplicationError(error: ApplicationError): ResponseEntity<ErrorResource>
+      +toStatusFromErrorCode(errorCode: String): HttpStatusCode
+      -toLocalizedMessageFromApplicationError(error: ApplicationError): String
+      -toSpecificMessageKeyFromErrorCode(errorCode: String): String
+      -toMessageKeyFromErrorCode(errorCode: String): String
+      -toEntityNameFromErrorCode(errorCode: String): String
+      -toLocalizedMessageOrNull(key: String, args: Object...): String
+      -toLocalizedMessageWithFallback(key: String, fallback: String, args: Object...): String
+    }
+
+    class ResponseEntityAssembler <<final>> {
+      +toResponseEntityFromResult(result: Result<T, ApplicationError>, successResourceAssembler: Function<T, R>, successStatus: HttpStatusCode): ResponseEntity<?>
+    }
+  }
+
+  package "interfaces.rest" {
+    class GlobalExceptionHandler {
+      -MESSAGES_BASENAME: String
+      +handleMethodArgumentNotValid(ex: MethodArgumentNotValidException): ResponseEntity<?>
+      +handleIllegalArgumentException(ex: IllegalArgumentException): ResponseEntity<?>
+      +handleRuntimeException(ex: RuntimeException): ResponseEntity<?>
+      +handleException(ex: Exception): ResponseEntity<?>
+      -resolveMessageOrDefault(key: String, defaultValue: String, args: Object...): String
+    }
+  }
+}
+
+Result <|.. Success
+Result <|.. Failure
+
+AbstractDomainAggregateRoot --|> AbstractAggregateRoot
+AuditableAbstractPersistenceEntity ..> AuditingEntityListener
+
+SnakeCaseWithPluralizedTablePhysicalNamingStrategy ..|> PhysicalNamingStrategy
+SnakeCaseWithPluralizedTablePhysicalNamingStrategy ..> Identifier
+SnakeCaseWithPluralizedTablePhysicalNamingStrategy ..> JdbcEnvironment
+
+LocaleConfiguration ..> LocaleResolver
+LocaleConfiguration ..> AcceptHeaderLocaleResolver
+
+OpenApiConfiguration ..> OpenAPI
+OpenApiConfiguration ..> SecurityScheme
+OpenApiConfiguration ..> SecurityRequirement
+
+ErrorResponseAssembler ..> ApplicationError
+ErrorResponseAssembler ..> ErrorResource
+ErrorResponseAssembler ..> LocaleContextHolder
+ErrorResponseAssembler ..> ResourceBundle
+ErrorResponseAssembler ..> HttpStatusCode
+
+ResponseEntityAssembler ..> Result
+ResponseEntityAssembler ..> ApplicationError
+ResponseEntityAssembler ..> ErrorResponseAssembler
+
+GlobalExceptionHandler ..> ApplicationError
+GlobalExceptionHandler ..> ErrorResponseAssembler
+GlobalExceptionHandler ..> MethodArgumentNotValidException
+GlobalExceptionHandler ..> LocaleContextHolder
+GlobalExceptionHandler ..> ResourceBundle
+
+@enduml

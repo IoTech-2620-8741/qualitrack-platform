@@ -1,0 +1,52 @@
+@startuml inventory-domain-foundation
+title QualiTrack Inventory - Domain foundation (not connected to persistence yet)
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+package "inventory.domain" {
+  class RawMaterial {
+    laboratoryId: Long
+    code: String
+    name: String
+    unit: String
+    minimumStock: BigDecimal
+    usableStock(receipts, onDate): BigDecimal
+  }
+  class RawMaterialBatch {
+    rawMaterialId: Long
+    laboratoryId: Long
+    supplier: String
+    batchNumber: String
+    initialAmount: BigDecimal
+    availableAmount: BigDecimal
+    receivedOn: LocalDate
+    expiresOn: LocalDate
+    status: RawMaterialBatchStatus
+    consume(amount, unit, onDate)
+  }
+  enum RawMaterialBatchStatus {
+    QUARANTINED
+    RELEASED
+    OBSERVED
+    REJECTED
+  }
+  RawMaterial "1" <-- "0..*" RawMaterialBatch : material reference
+  RawMaterialBatch --> RawMaterialBatchStatus
+}
+interface "inventory.interfaces.acl.InventoryContextFacade" as Contract
+component "Product Batch (future caller)" as Batch
+Batch ..> Contract : receipt + quantity + unit + operationId
+Contract ..> RawMaterialBatch : future transactional implementation
+note bottom of RawMaterialBatch
+  Confirmed receipt review policy:
+  receipts start QUARANTINED; only RELEASED is usable.
+  Date policy for this foundation: expiration day is excluded.
+  Confirm the laboratory business timezone before exposing the API.
+  No implicit unit conversion. No automatic receipt selection (FEFO).
+end note
+note bottom of Contract
+  Next increment: persistence, tenant checks, row locks and idempotent consumption.
+  Move existing material data through an explicit migration; preserve usage history.
+  Legacy Laboratory/Batch routes remain unchanged in this increment.
+end note
+@enduml

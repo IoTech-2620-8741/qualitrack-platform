@@ -7,8 +7,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Planned boundary for Batch and Reporting. No Spring bean or REST endpoint is installed yet.
- * The implementation must validate tenant ownership, lock stock and record consumption atomically.
+ * Boundary for receipt selection and atomic stock consumption.
+ * The implementation validates tenant ownership and records movements under a pessimistic lock.
  * A repeated operationId must return its original result; reuse with different input must fail.
  */
 public interface InventoryContextFacade {

@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
 
-/** A supplier receipt, not a manufactured product batch. Persistence is added in a later increment. */
+/** A supplier receipt, not a manufactured product batch. */
 @Getter
 public class RawMaterialBatch extends AbstractDomainAggregateRoot<RawMaterialBatch> {
     private final Long id;
@@ -24,7 +24,7 @@ public class RawMaterialBatch extends AbstractDomainAggregateRoot<RawMaterialBat
     private final LocalDate expiresOn;
     private RawMaterialBatchStatus status;
 
-    /** Reconstructs a receipt; status transitions must be authorized by the future application layer. */
+    /** Reconstructs a receipt; quality review authorization is enforced at the API boundary. */
     public RawMaterialBatch(Long id, Long laboratoryId, Long rawMaterialId, String supplier,
                             String batchNumber, String unit, BigDecimal initialAmount,
                             BigDecimal availableAmount, LocalDate receivedOn, LocalDate expiresOn,
@@ -93,7 +93,7 @@ public class RawMaterialBatch extends AbstractDomainAggregateRoot<RawMaterialBat
         StockUnit.requireSame(unit, requestedUnit);
         StockUnit.validateQuantity(amount, unit, false);
         if (!isUsableOn(onDate)) throw new IllegalStateException("Receipt is not available for consumption");
-        if (amount.compareTo(availableAmount) > 0) throw new IllegalStateException("Insufficient receipt stock");
+        if (amount.compareTo(availableAmount) > 0) throw new IllegalStateException("Insufficient stock in receipt");
         availableAmount = availableAmount.subtract(amount);
     }
 }

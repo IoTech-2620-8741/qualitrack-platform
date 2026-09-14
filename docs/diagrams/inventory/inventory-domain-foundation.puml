@@ -1,52 +1,77 @@
 @startuml inventory-domain-foundation
-title QualiTrack Inventory - Domain foundation (not connected to persistence yet)
-skinparam classAttributeIconSize 0
+title QualiTrack Inventory - Layered implementation
 skinparam shadowing false
-
-package "inventory.domain" {
-  class RawMaterial {
-    laboratoryId: Long
-    code: String
-    name: String
-    unit: String
-    minimumStock: BigDecimal
-    usableStock(receipts, onDate): BigDecimal
-  }
-  class RawMaterialBatch {
-    rawMaterialId: Long
-    laboratoryId: Long
-    supplier: String
-    batchNumber: String
-    initialAmount: BigDecimal
-    availableAmount: BigDecimal
-    receivedOn: LocalDate
-    expiresOn: LocalDate
-    status: RawMaterialBatchStatus
-    consume(amount, unit, onDate)
-  }
-  enum RawMaterialBatchStatus {
-    QUARANTINED
-    RELEASED
-    OBSERVED
-    REJECTED
-  }
-  RawMaterial "1" <-- "0..*" RawMaterialBatch : material reference
-  RawMaterialBatch --> RawMaterialBatchStatus
+package "inventory.interfaces" {
+  component InventoryController
+  component "REST resources and transform assemblers" as REST
+  interface InventoryContextFacade
+  component ReceiptConsumedIntegrationEvent
 }
-interface "inventory.interfaces.acl.InventoryContextFacade" as Contract
-component "Product Batch (future caller)" as Batch
-Batch ..> Contract : receipt + quantity + unit + operationId
-Contract ..> RawMaterialBatch : future transactional implementation
+package "inventory.application" {
+  interface InventoryCommandService
+  interface InventoryQueryService
+  interface InventoryImportService
+  component "internal.commandservices" as Commands
+  component "internal.queryservices" as Queries
+  component "acl.InventoryContextFacadeImpl" as ACL
+  component InventoryMovementRecorder
+}
+package "inventory.domain" {
+  class RawMaterial
+  class RawMaterialBatch
+  class InventoryMovement
+  interface InventoryRepository
+}
+package "inventory.infrastructure.persistence.jpa" {
+  component "adapters.InventoryRepositoryImpl" as Adapter
+  component "repositories (Spring Data)" as JPA
+  component "assemblers and persistence entities" as Persistence
+}
+package "shared" {
+  class AbstractDomainAggregateRoot
+  class AuditableAbstractPersistenceEntity
+  class StockUnit
+  component "Result / ApplicationError / ResponseEntityAssembler" as SharedResponses
+}
+InventoryController --> REST
+InventoryController --> InventoryCommandService
+InventoryController --> InventoryQueryService
+InventoryController --> InventoryImportService
+InventoryController --> SharedResponses
+Commands ..|> InventoryCommandService
+Commands ..|> InventoryImportService
+Queries ..|> InventoryQueryService
+ACL ..|> InventoryContextFacade
+ACL --> InventoryCommandService
+ACL --> InventoryQueryService
+Commands --> InventoryRepository
+Queries --> InventoryRepository
+Commands --> InventoryMovementRecorder
+InventoryMovementRecorder --> InventoryRepository
+Commands --> ReceiptConsumedIntegrationEvent
+component "Batch event handler (same transaction)" as Batch
+Batch --> ReceiptConsumedIntegrationEvent : subscribes
+Commands --> [BatchContextFacade] : validate and lock product batch
+Commands --> [LegacyInventoryFacade] : explicit opening balance import
+Adapter ..|> InventoryRepository
+Adapter --> JPA
+Adapter --> Persistence
+Persistence --> AuditableAbstractPersistenceEntity
+RawMaterial --|> AbstractDomainAggregateRoot
+RawMaterialBatch --|> AbstractDomainAggregateRoot
+RawMaterialBatch --> StockUnit
+RawMaterial "1" <-- "0..*" RawMaterialBatch
+RawMaterialBatch "1" <-- "0..*" InventoryMovement
 note bottom of RawMaterialBatch
-  Confirmed receipt review policy:
-  receipts start QUARANTINED; only RELEASED is usable.
-  Date policy for this foundation: expiration day is excluded.
-  Confirm the laboratory business timezone before exposing the API.
-  No implicit unit conversion. No automatic receipt selection (FEFO).
+  QUARANTINED -> RELEASED after QA review.
+  OBSERVED, REJECTED or expired receipts cannot be consumed.
+  Expiration day excluded; business clock: America/Lima.
+  Quantities keep their unit; no implicit conversion.
 end note
-note bottom of Contract
-  Next increment: persistence, tenant checks, row locks and idempotent consumption.
-  Move existing material data through an explicit migration; preserve usage history.
-  Legacy Laboratory/Batch routes remain unchanged in this increment.
+note bottom of Commands
+  Receipt lock + operationId prevent overdraft and duplicate consumption.
+  Receipt, movement and Batch usage commit or roll back together.
+  Legacy balances are imported once into QUARANTINED receipts.
+  Historical records are retained; old write endpoints return 410.
 end note
 @enduml

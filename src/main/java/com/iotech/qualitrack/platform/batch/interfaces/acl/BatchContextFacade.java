@@ -8,6 +8,7 @@ package com.iotech.qualitrack.platform.batch.interfaces.acl;
  * internal domain models or requiring them to know about internal queries/commands.</p>
  */
 public interface BatchContextFacade {
+    void requireConsumable(Long batchId, Long laboratoryId);
 
     /**
      * Verifies if a batch exists by its ID.

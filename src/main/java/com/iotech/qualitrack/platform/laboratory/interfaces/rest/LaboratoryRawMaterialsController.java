@@ -1,17 +1,12 @@
 package com.iotech.qualitrack.platform.laboratory.interfaces.rest;
 
-import com.iotech.qualitrack.platform.laboratory.application.commandservices.RawMaterialCommandService;
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.RawMaterialQueryService;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetLowStockMaterialsByLabIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetRawMaterialsByLabIdQuery;
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.resources.CreateRawMaterialResource;
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.resources.RawMaterialResource;
-import com.iotech.qualitrack.platform.laboratory.interfaces.rest.transform.CreateRawMaterialCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.transform.RawMaterialResourceFromEntityAssembler;
-import com.iotech.qualitrack.platform.shared.interfaces.rest.resources.MessageResource;
-import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,26 +19,20 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @Tag(name = "Laboratories", description = "Laboratory management endpoints")
 public class LaboratoryRawMaterialsController {
 
-    private final RawMaterialCommandService rawMaterialCommandService;
     private final RawMaterialQueryService rawMaterialQueryService;
 
-    public LaboratoryRawMaterialsController(RawMaterialCommandService rawMaterialCommandService,
-                                            RawMaterialQueryService rawMaterialQueryService) {
-        this.rawMaterialCommandService = rawMaterialCommandService;
+    public LaboratoryRawMaterialsController(RawMaterialQueryService rawMaterialQueryService) {
         this.rawMaterialQueryService = rawMaterialQueryService;
     }
 
+    @io.swagger.v3.oas.annotations.Operation(summary = "Legacy write disabled; use Inventory materials and receipts", deprecated = true)
     @PostMapping
     public ResponseEntity<?> createRawMaterial(
             @PathVariable Long laboratoryId,
             @RequestBody CreateRawMaterialResource resource
     ) {
-        var command = CreateRawMaterialCommandFromResourceAssembler.toCommandFromResource(laboratoryId, resource);
-
-        var result = rawMaterialCommandService.handle(command)
-                .map(materialId -> new MessageResource("Raw material registered successfully with ID: " + materialId));
-
-        return ResponseEntityAssembler.toResponseEntityFromResult(result, message -> message, HttpStatus.CREATED);
+        return ResponseEntity.status(410).body(java.util.Map.of("code", "INVENTORY_REQUIRED",
+                "message", "Create materials and receipts through the Inventory endpoints. Legacy balances are read-only."));
     }
 
     @GetMapping

@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface BatchRepository {
 
     Optional<Batch> findById(Long id);
+    Optional<Batch> findByIdForUpdate(Long id);
 
     List<Batch> findAll();
 

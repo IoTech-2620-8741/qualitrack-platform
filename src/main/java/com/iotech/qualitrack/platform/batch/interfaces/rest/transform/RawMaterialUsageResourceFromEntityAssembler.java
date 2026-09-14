@@ -24,7 +24,8 @@ public class RawMaterialUsageResourceFromEntityAssembler {
                 entity.getUnit(),
                 entity.getUsageDate(),
                 entity.getStockBefore(),
-                entity.getStockAfter()
+                entity.getStockAfter(),
+                entity.getInventoryReceiptId()
         );
     }
 }

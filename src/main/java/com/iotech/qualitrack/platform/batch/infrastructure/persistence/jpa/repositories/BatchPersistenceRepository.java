@@ -1,5 +1,9 @@
 package com.iotech.qualitrack.platform.batch.infrastructure.persistence.jpa.repositories;
 
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+
 import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchStatus;
 import com.iotech.qualitrack.platform.batch.infrastructure.persistence.jpa.entities.BatchPersistenceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +20,9 @@ import java.util.Optional;
  */
 @Repository
 public interface BatchPersistenceRepository extends JpaRepository<BatchPersistenceEntity, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from BatchPersistenceEntity b where b.id = :id")
+    Optional<BatchPersistenceEntity> findByIdForUpdate(Long id);
 
     /**
      * Finds all batches associated with a specific laboratory.

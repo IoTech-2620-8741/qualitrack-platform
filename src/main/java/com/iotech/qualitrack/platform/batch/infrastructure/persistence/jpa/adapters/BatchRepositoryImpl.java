@@ -21,6 +21,11 @@ public class BatchRepositoryImpl implements BatchRepository {
 
     private final BatchPersistenceRepository repository;
 
+    @Override
+    public Optional<Batch> findByIdForUpdate(Long id) {
+        return repository.findByIdForUpdate(id).map(BatchPersistenceAssembler::toDomainFromPersistence);
+    }
+
     public BatchRepositoryImpl(BatchPersistenceRepository repository) {
         this.repository = repository;
     }

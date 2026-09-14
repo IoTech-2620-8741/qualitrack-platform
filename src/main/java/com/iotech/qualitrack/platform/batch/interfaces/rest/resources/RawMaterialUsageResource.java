@@ -33,6 +33,7 @@ public record RawMaterialUsageResource(
         @Schema(description = "Usage date in ISO 8601 format", example = "2026-05-12")
         String usageDate,
         java.math.BigDecimal stockBefore,
-        java.math.BigDecimal stockAfter
+        java.math.BigDecimal stockAfter,
+        Long inventoryReceiptId
 ) {
 }

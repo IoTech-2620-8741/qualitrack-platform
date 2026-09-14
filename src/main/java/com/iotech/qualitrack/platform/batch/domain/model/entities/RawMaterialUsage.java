@@ -19,6 +19,9 @@ public class RawMaterialUsage {
      * The unique internal numeric identifier for the usage record.
      */
     private Long id;
+    private Long inventoryReceiptId;
+
+    public void assignInventoryReceipt(Long receiptId) { this.inventoryReceiptId = receiptId; }
     private java.math.BigDecimal stockBefore;
     private java.math.BigDecimal stockAfter;
 

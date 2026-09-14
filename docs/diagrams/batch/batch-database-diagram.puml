@@ -2,7 +2,6 @@
 
 title QualiTrack - Batch Backend Database Diagram
 
-hide methods
 hide stereotypes
 
 skinparam linetype ortho
@@ -28,12 +27,15 @@ entity "batches" as batches {
 entity "raw_material_usages" as raw_material_usages {
   * <u>id</u> : BIGINT PK AUTO_INCREMENT
   --
-  batch_id : BIGINT FK NOT NULL
-  raw_material_id : BIGINT FK NOT NULL
+  batch_id : BIGINT NOT NULL
+  raw_material_id : BIGINT NOT NULL
+  inventory_receipt_id : BIGINT NULL
   raw_material_name : VARCHAR(150) NOT NULL
   quantity_used : DOUBLE NOT NULL
   unit : VARCHAR(20) NOT NULL
   usage_date : VARCHAR(30) NOT NULL
+  stock_before : DECIMAL(19,3) NULL
+  stock_after : DECIMAL(19,3) NULL
   created_at : DATETIME(6) NOT NULL
   updated_at : DATETIME(6) NOT NULL
 }
@@ -59,8 +61,23 @@ entity "rejection_records" as rejection_records {
   updated_at : DATETIME(6) NOT NULL
 }
 
-batches ||--o{ raw_material_usages : "uses"
+batches ||..o{ raw_material_usages : "uses"
 batches ||--o{ digital_signatures : "signs"
 batches ||--o{ rejection_records : "rejects"
 
+package "Inventory Context (reference)" {
+  entity "inventory_receipts" as inventory_receipts {
+    * id : BIGINT PK
+    material_id : BIGINT
+    laboratory_id : BIGINT
+    available_amount : DECIMAL(19,3)
+  }
+}
+inventory_receipts |o..o{ raw_material_usages : inventory_receipt_id
+note bottom of raw_material_usages
+  Receipt ID is NULL for legacy records.
+  With a receipt, raw_material_id references inventory_materials;
+  otherwise it identifies the legacy Laboratory raw_materials.
+  Dotted links are logical scalar IDs, not JPA foreign keys.
+end note
 @enduml

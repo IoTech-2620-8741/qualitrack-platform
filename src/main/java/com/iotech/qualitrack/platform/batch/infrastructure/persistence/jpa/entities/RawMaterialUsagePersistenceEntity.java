@@ -18,6 +18,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class RawMaterialUsagePersistenceEntity extends AuditableAbstractPersistenceEntity {
+    @Column(name = "inventory_receipt_id")
+    private Long inventoryReceiptId;
 
     @Column(name = "batch_id", nullable = false)
     private Long batchId;

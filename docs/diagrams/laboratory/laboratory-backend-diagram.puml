@@ -64,8 +64,8 @@ package "laboratory.domain.model.aggregates" {
     - code: String
     - name: String
     - unit: String
-    - currentStock: Integer
-    - minimumThreshold: Integer
+    - currentStock: BigDecimal
+    - minimumThreshold: BigDecimal
   }
 
   class StaffMember {
@@ -366,7 +366,6 @@ LaboratoryController --> LaboratoryQueryService
 LaboratoryProductsController --> ProductCommandService
 LaboratoryProductsController --> ProductQueryService
 
-LaboratoryRawMaterialsController --> RawMaterialCommandService
 LaboratoryRawMaterialsController --> RawMaterialQueryService
 
 LaboratoryStaffController --> StaffCommandService
@@ -383,10 +382,24 @@ LaboratoryProductsController ..> ProductResourceFromEntityAssembler
 LaboratoryProductsController ..> CreateProductCommandFromResourceAssembler
 
 LaboratoryRawMaterialsController ..> RawMaterialResourceFromEntityAssembler
-LaboratoryRawMaterialsController ..> CreateRawMaterialCommandFromResourceAssembler
 
 LaboratoryStaffController ..> StaffResourceFromEntityAssembler
 LaboratoryStaffController ..> RegisterStaffCommandFromResourceAssembler
 StaffController ..> StaffResourceFromEntityAssembler
 
+package "laboratory.interfaces.acl" {
+  interface LegacyInventoryFacade
+}
+package "laboratory.application.acl" {
+  class LegacyInventoryFacadeImpl
+}
+LegacyInventoryFacadeImpl ..|> LegacyInventoryFacade
+LegacyInventoryFacadeImpl --> RawMaterialRepository
+note bottom of LegacyInventoryFacade
+  Read-only bridge and lock for explicit opening-balance import into Inventory.
+end note
+note bottom of LaboratoryRawMaterialsController
+  Historical reads remain available.
+  Legacy creation POST returns 410; new catalogue belongs to Inventory.
+end note
 @enduml

@@ -2,7 +2,6 @@
 
 title QualiTrack - Laboratory Backend Database Diagram
 
-hide methods
 hide stereotypes
 
 skinparam linetype ortho
@@ -59,9 +58,9 @@ entity "raw_materials" as raw_materials {
   supplier : VARCHAR(150) NOT NULL
   batch_number : VARCHAR(50) NOT NULL
   expiration_date : VARCHAR(20) NOT NULL
-  quantity_in_stock : INT NOT NULL
+  quantity_in_stock : DECIMAL(19,3) NOT NULL
   unit : VARCHAR(20) NOT NULL
-  minimum_stock : INT NOT NULL
+  minimum_stock : DECIMAL(19,3) NOT NULL
   created_at : DATETIME(6) NOT NULL
   updated_at : DATETIME(6) NOT NULL
 }
@@ -71,4 +70,9 @@ laboratories ||--o{ staff_members : "employs"
 laboratories ||--o{ pharmaceutical_products : "catalogs"
 laboratories ||--o{ raw_materials : "manages"
 
+note bottom of raw_materials
+  Legacy records retained for history and explicit one-time import.
+  New receipts, reviews and stock movements belong to Inventory.
+  See inventory/inventory-database-diagram.puml.
+end note
 @enduml

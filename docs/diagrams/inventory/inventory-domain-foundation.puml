@@ -1,5 +1,6 @@
 @startuml inventory-domain-foundation
 title QualiTrack Inventory - Layered implementation
+allowmixing
 skinparam shadowing false
 package "inventory.interfaces" {
   component InventoryController
@@ -19,7 +20,7 @@ package "inventory.application" {
 package "inventory.domain" {
   class RawMaterial
   class RawMaterialBatch
-  class InventoryMovement
+  class InventoryMovement <<record>>
   interface InventoryRepository
 }
 package "inventory.infrastructure.persistence.jpa" {
@@ -51,8 +52,10 @@ InventoryMovementRecorder --> InventoryRepository
 Commands --> ReceiptConsumedIntegrationEvent
 component "Batch event handler (same transaction)" as Batch
 Batch --> ReceiptConsumedIntegrationEvent : subscribes
-Commands --> [BatchContextFacade] : validate and lock product batch
-Commands --> [LegacyInventoryFacade] : explicit opening balance import
+interface BatchContextFacade
+interface LegacyInventoryFacade
+Commands --> BatchContextFacade : validate and lock product batch
+Commands --> LegacyInventoryFacade : explicit opening balance import
 Adapter ..|> InventoryRepository
 Adapter --> JPA
 Adapter --> Persistence

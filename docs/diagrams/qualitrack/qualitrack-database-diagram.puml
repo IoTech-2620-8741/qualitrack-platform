@@ -5,7 +5,6 @@ skinparam linetype ortho
 skinparam packageStyle rectangle
 skinparam shadowing false
 hide circle
-hide methods
 hide stereotypes
 
 package "IAM Context" {
@@ -91,9 +90,9 @@ package "Laboratory Context" {
     * supplier : VARCHAR(150)
     * batch_number : VARCHAR(50)
     * expiration_date : VARCHAR(20)
-    * quantity_in_stock : INT
+    * quantity_in_stock : DECIMAL(19,3)
     * unit : VARCHAR(20)
-    * minimum_stock : INT
+    * minimum_stock : DECIMAL(19,3)
   }
 
   laboratories ||--o{ laboratory_regulations : "laboratory_id"
@@ -101,6 +100,69 @@ package "Laboratory Context" {
   laboratories ||--o{ pharmaceutical_products : "laboratory_id"
   laboratories ||--o{ raw_materials : "laboratory_id"
 }
+
+package "Inventory Context" {
+  entity "inventory_materials" as inventory_materials {
+    * <u>id</u> : BIGINT PK AUTO_INCREMENT
+    --
+    laboratory_id : BIGINT NOT NULL
+    legacy_id : BIGINT NULL
+    code : VARCHAR(50) NOT NULL
+    name : VARCHAR(150) NOT NULL
+    unit : VARCHAR(20) NOT NULL
+    minimum_stock : DECIMAL(19,3) NOT NULL
+    created_at : DATETIME(6) NOT NULL
+    updated_at : DATETIME(6) NOT NULL
+    --
+    UNIQUE (laboratory_id, code)
+    UNIQUE (laboratory_id, legacy_id)
+  }
+  entity "inventory_receipts" as inventory_receipts {
+    * <u>id</u> : BIGINT PK AUTO_INCREMENT
+    --
+    laboratory_id : BIGINT NOT NULL
+    material_id : BIGINT NOT NULL
+    supplier : VARCHAR(150) NOT NULL
+    batch_number : VARCHAR(50) NOT NULL
+    unit : VARCHAR(20) NOT NULL
+    initial_amount : DECIMAL(19,3) NOT NULL
+    available_amount : DECIMAL(19,3) NOT NULL
+    received_on : DATE NOT NULL
+    expires_on : DATE NOT NULL
+    status : VARCHAR(20) NOT NULL
+    created_at : DATETIME(6) NOT NULL
+    updated_at : DATETIME(6) NOT NULL
+    --
+    UNIQUE (laboratory_id, material_id, supplier, batch_number)
+  }
+  entity "inventory_movements" as inventory_movements {
+    * <u>id</u> : BIGINT PK AUTO_INCREMENT
+    --
+    laboratory_id : BIGINT NOT NULL
+    material_id : BIGINT NOT NULL
+    receipt_id : BIGINT NOT NULL
+    product_batch_id : BIGINT NULL
+    type : VARCHAR(20) NOT NULL
+    amount : DECIMAL(19,3) NOT NULL
+    unit : VARCHAR(20) NOT NULL
+    stock_before : DECIMAL(19,3) NOT NULL
+    stock_after : DECIMAL(19,3) NOT NULL
+    status_before : VARCHAR(20) NULL
+    status_after : VARCHAR(20) NOT NULL
+    reason : VARCHAR(500) NOT NULL
+    actor_id : BIGINT NOT NULL
+    occurred_at : DATETIME(6) NOT NULL
+    operation_id : VARCHAR(100) NULL
+    created_at : DATETIME(6) NOT NULL
+    updated_at : DATETIME(6) NOT NULL
+    --
+    UNIQUE (laboratory_id, operation_id)
+  }
+}
+
+inventory_materials ||..o{ inventory_receipts : material_id
+inventory_materials ||..o{ inventory_movements : material_id
+inventory_receipts ||..o{ inventory_movements : receipt_id
 
 package "Equipment Context" {
   entity "equipment" as equipment {
@@ -164,16 +226,19 @@ package "Batch Context" {
   }
 
   entity "raw_material_usages" as raw_material_usages {
-    * id : BIGINT <<PK>>
+    * <u>id</u> : BIGINT PK AUTO_INCREMENT
     --
-    * created_at : DATETIME
-    * updated_at : DATETIME
-    * batch_id : BIGINT <<FK>>
-    * raw_material_id : BIGINT
-    * raw_material_name : VARCHAR(150)
-    * quantity_used : DOUBLE
-    * unit : VARCHAR(20)
-    * usage_date : VARCHAR(30)
+    batch_id : BIGINT NOT NULL
+    raw_material_id : BIGINT NOT NULL
+    inventory_receipt_id : BIGINT NULL
+    raw_material_name : VARCHAR(150) NOT NULL
+    quantity_used : DOUBLE NOT NULL
+    unit : VARCHAR(20) NOT NULL
+    usage_date : VARCHAR(30) NOT NULL
+    stock_before : DECIMAL(19,3) NULL
+    stock_after : DECIMAL(19,3) NULL
+    created_at : DATETIME(6) NOT NULL
+    updated_at : DATETIME(6) NOT NULL
   }
 
   entity "digital_signatures" as digital_signatures {
@@ -197,7 +262,7 @@ package "Batch Context" {
     * reason : VARCHAR(500)
   }
 
-  batches ||--o{ raw_material_usages : "batch_id"
+  batches ||..o{ raw_material_usages : "batch_id"
   batches ||--o{ digital_signatures : "batch_id"
   batches ||--o{ rejection_records : "batch_id"
 }
@@ -442,5 +507,40 @@ package "Subscription Context" {
   subscription_plans ||..o{ subscriptions : "code + billing_cycle"
   subscriptions ||--o{ subscription_payments : "subscription_id"
 }
+
+laboratories ||..o{ inventory_materials : laboratory_id
+laboratories ||..o{ inventory_receipts : laboratory_id
+laboratories ||..o{ inventory_movements : laboratory_id
+raw_materials |o..o| inventory_materials : legacy_id / explicit import
+batches |o..o{ inventory_movements : product_batch_id
+iam_users ||..o{ inventory_movements : actor_id
+inventory_receipts |o..o{ raw_material_usages : inventory_receipt_id
+
+note bottom of inventory_materials
+  Catalogue only: usableStock and physicalStock are calculated,
+  not stored columns. Legacy records remain in raw_materials.
+end note
+note bottom of inventory_receipts
+  QUARANTINED / RELEASED / OBSERVED / REJECTED.
+  Available stock belongs to each supplier receipt.
+  Units must match the catalogue; no implicit conversion.
+end note
+note bottom of inventory_movements
+  Append-only application history; signed amount.
+  operation_id is populated for consumptions (idempotent retries).
+  Receipt, movement and Batch usage share one transaction.
+  occurred_at is mapped from Instant (UTC).
+end note
+note bottom of raw_material_usages
+  inventory_receipt_id is NULL for legacy usage.
+  With a receipt, raw_material_id identifies inventory_materials;
+  otherwise it identifies legacy raw_materials.
+  stock_before / stock_after may be NULL for historical records.
+end note
+legend bottom
+  Inventory and Batch references drawn with dotted lines are logical ID links.
+  Current JPA mappings use scalar IDs, not declared foreign-key associations.
+  Columns and unique constraints are based on the source mappings, not a live DB export.
+endlegend
 
 @enduml

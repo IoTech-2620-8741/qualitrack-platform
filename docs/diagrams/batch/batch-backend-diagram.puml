@@ -24,7 +24,7 @@ package "spring" <<External>> {
 package "laboratory" <<External>> {
   interface LaboratoryContextFacade
   interface ProductRepository
-  interface RawMaterialRepository
+  interface RawMaterialStockFacade
 }
 
 package "ca" <<External>> {
@@ -65,6 +65,9 @@ package "batch.domain.model.entities" {
     - batchId: Long
     - rawMaterialId: Long
     - rawMaterialName: String
+    - inventoryReceiptId: Long
+    - stockBefore: BigDecimal
+    - stockAfter: BigDecimal
     - quantityUsed: Double
     - unit: String
     - usageDate: String
@@ -151,7 +154,7 @@ BatchCommandServiceImpl ..> BatchRejectedEvent
 
 RawMaterialUsageCommandServiceImpl --> RawMaterialUsageRepository
 RawMaterialUsageCommandServiceImpl --> BatchRepository
-RawMaterialUsageCommandServiceImpl --> RawMaterialRepository
+RawMaterialUsageCommandServiceImpl --> RawMaterialStockFacade
 RawMaterialUsageCommandServiceImpl --> ApplicationEventPublisher
 RawMaterialUsageCommandServiceImpl ..> RawMaterialLinkedToBatchEvent
 
@@ -171,6 +174,7 @@ package "batch.application.internal.eventhandlers" {
   class BatchReleasedEventHandler
   class BatchRejectedEventHandler
   class RawMaterialLinkedToBatchEventHandler
+  class ReceiptConsumedEventHandler
 }
 
 BatchCreatedEventHandler ..> BatchCreatedEvent
@@ -193,6 +197,7 @@ BatchExternalComplianceService --> ComplianceContextFacade
 
 package "batch.application.acl" {
   class BatchContextFacadeImpl {
+    + requireConsumable(batchId: Long, laboratoryId: Long): void
     + existsBatchById(batchId: Long): boolean
     + belongsToLaboratory(batchId: Long, laboratoryId: Long): boolean
     + isBatchReleased(batchId: Long): boolean
@@ -206,6 +211,7 @@ package "batch.interfaces.acl" {
 
 BatchContextFacadeImpl ..|> BatchContextFacade
 BatchContextFacadeImpl --> BatchQueryService
+BatchContextFacadeImpl --> BatchRepository : lock for consumption
 
 package "batch.interfaces.events" {
   class BatchCreatedIntegrationEvent <<record>>
@@ -359,13 +365,27 @@ BatchController ..> ReleaseBatchCommandFromResourceAssembler
 BatchController ..> RejectBatchCommandFromResourceAssembler
 BatchController ..> ResponseEntityAssembler
 
-BatchRawMaterialUsageController --> RawMaterialUsageCommandService
 BatchRawMaterialUsageController --> RawMaterialUsageQueryService
-BatchRawMaterialUsageController ..> LinkRawMaterialCommandFromResourceAssembler
 BatchRawMaterialUsageController ..> RawMaterialUsageResourceFromEntityAssembler
 BatchRawMaterialUsageController ..> ResponseEntityAssembler
 
 LaboratoryBatchesController --> BatchQueryService
 LaboratoryBatchesController ..> BatchResourceFromEntityAssembler
 
+package "inventory.interfaces.events" <<External>> {
+  class ReceiptConsumedIntegrationEvent <<record>>
+}
+ReceiptConsumedEventHandler ..> ReceiptConsumedIntegrationEvent
+ReceiptConsumedEventHandler --> RawMaterialUsageRepository
+ReceiptConsumedEventHandler ..> RawMaterialUsage
+ReceiptConsumedEventHandler ..> RawMaterialLinkedToBatchEvent
+ReceiptConsumedEventHandler --> ApplicationEventPublisher
+note bottom of ReceiptConsumedEventHandler
+  Synchronous listener with MANDATORY propagation:
+  usage and Inventory stock changes commit or roll back together.
+end note
+note bottom of BatchRawMaterialUsageController
+  GET retained. Legacy POST returns 410 RECEIPT_REQUIRED.
+  New consumption is requested through Inventory.
+end note
 @enduml

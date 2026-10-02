@@ -5,7 +5,9 @@ import com.iotech.qualitrack.platform.shared.application.result.Result;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.function.Function;
 
 /**
@@ -36,6 +38,36 @@ public final class ResponseEntityAssembler {
         return switch (result) {
             case Result.Success<T, ApplicationError> success ->
                     new ResponseEntity<>(successResourceAssembler.apply(success.value()), successStatus);
+            case Result.Failure<T, ApplicationError> failure ->
+                    ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
+        };
+    }
+
+    /**
+     * Converts a Result into a {@code 201 Created} response whose {@code Location} header points to the
+     * created resource, resolved as a child path of the current request URI.
+     * Failure responses are delegated to ErrorResponseAssembler.
+     *
+     * @param result the application result
+     * @param successResourceAssembler function that maps success value to response resource
+     * @param identifier function that extracts the created resource identifier from the success value
+     * @param <T> success value type
+     * @param <R> success response resource type
+     * @return {@code 201 Created} with Location and body, or the mapped error response
+     */
+    public static <T, R> ResponseEntity<?> toCreatedResponseEntityFromResult(
+            Result<T, ApplicationError> result,
+            Function<T, R> successResourceAssembler,
+            Function<T, Object> identifier
+    ) {
+        return switch (result) {
+            case Result.Success<T, ApplicationError> success -> {
+                URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                        .path("/{id}")
+                        .buildAndExpand(identifier.apply(success.value()))
+                        .toUri();
+                yield ResponseEntity.created(location).body(successResourceAssembler.apply(success.value()));
+            }
             case Result.Failure<T, ApplicationError> failure ->
                     ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
         };

@@ -16,6 +16,11 @@ public interface InventoryContextFacade {
 
     Consumption consume(ConsumptionRequest request);
 
+    /**
+     * Checks that a raw material exists in the laboratory and is kept in the environment.
+     */
+    boolean isRawMaterialInEnvironment(Long laboratoryId, Long environmentId, Long rawMaterialId);
+
     record ConsumptionRequest(Long laboratoryId, Long rawMaterialBatchId, Long productBatchId,
                               BigDecimal amountUsed, String unit, String operationId) {
         public ConsumptionRequest {

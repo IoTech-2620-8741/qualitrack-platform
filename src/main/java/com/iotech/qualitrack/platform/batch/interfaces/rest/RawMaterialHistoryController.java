@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping(value = "/api/v1/raw-materials/{rawMaterialId}/usages", produces = "application/json")
+@RequestMapping(value = "/api/v1/raw-materials/{legacyRawMaterialId}/usages", produces = "application/json")
 @Tag(name = "Raw Material Traceability")
 public class RawMaterialHistoryController {
     private final RawMaterialUsageQueryService queries;
@@ -22,10 +22,10 @@ public class RawMaterialHistoryController {
     }
 
     @GetMapping
-    @PreAuthorize("@tenantAccess.allows('rawMaterialId', #rawMaterialId)")
+    @PreAuthorize("@tenantAccess.allows('legacyRawMaterialId', #legacyRawMaterialId)")
     @Operation(summary = "Get material consumption history", description = "Newest first. Each record identifies its production batch. Stock before/after are null for legacy records that did not deduct inventory.")
-    public List<RawMaterialUsageResource> history(@PathVariable Long rawMaterialId) {
-        return queries.handle(new GetRawMaterialHistoryQuery(rawMaterialId)).stream()
+    public List<RawMaterialUsageResource> history(@PathVariable Long legacyRawMaterialId) {
+        return queries.handle(new GetRawMaterialHistoryQuery(legacyRawMaterialId)).stream()
                 .map(RawMaterialUsageResourceFromEntityAssembler::toResourceFromEntity).toList();
     }
 }

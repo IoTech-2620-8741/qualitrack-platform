@@ -14,4 +14,13 @@ public interface LaboratoryContextFacade {
      * @return true if it exists, false otherwise
      */
     boolean existsLaboratoryById(Long labId);
+
+    /**
+     * Verifies if an environment exists and belongs to the given laboratory.
+     *
+     * @param laboratoryId the laboratory that must own the environment
+     * @param environmentId the environment identifier
+     * @return true when the environment exists in the laboratory
+     */
+    boolean existsEnvironment(Long laboratoryId, Long environmentId);
 }

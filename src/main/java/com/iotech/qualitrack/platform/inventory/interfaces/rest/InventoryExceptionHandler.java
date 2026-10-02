@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @Order(0)
-@RestControllerAdvice(assignableTypes = InventoryController.class)
+@RestControllerAdvice(assignableTypes = {InventoryController.class, EnvironmentInventoryController.class})
 public class InventoryExceptionHandler {
     @ExceptionHandler({DataIntegrityViolationException.class, PessimisticLockingFailureException.class})
     public ResponseEntity<?> conflict(RuntimeException exception) {

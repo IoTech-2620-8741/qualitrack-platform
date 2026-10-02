@@ -1,5 +1,16 @@
 package com.iotech.qualitrack.platform.inventory.application.internal.queryservices;
-import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
+
+import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialBatchesQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialByIdQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialsQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchByIdQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchesQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialMovementsQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.NearExpiryPeriod;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchStatus;
+import java.util.Optional;import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
 import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
@@ -19,20 +30,19 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
     private final InventoryRepository repository;
     private final Clock clock;
     private final LegacyInventoryFacade legacy;
-    public InventoryQueryServiceImpl(InventoryRepository repository, Clock inventoryClock, LegacyInventoryFacade legacy) {
+    private final InventoryExternalLaboratoryService laboratories;
+    private final NearExpiryPeriod nearExpiryPeriod;
+    public InventoryQueryServiceImpl(InventoryRepository repository, Clock inventoryClock, LegacyInventoryFacade legacy,
+            InventoryExternalLaboratoryService laboratories, NearExpiryPeriod inventoryNearExpiryPeriod) {
         this.repository = repository;
+        this.laboratories = laboratories;
+        this.nearExpiryPeriod = inventoryNearExpiryPeriod;
         this.clock = inventoryClock;
         this.legacy = legacy;
     }
     public List<MaterialStockSummary> handle(GetInventoryMaterialsQuery query) {
         var lab = query.laboratoryId();
-        return repository.materials(lab).stream().map(material -> {
-            var receipts = repository.receipts(lab, material.getId());
-            return new MaterialStockSummary(material.getId(), lab, material.getCode(), material.getName(), material.getUnit(),
-                material.getMinimumStock(), material.usableStock(receipts, LocalDate.now(clock)),
-                receipts.stream().map(RawMaterialBatch::getAvailableAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
-                repository.legacyId(lab, material.getId()).orElse(null));
-        }).toList();
+        return repository.materials(lab).stream().map(this::summary).toList();
     }
     public List<RawMaterialBatch> handle(GetMaterialReceiptsQuery query) {
         requireMaterial(query.laboratoryId(), query.materialId());
@@ -46,6 +56,60 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
     public List<LegacyInventoryFacade.Material> handle(GetPendingLegacyMaterialsQuery query) {
         return legacy.materials(query.laboratoryId()).stream()
             .filter(material -> repository.importedMaterial(query.laboratoryId(), material.id()).isEmpty()).toList();
+    }
+
+    public List<MaterialStockSummary> handle(GetEnvironmentRawMaterialsQuery query) {
+        requireEnvironment(query.laboratoryId(), query.environmentId());
+        return repository.materials(query.laboratoryId(), query.environmentId()).stream().map(this::summary)
+            .filter(material -> query.stockStatus() == null || material.stockStatus() == query.stockStatus()).toList();
+    }
+    public Optional<MaterialStockSummary> handle(GetEnvironmentRawMaterialByIdQuery query) {
+        return repository.material(query.laboratoryId(), query.rawMaterialId(), false)
+            .filter(material -> material.belongsToEnvironment(query.environmentId())).map(this::summary);
+    }
+    public List<RawMaterialBatch> handle(GetRawMaterialBatchesQuery query) {
+        requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
+        return repository.receipts(query.laboratoryId(), query.rawMaterialId());
+    }
+    public Optional<RawMaterialBatch> handle(GetRawMaterialBatchByIdQuery query) {
+        requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
+        return repository.receipt(query.laboratoryId(), query.rawMaterialBatchId(), false)
+            .filter(receipt -> receipt.getRawMaterialId().equals(query.rawMaterialId()));
+    }
+    public List<InventoryMovement> handle(GetRawMaterialMovementsQuery query) {
+        requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
+        return repository.movements(query.laboratoryId(), query.rawMaterialId());
+    }
+    public List<RawMaterialBatch> handle(GetEnvironmentRawMaterialBatchesQuery query) {
+        requireEnvironment(query.laboratoryId(), query.environmentId());
+        var period = query.withinDays() == null ? nearExpiryPeriod : new NearExpiryPeriod(query.withinDays());
+        var today = LocalDate.now(clock);
+        return repository.environmentReceipts(query.laboratoryId(), query.environmentId()).stream()
+            .filter(receipt -> query.expirationStatus() == null
+                || (receipt.expirationStatus(today, period.days()) == query.expirationStatus()
+                    && receipt.getAvailableAmount().signum() > 0
+                    && receipt.getStatus() != RawMaterialBatchStatus.REJECTED))
+            .toList();
+    }
+
+    private MaterialStockSummary summary(RawMaterial material) {
+        var lab = material.getLaboratoryId();
+        var receipts = repository.receipts(lab, material.getId());
+        return new MaterialStockSummary(material.getId(), lab, material.getEnvironmentId(), material.getCode(), material.getName(),
+            material.getUnit(), material.getMinimumStock(), material.usableStock(receipts, LocalDate.now(clock)),
+            receipts.stream().map(RawMaterialBatch::getAvailableAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+            repository.legacyId(lab, material.getId()).orElse(null));
+    }
+
+    private void requireEnvironment(Long lab, Long environment) {
+        if (!laboratories.existsEnvironment(lab, environment))
+            throw new ApplicationException(ApplicationError.notFound("Environment", environment));
+    }
+
+    private void requireMaterialInEnvironment(Long lab, Long environment, Long id) {
+        requireEnvironment(lab, environment);
+        if (repository.material(lab, id, false).filter(material -> material.belongsToEnvironment(environment)).isEmpty())
+            throw new ApplicationException(ApplicationError.notFound("Material", id));
     }
 
     private void requireMaterial(Long lab, Long id) {

@@ -57,6 +57,8 @@ class EnvironmentIntegrationTests {
         assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
         assertThat(created.body()).contains("\"code\":\"WH-RM-01\"").contains("\"usage\":null");
         Long environmentId = ((Number) JsonPath.read(created.body(), "$.id")).longValue();
+        assertThat(created.headers().firstValue("Location")).hasValueSatisfying(location ->
+                assertThat(location).endsWith("/api/v1" + base + "/" + environmentId));
 
         var duplicate = call("POST", base, lab.manager().token(), "{\"code\":\"WH-RM-01\",\"name\":\"Other\"}");
         assertThat(duplicate.statusCode()).isEqualTo(409);

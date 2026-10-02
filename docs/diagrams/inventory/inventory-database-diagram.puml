@@ -11,6 +11,7 @@ package "Inventory Context" {
     * <u>id</u> : BIGINT PK AUTO_INCREMENT
     --
     laboratory_id : BIGINT NOT NULL
+    environment_id : BIGINT NULL
     legacy_id : BIGINT NULL
     code : VARCHAR(50) NOT NULL
     name : VARCHAR(150) NOT NULL

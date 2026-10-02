@@ -1,5 +1,7 @@
 package com.iotech.qualitrack.platform.inventory.application.internal.commandservices;
-import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
+
+import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchReview;import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.InventoryMovementRecorder;
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.*;
@@ -24,9 +26,12 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
     private final InventoryMovementRecorder recorder;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final InventoryExternalLaboratoryService laboratories;
     public InventoryCommandServiceImpl(InventoryRepository repository, BatchContextFacade batches,
-            InventoryMovementRecorder recorder, ApplicationEventPublisher events, Clock inventoryClock) {
+            InventoryMovementRecorder recorder, ApplicationEventPublisher events, Clock inventoryClock,
+            InventoryExternalLaboratoryService laboratories) {
         this.repository = repository;
+        this.laboratories = laboratories;
         this.batches = batches;
         this.recorder = recorder;
         this.events = events;
@@ -36,21 +41,23 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
     @Override
     public Result<RawMaterial, ApplicationError> handle(SaveRawMaterialCommand command) {
         var lab = command.laboratoryId();
+        var environment = command.environmentId();
         var id = command.materialId();
         var code = command.code();
         var name = command.name();
         var unit = command.unit();
         var minimumStock = command.minimumStock();
 
+        requireEnvironment(lab, environment);
         requireText(code, 50, "Code");
         requireText(name, 150, "Name");
         Long legacy = null;
         if (id != null) {
-            var previous = material(lab, id, true);
+            var previous = materialInEnvironment(lab, environment, id, true);
             StockUnit.requireSame(previous.getUnit(), unit);
             legacy = repository.legacyId(lab, id).orElse(null);
         }
-        var material = new RawMaterial(id, lab, code, name, unit, minimumStock);
+        var material = new RawMaterial(id, lab, environment, code, name, unit, minimumStock);
         if (repository.codeExists(lab, material.getCode(), id)) throw conflict("Material code already exists");
         return Result.success(repository.saveMaterial(material, legacy));
     }
@@ -66,7 +73,8 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         var received = command.receivedOn();
         var expires = command.expiresOn();
 
-        var material = material(lab, materialId, true);
+        requireEnvironment(lab, command.environmentId());
+        var material = materialInEnvironment(lab, command.environmentId(), materialId, true);
         requireText(supplier, 150, "Supplier");
         requireText(number, 50, "Batch number");
         StockUnit.requireSame(material.getUnit(), unit);
@@ -78,14 +86,19 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
     }
 
     @Override
-    public Result<RawMaterialBatch, ApplicationError> handle(ReviewRawMaterialBatchCommand command) {
+    public Result<RawMaterialBatchReview, ApplicationError> handle(ReviewRawMaterialBatchCommand command) {
         var lab = command.laboratoryId();
         var receiptId = command.receiptId();
         var target = command.status();
         var reason = command.reason();
 
         requireText(reason, 500, "Review reason");
+        requireEnvironment(lab, command.environmentId());
+        materialInEnvironment(lab, command.environmentId(), command.materialId(), false);
         var receipt = receipt(lab, receiptId, true);
+        if (!receipt.getRawMaterialId().equals(command.materialId())) {
+            throw new ApplicationException(ApplicationError.notFound("RawMaterialBatch", receiptId));
+        }
         var previous = receipt.getStatus().name();
         try {
             if (target == RawMaterialBatchStatus.RELEASED) {
@@ -96,8 +109,9 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
             else throw new IllegalArgumentException("Choose RELEASED, OBSERVED or REJECTED");
         } catch (IllegalStateException ex) { throw conflict(ex.getMessage()); }
         repository.saveReceipt(receipt);
-        recorder.record(receipt, null, "REVIEW", BigDecimal.ZERO, receipt.getAvailableAmount(), previous, reason.trim(), null);
-        return Result.success(receipt);
+        var movement = recorder.record(receipt, null, "REVIEW", BigDecimal.ZERO, receipt.getAvailableAmount(), previous, reason.trim(), null);
+        return Result.success(new RawMaterialBatchReview(receipt.getId(), receipt.getRawMaterialId(), previous,
+            receipt.getStatus().name(), movement.reason(), movement.actorId(), movement.occurredAt()));
     }
 
     @Override
@@ -134,6 +148,17 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
 
     private RawMaterial material(Long lab, Long id, boolean lock) {
         return repository.material(lab, id, lock).orElseThrow(() -> new ApplicationException(ApplicationError.notFound("Material", id)));
+    }
+
+    private void requireEnvironment(Long lab, Long environment) {
+        if (!laboratories.existsEnvironment(lab, environment))
+            throw new ApplicationException(ApplicationError.notFound("Environment", environment));
+    }
+
+    private RawMaterial materialInEnvironment(Long lab, Long environment, Long id, boolean lock) {
+        var material = material(lab, id, lock);
+        if (!material.belongsToEnvironment(environment)) throw new ApplicationException(ApplicationError.notFound("Material", id));
+        return material;
     }
 
     private RawMaterialBatch receipt(Long lab, Long id, boolean lock) {

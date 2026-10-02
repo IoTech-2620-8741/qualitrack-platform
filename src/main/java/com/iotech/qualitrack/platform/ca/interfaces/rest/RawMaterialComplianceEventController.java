@@ -17,7 +17,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  * REST controller that exposes raw material compliance event resources.
  */
 @RestController
-@RequestMapping(value = "/api/v1/raw-materials/{rawMaterialId}/compliance-events", produces = APPLICATION_JSON_VALUE)
+@RequestMapping(value = "/api/v1/raw-materials/{legacyRawMaterialId}/compliance-events", produces = APPLICATION_JSON_VALUE)
 @Tag(name = "Raw Materials", description = "Raw material compliance event endpoints")
 public class RawMaterialComplianceEventController {
 
@@ -30,16 +30,16 @@ public class RawMaterialComplianceEventController {
     /**
      * Retrieves compliance events related to a raw material.
      *
-     * @param rawMaterialId the raw material numeric identifier
+     * @param legacyRawMaterialId the legacy (Laboratory) raw material numeric identifier
      * @return the compliance event resources
      */
     @GetMapping
     @Operation(summary = "Get raw material compliance events")
     public ResponseEntity<List<ComplianceEventResource>> getComplianceEventsByRawMaterialId(
-            @PathVariable Long rawMaterialId
+            @PathVariable Long legacyRawMaterialId
     ) {
         var events = caQueryService.handle(
-                new GetComplianceEventsByRelatedEntityIdQuery(rawMaterialId,
+                new GetComplianceEventsByRelatedEntityIdQuery(legacyRawMaterialId,
                         com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventSubject.RAW_MATERIAL)
         );
 

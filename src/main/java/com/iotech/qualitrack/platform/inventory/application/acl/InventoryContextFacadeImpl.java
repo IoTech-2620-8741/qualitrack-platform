@@ -1,5 +1,6 @@
 package com.iotech.qualitrack.platform.inventory.application.acl;
-import com.iotech.qualitrack.platform.inventory.interfaces.acl.InventoryContextFacade;
+
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialByIdQuery;import com.iotech.qualitrack.platform.inventory.interfaces.acl.InventoryContextFacade;
 import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
 import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.ConsumeRawMaterialBatchCommand;
@@ -25,5 +26,8 @@ public class InventoryContextFacadeImpl implements InventoryContextFacade {
             request.productBatchId(), request.amountUsed(), request.unit(), request.operationId()))
             .map(value -> new Consumption(value.rawMaterialBatchId(), value.productBatchId(), value.amountUsed(), value.unit(),
                 value.stockBefore(), value.stockAfter(), value.operationId())).toOptional().orElseThrow();
+    }
+    public boolean isRawMaterialInEnvironment(Long laboratoryId, Long environmentId, Long rawMaterialId) {
+        return queries.handle(new GetEnvironmentRawMaterialByIdQuery(laboratoryId, environmentId, rawMaterialId)).isPresent();
     }
 }

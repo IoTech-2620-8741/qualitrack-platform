@@ -1,5 +1,6 @@
 package com.iotech.qualitrack.platform.inventory.domain.model.aggregates;
 
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.ExpirationStatus;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchStatus;
 import com.iotech.qualitrack.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import com.iotech.qualitrack.platform.shared.domain.model.valueobjects.StockUnit;
@@ -66,6 +67,17 @@ public class RawMaterialBatch extends AbstractDomainAggregateRoot<RawMaterialBat
         Objects.requireNonNull(onDate, "Reference date is required");
         return status == RawMaterialBatchStatus.RELEASED && availableAmount.signum() > 0
                 && !onDate.isBefore(receivedOn) && onDate.isBefore(expiresOn);
+    }
+
+    /**
+     * Classifies the expiration of the lot on a business date.
+     * A lot is near expiry when it expires within the next {@code nearExpiryDays} days and is not yet expired.
+     */
+    public ExpirationStatus expirationStatus(LocalDate onDate, int nearExpiryDays) {
+        Objects.requireNonNull(onDate, "Reference date is required");
+        if (nearExpiryDays < 0) throw new IllegalArgumentException("Near expiry days cannot be negative");
+        if (!onDate.isBefore(expiresOn)) return ExpirationStatus.EXPIRED;
+        return expiresOn.isAfter(onDate.plusDays(nearExpiryDays)) ? ExpirationStatus.VALID : ExpirationStatus.NEAR_EXPIRY;
     }
 
     public void release() {

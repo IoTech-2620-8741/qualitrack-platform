@@ -23,6 +23,14 @@ package "laboratory.domain.model.valueobjects" {
   class Regulation <<value object>>
   class StockQuantity <<value object>>
 
+  enum EnvironmentUsage {
+    LABORATORY
+    PRODUCTION
+    RAW_MATERIAL_STORAGE
+    PRODUCT_STORAGE
+    OTHER
+  }
+
   enum LaboratoryStatus {
     ACTIVE
     INACTIVE
@@ -68,6 +76,20 @@ package "laboratory.domain.model.aggregates" {
     - minimumThreshold: BigDecimal
   }
 
+  class Environment {
+    - id: Long
+    - laboratoryId: Long
+    - code: String
+    - name: String
+    - description: String
+    - usage: EnvironmentUsage
+    - usageAssignedBy: Long
+    - usageAssignedAt: Instant
+    + update(command: UpdateEnvironmentCommand): void
+    + assignUsage(usage: EnvironmentUsage, assignedBy: Long, assignedAt: Instant): void
+    + belongsTo(laboratoryId: Long): boolean
+  }
+
   class StaffMember {
     - id: Long
     - laboratoryId: Long
@@ -83,6 +105,8 @@ Laboratory --|> AbstractDomainAggregateRoot
 PharmaceuticalProduct --|> AbstractDomainAggregateRoot
 RawMaterial --|> AbstractDomainAggregateRoot
 StaffMember --|> AbstractDomainAggregateRoot
+Environment --|> AbstractDomainAggregateRoot
+Environment --> EnvironmentUsage
 
 Laboratory *-- LaboratoryName
 Laboratory *-- LaboratoryAddress
@@ -97,6 +121,9 @@ package "laboratory.domain.model.commands" {
   record CreateRawMaterialCommand
   record RegisterStaffCommand
   record DeactivateStaffCommand
+  record RegisterEnvironmentCommand
+  record UpdateEnvironmentCommand
+  record AssignEnvironmentUsageCommand
 }
 
 package "laboratory.domain.model.queries" {
@@ -105,6 +132,8 @@ package "laboratory.domain.model.queries" {
   record GetRawMaterialsByLabIdQuery
   record GetLowStockMaterialsByLabIdQuery
   record GetStaffByLabIdQuery
+  record GetEnvironmentsByLaboratoryIdQuery
+  record GetEnvironmentByIdQuery
 }
 
 package "laboratory.domain.model.events" {
@@ -114,6 +143,9 @@ package "laboratory.domain.model.events" {
   record RawMaterialLowStockEvent
   record StaffRegisteredEvent
   record StaffDeactivatedEvent
+  record EnvironmentRegisteredEvent
+  record EnvironmentUpdatedEvent
+  record EnvironmentUsageAssignedEvent
 }
 
 package "laboratory.domain.repositories" {
@@ -121,6 +153,7 @@ package "laboratory.domain.repositories" {
   interface ProductRepository
   interface RawMaterialRepository
   interface StaffRepository
+  interface EnvironmentRepository
 }
 
 package "laboratory.domain.exceptions" {
@@ -135,6 +168,7 @@ package "laboratory.application.commandservices" {
   interface ProductCommandService
   interface RawMaterialCommandService
   interface StaffCommandService
+  interface EnvironmentCommandService
 }
 
 package "laboratory.application.queryservices" {
@@ -142,6 +176,7 @@ package "laboratory.application.queryservices" {
   interface ProductQueryService
   interface RawMaterialQueryService
   interface StaffQueryService
+  interface EnvironmentQueryService
 }
 
 package "laboratory.application.internal.commandservices" {
@@ -149,12 +184,14 @@ package "laboratory.application.internal.commandservices" {
   class ProductCommandServiceImpl
   class RawMaterialCommandServiceImpl
   class StaffCommandServiceImpl
+  class EnvironmentCommandServiceImpl
 }
 
 LaboratoryCommandServiceImpl ..|> LaboratoryCommandService
 ProductCommandServiceImpl ..|> ProductCommandService
 RawMaterialCommandServiceImpl ..|> RawMaterialCommandService
 StaffCommandServiceImpl ..|> StaffCommandService
+EnvironmentCommandServiceImpl ..|> EnvironmentCommandService
 
 LaboratoryCommandServiceImpl --> LaboratoryRepository
 ProductCommandServiceImpl --> ProductRepository
@@ -163,23 +200,28 @@ RawMaterialCommandServiceImpl --> RawMaterialRepository
 RawMaterialCommandServiceImpl --> LaboratoryRepository
 StaffCommandServiceImpl --> StaffRepository
 StaffCommandServiceImpl --> LaboratoryRepository
+EnvironmentCommandServiceImpl --> EnvironmentRepository
+EnvironmentCommandServiceImpl --> LaboratoryRepository
 
 package "laboratory.application.internal.queryservices" {
   class LaboratoryQueryServiceImpl
   class ProductQueryServiceImpl
   class RawMaterialQueryServiceImpl
   class StaffQueryServiceImpl
+  class EnvironmentQueryServiceImpl
 }
 
 LaboratoryQueryServiceImpl ..|> LaboratoryQueryService
 ProductQueryServiceImpl ..|> ProductQueryService
 RawMaterialQueryServiceImpl ..|> RawMaterialQueryService
 StaffQueryServiceImpl ..|> StaffQueryService
+EnvironmentQueryServiceImpl ..|> EnvironmentQueryService
 
 LaboratoryQueryServiceImpl --> LaboratoryRepository
 ProductQueryServiceImpl --> ProductRepository
 RawMaterialQueryServiceImpl --> RawMaterialRepository
 StaffQueryServiceImpl --> StaffRepository
+EnvironmentQueryServiceImpl --> EnvironmentRepository
 
 package "laboratory.application.internal.eventhandlers" {
   class LaboratoryRegisteredEventHandler
@@ -188,6 +230,9 @@ package "laboratory.application.internal.eventhandlers" {
   class RawMaterialLowStockEventHandler
   class StaffRegisteredEventHandler
   class StaffDeactivatedEventHandler
+  class EnvironmentRegisteredEventHandler
+  class EnvironmentUpdatedEventHandler
+  class EnvironmentUsageAssignedEventHandler
 }
 
 LaboratoryRegisteredEventHandler ..> LaboratoryRegisteredEvent
@@ -196,6 +241,9 @@ RawMaterialCreatedEventHandler ..> RawMaterialCreatedEvent
 RawMaterialLowStockEventHandler ..> RawMaterialLowStockEvent
 StaffRegisteredEventHandler ..> StaffRegisteredEvent
 StaffDeactivatedEventHandler ..> StaffDeactivatedEvent
+EnvironmentRegisteredEventHandler ..> EnvironmentRegisteredEvent
+EnvironmentUpdatedEventHandler ..> EnvironmentUpdatedEvent
+EnvironmentUsageAssignedEventHandler ..> EnvironmentUsageAssignedEvent
 
 package "laboratory.application.internal.outboundservices.acl" {
   class LaboratoryExternalComplianceService
@@ -225,6 +273,9 @@ package "laboratory.interfaces.events" {
   record RawMaterialLowStockIntegrationEvent
   record StaffRegisteredIntegrationEvent
   record StaffDeactivatedIntegrationEvent
+  record EnvironmentRegisteredIntegrationEvent
+  record EnvironmentUpdatedIntegrationEvent
+  record EnvironmentUsageAssignedIntegrationEvent
 }
 
 LaboratoryRegisteredEventHandler ..> LaboratoryRegisteredIntegrationEvent
@@ -233,36 +284,44 @@ RawMaterialCreatedEventHandler ..> RawMaterialCreatedIntegrationEvent
 RawMaterialLowStockEventHandler ..> RawMaterialLowStockIntegrationEvent
 StaffRegisteredEventHandler ..> StaffRegisteredIntegrationEvent
 StaffDeactivatedEventHandler ..> StaffDeactivatedIntegrationEvent
+EnvironmentRegisteredEventHandler ..> EnvironmentRegisteredIntegrationEvent
+EnvironmentUpdatedEventHandler ..> EnvironmentUpdatedIntegrationEvent
+EnvironmentUsageAssignedEventHandler ..> EnvironmentUsageAssignedIntegrationEvent
 
 package "laboratory.infrastructure.persistence.jpa.entities" {
   class LaboratoryPersistenceEntity
   class ProductPersistenceEntity
   class RawMaterialPersistenceEntity
   class StaffPersistenceEntity
+  class EnvironmentPersistenceEntity
 }
 
 LaboratoryPersistenceEntity --|> AuditableAbstractPersistenceEntity
 ProductPersistenceEntity --|> AuditableAbstractPersistenceEntity
 RawMaterialPersistenceEntity --|> AuditableAbstractPersistenceEntity
 StaffPersistenceEntity --|> AuditableAbstractPersistenceEntity
+EnvironmentPersistenceEntity --|> AuditableAbstractPersistenceEntity
 
 package "laboratory.infrastructure.persistence.jpa.repositories" {
   interface LaboratoryPersistenceRepository <<JpaRepository>>
   interface ProductPersistenceRepository <<JpaRepository>>
   interface RawMaterialPersistenceRepository <<JpaRepository>>
   interface StaffPersistenceRepository <<JpaRepository>>
+  interface EnvironmentPersistenceRepository <<JpaRepository>>
 }
 
 LaboratoryPersistenceRepository --> LaboratoryPersistenceEntity
 ProductPersistenceRepository --> ProductPersistenceEntity
 RawMaterialPersistenceRepository --> RawMaterialPersistenceEntity
 StaffPersistenceRepository --> StaffPersistenceEntity
+EnvironmentPersistenceRepository --> EnvironmentPersistenceEntity
 
 package "laboratory.infrastructure.persistence.jpa.assemblers" {
   class LaboratoryPersistenceAssembler
   class ProductPersistenceAssembler
   class RawMaterialPersistenceAssembler
   class StaffPersistenceAssembler
+  class EnvironmentPersistenceAssembler
 }
 
 LaboratoryPersistenceAssembler ..> Laboratory
@@ -273,18 +332,22 @@ RawMaterialPersistenceAssembler ..> RawMaterial
 RawMaterialPersistenceAssembler ..> RawMaterialPersistenceEntity
 StaffPersistenceAssembler ..> StaffMember
 StaffPersistenceAssembler ..> StaffPersistenceEntity
+EnvironmentPersistenceAssembler ..> Environment
+EnvironmentPersistenceAssembler ..> EnvironmentPersistenceEntity
 
 package "laboratory.infrastructure.persistence.jpa.adapters" {
   class LaboratoryRepositoryImpl
   class ProductRepositoryImpl
   class RawMaterialRepositoryImpl
   class StaffRepositoryImpl
+  class EnvironmentRepositoryImpl
 }
 
 LaboratoryRepositoryImpl ..|> LaboratoryRepository
 ProductRepositoryImpl ..|> ProductRepository
 RawMaterialRepositoryImpl ..|> RawMaterialRepository
 StaffRepositoryImpl ..|> StaffRepository
+EnvironmentRepositoryImpl ..|> EnvironmentRepository
 
 LaboratoryRepositoryImpl --> LaboratoryPersistenceRepository
 ProductRepositoryImpl --> ProductPersistenceRepository
@@ -295,6 +358,8 @@ LaboratoryRepositoryImpl --> LaboratoryPersistenceAssembler
 ProductRepositoryImpl --> ProductPersistenceAssembler
 RawMaterialRepositoryImpl --> RawMaterialPersistenceAssembler
 StaffRepositoryImpl --> StaffPersistenceAssembler
+EnvironmentRepositoryImpl --> EnvironmentPersistenceRepository
+EnvironmentRepositoryImpl --> EnvironmentPersistenceAssembler
 
 package "laboratory.infrastructure.persistence.jpa.converters" {
   class LaboratoryAddressPersistenceConverter
@@ -316,6 +381,11 @@ package "laboratory.interfaces.rest.resources" {
   record RawMaterialResource
   record RegisterStaffResource
   record StaffMemberResource
+  record CreateEnvironmentResource
+  record UpdateEnvironmentResource
+  record AssignEnvironmentUsageResource
+  record EnvironmentResource
+  record EnvironmentUsageAssignmentResource
 }
 
 package "laboratory.interfaces.rest.transform" {
@@ -328,6 +398,10 @@ package "laboratory.interfaces.rest.transform" {
   class RawMaterialResourceFromEntityAssembler
   class RegisterStaffCommandFromResourceAssembler
   class StaffResourceFromEntityAssembler
+  class RegisterEnvironmentCommandFromResourceAssembler
+  class UpdateEnvironmentCommandFromResourceAssembler
+  class AssignEnvironmentUsageCommandFromResourceAssembler
+  class EnvironmentResourceFromEntityAssembler
 }
 
 CreateLaboratoryCommandFromResourceAssembler ..> CreateLaboratoryResource
@@ -351,6 +425,15 @@ RegisterStaffCommandFromResourceAssembler ..> RegisterStaffResource
 RegisterStaffCommandFromResourceAssembler ..> RegisterStaffCommand
 StaffResourceFromEntityAssembler ..> StaffMember
 StaffResourceFromEntityAssembler ..> StaffMemberResource
+RegisterEnvironmentCommandFromResourceAssembler ..> CreateEnvironmentResource
+RegisterEnvironmentCommandFromResourceAssembler ..> RegisterEnvironmentCommand
+UpdateEnvironmentCommandFromResourceAssembler ..> UpdateEnvironmentResource
+UpdateEnvironmentCommandFromResourceAssembler ..> UpdateEnvironmentCommand
+AssignEnvironmentUsageCommandFromResourceAssembler ..> AssignEnvironmentUsageResource
+AssignEnvironmentUsageCommandFromResourceAssembler ..> AssignEnvironmentUsageCommand
+EnvironmentResourceFromEntityAssembler ..> Environment
+EnvironmentResourceFromEntityAssembler ..> EnvironmentResource
+EnvironmentResourceFromEntityAssembler ..> EnvironmentUsageAssignmentResource
 
 package "laboratory.interfaces.rest" {
   class LaboratoryController
@@ -358,6 +441,7 @@ package "laboratory.interfaces.rest" {
   class LaboratoryRawMaterialsController
   class LaboratoryStaffController
   class StaffController
+  class LaboratoryEnvironmentsController
 }
 
 LaboratoryController --> LaboratoryCommandService
@@ -373,6 +457,9 @@ LaboratoryStaffController --> StaffQueryService
 
 StaffController --> StaffCommandService
 StaffController --> StaffQueryService
+LaboratoryEnvironmentsController --> EnvironmentCommandService
+LaboratoryEnvironmentsController --> EnvironmentQueryService
+LaboratoryEnvironmentsController --> LaboratoryQueryService
 
 LaboratoryController ..> LaboratoryResourceFromEntityAssembler
 LaboratoryController ..> CreateLaboratoryCommandFromResourceAssembler
@@ -386,6 +473,10 @@ LaboratoryRawMaterialsController ..> RawMaterialResourceFromEntityAssembler
 LaboratoryStaffController ..> StaffResourceFromEntityAssembler
 LaboratoryStaffController ..> RegisterStaffCommandFromResourceAssembler
 StaffController ..> StaffResourceFromEntityAssembler
+LaboratoryEnvironmentsController ..> EnvironmentResourceFromEntityAssembler
+LaboratoryEnvironmentsController ..> RegisterEnvironmentCommandFromResourceAssembler
+LaboratoryEnvironmentsController ..> UpdateEnvironmentCommandFromResourceAssembler
+LaboratoryEnvironmentsController ..> AssignEnvironmentUsageCommandFromResourceAssembler
 
 package "laboratory.interfaces.acl" {
   interface LegacyInventoryFacade

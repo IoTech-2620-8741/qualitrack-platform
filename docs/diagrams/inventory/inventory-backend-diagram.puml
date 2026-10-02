@@ -33,6 +33,7 @@ package "batch" <<External>> {
   interface RawMaterialUsageRepository
 }
 package "laboratory.interfaces.acl" <<External>> {
+  interface LaboratoryContextFacade
   interface LegacyInventoryFacade
 }
 
@@ -60,6 +61,7 @@ package "laboratory.interfaces.acl" <<External>> {
 
 package "inventory.interfaces" as Inventoryinterfaces {
   package "inventory.interfaces.acl" {
+    class InventoryTenantResourceLookup
     interface InventoryContextFacade {
       +findUsableReceipts(laboratoryId, rawMaterialId, onDate): List<AvailableReceipt>
       +consume(request: ConsumptionRequest): Consumption
@@ -84,18 +86,27 @@ package "inventory.interfaces" as Inventoryinterfaces {
   }
   
   package "inventory.interfaces.rest" {
-    class InventoryController {
+    class EnvironmentInventoryController {
+      +registerRawMaterial(laboratoryId, environmentId, resource)
+      +getRawMaterials(laboratoryId, environmentId, stockStatus)
+      +getRawMaterial(laboratoryId, environmentId, rawMaterialId)
+      +updateRawMaterial(laboratoryId, environmentId, rawMaterialId, resource)
+      +getStock(laboratoryId, environmentId, rawMaterialId)
+      +receiveBatch(laboratoryId, environmentId, rawMaterialId, resource)
+      +getBatches(laboratoryId, environmentId, rawMaterialId, usable)
+      +getBatch(laboratoryId, environmentId, rawMaterialId, rawMaterialBatchId)
+      +reviewBatch(laboratoryId, environmentId, rawMaterialId, rawMaterialBatchId, resource)
+      +getMovements(laboratoryId, environmentId, rawMaterialId)
+      +getEnvironmentBatches(laboratoryId, environmentId, expirationStatus, withinDays)
+      +importRawMaterial(laboratoryId, environmentId, resource)
+    }
+    class InventoryController <<deprecated reads>> {
       +materials(laboratoryId)
-      +create(laboratoryId, resource)
-      +update(laboratoryId, materialId, resource)
       +receipts(laboratoryId, materialId)
       +usable(laboratoryId, materialId)
-      +receive(laboratoryId, materialId, resource)
-      +review(laboratoryId, receiptId, resource)
       +consume(laboratoryId, resource)
       +history(laboratoryId, materialId)
       +pending(laboratoryId)
-      +importMaterial(laboratoryId, legacyId)
     }
     class InventoryExceptionHandler
   }
@@ -103,7 +114,9 @@ package "inventory.interfaces" as Inventoryinterfaces {
   package "inventory.interfaces.rest.resources" {
     class AvailableReceiptResource <<record>>
     class ConsumeRawMaterialBatchResource <<record>>
-    class ImportedMaterialResource <<record>>
+    class ImportRawMaterialResource <<record>>
+    class RawMaterialBatchReviewResource <<record>>
+    class RawMaterialStockResource <<record>>
     class InventoryMovementResource <<record>>
     class LegacyMaterialResource <<record>>
     class RawMaterialResource <<record>>
@@ -119,6 +132,7 @@ package "inventory.interfaces" as Inventoryinterfaces {
     class ConsumeRawMaterialBatchCommandFromResourceAssembler
     class InventoryMovementResourceFromEntityAssembler
     class LegacyMaterialResourceFromEntityAssembler
+    class RawMaterialBatchReviewResourceFromEntityAssembler
     class RawMaterialResourceFromEntityAssembler
     class ReceiptConsumptionResourceFromEntityAssembler
     class ReceiptResourceFromEntityAssembler
@@ -138,11 +152,11 @@ package "inventory.application" as Inventoryapplication {
     interface InventoryCommandService {
       +handle(SaveRawMaterialCommand): Result
       +handle(ReceiveRawMaterialBatchCommand): Result
-      +handle(ReviewRawMaterialBatchCommand): Result
+      +handle(ReviewRawMaterialBatchCommand): Result<RawMaterialBatchReview>
       +handle(ConsumeRawMaterialBatchCommand): Result
     }
     interface InventoryImportService {
-      +importMaterial(lab: Long, legacyId: Long): Long
+      +handle(ImportLegacyRawMaterialCommand): Long
     }
   }
   
@@ -153,6 +167,7 @@ package "inventory.application" as Inventoryapplication {
   
   package "inventory.application.internal.outboundservices" {
     class InventoryMovementRecorder
+    class InventoryExternalLaboratoryService
   }
   
   package "inventory.application.internal.queryservices" {
@@ -165,6 +180,12 @@ package "inventory.application" as Inventoryapplication {
       +handle(GetMaterialReceiptsQuery): List<RawMaterialBatch>
       +handle(GetMaterialMovementsQuery): List<InventoryMovement>
       +handle(GetPendingLegacyMaterialsQuery): List<LegacyInventoryFacade.Material>
+      +handle(GetEnvironmentRawMaterialsQuery): List<MaterialStockSummary>
+      +handle(GetEnvironmentRawMaterialByIdQuery): Optional<MaterialStockSummary>
+      +handle(GetRawMaterialBatchesQuery): List<RawMaterialBatch>
+      +handle(GetRawMaterialBatchByIdQuery): Optional<RawMaterialBatch>
+      +handle(GetRawMaterialMovementsQuery): List<InventoryMovement>
+      +handle(GetEnvironmentRawMaterialBatchesQuery): List<RawMaterialBatch>
     }
   }
   
@@ -175,10 +196,12 @@ package "inventory.domain" as Inventorydomain {
     class RawMaterial {
       -id: Long
       -laboratoryId: Long
+      -environmentId: Long
       -code: String
       -name: String
       -unit: String
       -minimumStock: BigDecimal
+      +belongsToEnvironment(environmentId: Long): boolean
       +usableStock(receipts: List<RawMaterialBatch>, onDate: LocalDate): BigDecimal
     }
     class RawMaterialBatch {
@@ -195,6 +218,7 @@ package "inventory.domain" as Inventorydomain {
       -status: RawMaterialBatchStatus
       {static} +receive(...): RawMaterialBatch
       +isUsableOn(onDate: LocalDate): boolean
+      +expirationStatus(onDate: LocalDate, nearExpiryDays: int): ExpirationStatus
       +release(): void
       +observe(): void
       +reject(): void
@@ -211,8 +235,14 @@ package "inventory.domain" as Inventorydomain {
       +unit: String
       +operationId: String
     }
+    class ImportLegacyRawMaterialCommand <<record>> {
+      +laboratoryId: Long
+      +environmentId: Long
+      +legacyId: Long
+    }
     class ReceiveRawMaterialBatchCommand <<record>> {
       +laboratoryId: Long
+      +environmentId: Long
       +materialId: Long
       +supplier: String
       +batchNumber: String
@@ -223,12 +253,15 @@ package "inventory.domain" as Inventorydomain {
     }
     class ReviewRawMaterialBatchCommand <<record>> {
       +laboratoryId: Long
+      +environmentId: Long
+      +materialId: Long
       +receiptId: Long
       +status: com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchStatus
       +reason: String
     }
     class SaveRawMaterialCommand <<record>> {
       +laboratoryId: Long
+      +environmentId: Long
       +materialId: Long
       +code: String
       +name: String
@@ -273,12 +306,19 @@ package "inventory.domain" as Inventorydomain {
     class GetPendingLegacyMaterialsQuery <<record>> {
       +laboratoryId: Long
     }
+    class GetEnvironmentRawMaterialsQuery <<record>>
+    class GetEnvironmentRawMaterialByIdQuery <<record>>
+    class GetRawMaterialBatchesQuery <<record>>
+    class GetRawMaterialBatchByIdQuery <<record>>
+    class GetRawMaterialMovementsQuery <<record>>
+    class GetEnvironmentRawMaterialBatchesQuery <<record>>
   }
   
   package "inventory.domain.model.valueobjects" {
     class MaterialStockSummary <<record>> {
       +id: Long
       +laboratoryId: Long
+      +environmentId: Long
       +code: String
       +name: String
       +unit: String
@@ -286,7 +326,19 @@ package "inventory.domain" as Inventorydomain {
       +usableStock: BigDecimal
       +physicalStock: BigDecimal
       +legacyId: Long
+      +stockStatus(): StockStatus
     }
+    enum StockStatus {
+      LOW
+      SUFFICIENT
+    }
+    enum ExpirationStatus {
+      VALID
+      NEAR_EXPIRY
+      EXPIRED
+    }
+    class NearExpiryPeriod <<record>>
+    class RawMaterialBatchReview <<record>>
     enum RawMaterialBatchStatus {
       QUARANTINED
       RELEASED
@@ -473,16 +525,27 @@ ReceiptConsumptionResourceFromEntityAssembler ..> ReceiptConsumptionResource
 InventoryController ..> ReceiptResourceFromEntityAssembler
 ReceiptResourceFromEntityAssembler ..> RawMaterialBatch
 ReceiptResourceFromEntityAssembler ..> ReceiptResource
-InventoryController ..> ReceiveRawMaterialBatchCommandFromResourceAssembler
+EnvironmentInventoryController ..> ReceiveRawMaterialBatchCommandFromResourceAssembler
 ReceiveRawMaterialBatchCommandFromResourceAssembler ..> ReceiveRawMaterialBatchCommand
 ReceiveRawMaterialBatchCommandFromResourceAssembler ..> ReceiveRawMaterialBatchResource
-InventoryController ..> ReviewRawMaterialBatchCommandFromResourceAssembler
+EnvironmentInventoryController ..> ReviewRawMaterialBatchCommandFromResourceAssembler
 ReviewRawMaterialBatchCommandFromResourceAssembler ..> ReviewRawMaterialBatchCommand
 ReviewRawMaterialBatchCommandFromResourceAssembler ..> ReviewRawMaterialBatchResource
-InventoryController ..> SaveRawMaterialCommandFromResourceAssembler
+EnvironmentInventoryController ..> SaveRawMaterialCommandFromResourceAssembler
 SaveRawMaterialCommandFromResourceAssembler ..> SaveRawMaterialCommand
 SaveRawMaterialCommandFromResourceAssembler ..> SaveRawMaterialResource
-InventoryController ..> ImportedMaterialResource
+EnvironmentInventoryController ..> ImportRawMaterialResource
+EnvironmentInventoryController ..> RawMaterialBatchReviewResourceFromEntityAssembler
+RawMaterialBatchReviewResourceFromEntityAssembler ..> RawMaterialBatchReview
+RawMaterialBatchReviewResourceFromEntityAssembler ..> RawMaterialBatchReviewResource
+EnvironmentInventoryController --> InventoryCommandService
+EnvironmentInventoryController --> InventoryQueryService
+EnvironmentInventoryController --> InventoryImportService
+InventoryExternalLaboratoryService --> LaboratoryContextFacade
+InventoryCommandServiceImpl --> InventoryExternalLaboratoryService
+InventoryQueryServiceImpl --> InventoryExternalLaboratoryService
+InventoryImportServiceImpl --> InventoryExternalLaboratoryService
+InventoryTenantResourceLookup --> InventoryRepository
 AvailableReceiptResourceFromEntityAssembler ..> AvailableReceipt
 LegacyMaterialResourceFromEntityAssembler ..> LegacyInventoryFacade
 note bottom of InventoryCommandServiceImpl
@@ -501,9 +564,14 @@ note bottom of InventoryMovement
   Append-only application history: RECEIPT, REVIEW,
   CONSUMPTION and OPENING_BALANCE.
 end note
-note bottom of InventoryController
+note bottom of EnvironmentInventoryController
+  /api/v1/laboratories/{laboratoryId}/environments/{environmentId}/...
   Tenant access enforced for every operation.
-  Review and legacy import additionally require QA_MANAGER or ADMIN.
+  Catalog changes, reviews and legacy imports require QA_MANAGER or ADMIN.
+end note
+note bottom of InventoryController
+  Deprecated laboratory-wide reads kept for the mobile app;
+  consumptions stay until Product Batch exposes raw-material-usages.
 end note
 
 Inventoryinterfaces -[hidden]down-> Inventoryapplication
@@ -511,7 +579,7 @@ Inventoryapplication -[hidden]down-> Inventorydomain
 Inventorydomain -[hidden]down-> Inventoryinfrastructure
 AvailableReceiptResource -[hidden]down-> InventoryMovementResource
 ConsumeRawMaterialBatchResource -[hidden]down-> LegacyMaterialResource
-ImportedMaterialResource -[hidden]down-> RawMaterialResource
+ImportRawMaterialResource -[hidden]down-> RawMaterialResource
 InventoryMovementResource -[hidden]down-> ReceiptConsumptionResource
 LegacyMaterialResource -[hidden]down-> ReceiptResource
 RawMaterialResource -[hidden]down-> ReceiveRawMaterialBatchResource

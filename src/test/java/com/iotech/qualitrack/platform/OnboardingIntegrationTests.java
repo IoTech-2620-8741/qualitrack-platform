@@ -332,20 +332,24 @@ class OnboardingIntegrationTests {
         activateFixture(account, OffsetDateTime.now().plusDays(5));
         var laboratory = call("POST", "/laboratories", account.token(), laboratory());
         long lab = ((Number) JsonPath.read(laboratory.body(), "$.id")).longValue();
-        var material = call("POST", "/laboratories/" + lab + "/inventory/materials", account.token(), """
+        var environment = call("POST", "/laboratories/" + lab + "/environments", account.token(),
+                "{\"code\":\"WH-STOCK\",\"name\":\"Stock fixture warehouse\"}");
+        assertThat(environment.statusCode()).withFailMessage(environment.body()).isEqualTo(201);
+        var materials = "/laboratories/" + lab + "/environments/" + JsonPath.read(environment.body(), "$.id") + "/raw-materials";
+        var material = call("POST", materials, account.token(), """
                 {"name":"Stock fixture","code":"RM-%s","unit":"%s","minimumStock":10}
                 """.formatted(UUID.randomUUID(), unit));
         assertThat(material.statusCode()).withFailMessage(material.body()).isEqualTo(201);
         long materialId = ((Number) JsonPath.read(material.body(), "$.id")).longValue();
-        var receipt = call("POST", "/laboratories/" + lab + "/inventory/materials/" + materialId + "/receipts", account.token(), """
+        var receipt = call("POST", materials + "/" + materialId + "/batches", account.token(), """
                 {"supplier":"Test supplier","batchNumber":"SUP-1","unit":"%s","amount":100,
                  "receivedOn":"%s","expiresOn":"%s"}
                 """.formatted(unit, java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusYears(1)));
         assertThat(receipt.statusCode()).withFailMessage(receipt.body()).isEqualTo(201);
         long receiptId = ((Number) JsonPath.read(receipt.body(), "$.id")).longValue();
-        var review = call("POST", "/laboratories/" + lab + "/inventory/receipts/" + receiptId + "/reviews", account.token(),
+        var review = call("POST", materials + "/" + materialId + "/batches/" + receiptId + "/reviews", account.token(),
                 "{\"status\":\"RELEASED\",\"reason\":\"Certificate and quantity reviewed\"}");
-        assertThat(review.statusCode()).withFailMessage(review.body()).isEqualTo(200);
+        assertThat(review.statusCode()).withFailMessage(review.body()).isEqualTo(201);
         var product = call("POST", "/laboratories/" + lab + "/products", account.token(), """
                 {"name":"Stock test product","code":"P-%s","description":"Test","specifications":"Test only"}
                 """.formatted(UUID.randomUUID()));

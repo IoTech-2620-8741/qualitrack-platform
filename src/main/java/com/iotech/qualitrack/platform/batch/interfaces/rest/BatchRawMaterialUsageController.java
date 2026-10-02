@@ -32,7 +32,7 @@ public class BatchRawMaterialUsageController {
     }
 
     @PostMapping
-    @org.springframework.security.access.prepost.PreAuthorize("@tenantAccess.allows('rawMaterialId', #resource.rawMaterialId())")
+    @org.springframework.security.access.prepost.PreAuthorize("@tenantAccess.allows('legacyRawMaterialId', #resource.rawMaterialId())")
     @Operation(summary = "Legacy write disabled; consume a reviewed Inventory receipt", deprecated = true)
     @ApiResponse(responseCode = "410", description = "Use the Inventory consumptions endpoint")
     public ResponseEntity<?> linkRawMaterial(

@@ -3,6 +3,7 @@ package com.iotech.qualitrack.platform.laboratory.interfaces.rest;
 import com.iotech.qualitrack.platform.laboratory.application.commandservices.EnvironmentCommandService;
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.EnvironmentQueryService;
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.LaboratoryQueryService;
+import com.iotech.qualitrack.platform.laboratory.domain.model.aggregates.Environment;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentsByLaboratoryIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetLaboratoryByIdQuery;
@@ -79,10 +80,10 @@ public class LaboratoryEnvironmentsController {
             @PathVariable @Parameter(description = "Laboratory numeric identifier", example = "1") Long laboratoryId,
             @Valid @RequestBody CreateEnvironmentResource resource) {
         var command = RegisterEnvironmentCommandFromResourceAssembler.toCommandFromResource(laboratoryId, resource);
-        return ResponseEntityAssembler.toResponseEntityFromResult(
+        return ResponseEntityAssembler.toCreatedResponseEntityFromResult(
                 environmentCommandService.handle(command),
                 EnvironmentResourceFromEntityAssembler::toResourceFromEntity,
-                HttpStatus.CREATED);
+                Environment::getId);
     }
 
     @GetMapping

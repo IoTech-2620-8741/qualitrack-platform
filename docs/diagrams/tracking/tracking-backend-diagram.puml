@@ -29,6 +29,12 @@ package "external bounded contexts" <<External>> {
   class BpmParameterConfig
 }
 
+package "equipment.interfaces.acl" <<External>> {
+  interface EquipmentContextFacade {
+    + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
+  }
+}
+
 package "tracking.domain.model.valueobjects" {
   enum TelemetryParameterType {
     TEMPERATURE
@@ -45,7 +51,26 @@ package "tracking.domain.model.valueobjects" {
     CRITICAL
     OFFLINE
   }
+
+  enum DeviceConnectionStatus {
+    CONNECTED
+    REQUIRES_REVIEW
+  }
+
+  class ExpectedCommunicationPeriod <<record>> {
+    + value: Duration
+  }
+
+  class DeviceConnection <<record>> {
+    + deviceId: Long
+    + lastCommunicationAt: Instant
+    + status: DeviceConnectionStatus
+    + {static} evaluate(deviceId, lastCommunicationAt, now, expectedPeriod): DeviceConnection
+  }
 }
+
+DeviceConnection --> DeviceConnectionStatus
+DeviceConnection ..> ExpectedCommunicationPeriod
 
 package "tracking.domain.model.commands" {
   class RecordMeasurementCommand <<record>> {
@@ -85,6 +110,12 @@ package "tracking.domain.model.queries" {
     + equipmentId: Long
     + from: String
     + to: String
+  }
+
+  class GetDeviceConnectionQuery <<record>> {
+    + laboratoryId: Long
+    + environmentId: Long
+    + deviceId: Long
   }
 }
 
@@ -221,6 +252,7 @@ package "tracking.application.queryservices" {
     + handle(query: GetLatestMeasurementsQuery): List<Measurement>
     + handle(query: GetEquipmentTelemetryStatusByEquipmentIdQuery): Optional<EquipmentTelemetryStatus>
     + handle(query: GetTelemetryHistoryQuery): List<TelemetryHistoryPoint>
+    + handle(query: GetDeviceConnectionQuery): Optional<DeviceConnection>
   }
 }
 
@@ -250,6 +282,14 @@ TrackingQueryServiceImpl ..|> TrackingQueryService
 TrackingQueryServiceImpl --> MeasurementRepository
 TrackingQueryServiceImpl --> EquipmentTelemetryStatusRepository
 TrackingQueryServiceImpl --> TelemetryHistoryPointRepository
+TrackingQueryServiceImpl --> TrackingExternalEquipmentService
+TrackingQueryServiceImpl --> ExpectedCommunicationPeriod
+TrackingQueryServiceImpl ..> DeviceConnection
+note right of TrackingQueryServiceImpl
+  Last communication = latest measurement, history point or
+  heartbeat received (created_at), compared with the expected
+  period (tracking.devices.expected-communication-period, PT5M).
+end note
 
 package "tracking.application.internal.outboundservices.acl" {
   class TrackingExternalAuditService {
@@ -263,6 +303,7 @@ package "tracking.application.internal.outboundservices.acl" {
   }
 
   class TrackingExternalEquipmentService {
+    + isDeviceLocatedIn(laboratoryId: Long, environmentId: Long, deviceId: Long): boolean
     + existsEquipmentById(equipmentId: Long): boolean
     + findBpmConfigByEquipmentAndParameter(equipmentId: Long, parameterName: String): Optional<BpmParameterConfig>
     + isTelemetryValueOutOfRange(equipmentId: Long, parameterName: String, value: Double): boolean
@@ -275,6 +316,7 @@ TrackingExternalComplianceService --> CaCommandService
 TrackingExternalEquipmentService --> EquipmentRepository
 TrackingExternalEquipmentService --> BpmParameterConfigRepository
 TrackingExternalEquipmentService --> BpmParameterConfig
+TrackingExternalEquipmentService --> EquipmentContextFacade
 
 package "tracking.application.internal.eventhandlers" {
   class MeasurementRecordedEventHandler
@@ -399,19 +441,16 @@ TelemetryStatusPersistenceConverter ..> TelemetryStatus
 
 package "tracking.interfaces.rest.resources" {
   class MeasurementResource <<record>>
-  class EquipmentTelemetryStatusResource <<record>>
+  class DeviceTelemetryStatusResource <<record>>
   class TelemetryHistoryPointResource <<record>>
   class RecordMeasurementResource <<record>>
   class UpdateEquipmentTelemetryStatusResource <<record>>
   class RecordTelemetryHistoryPointResource <<record>>
 }
 
-EquipmentTelemetryStatusResource --> TelemetryStatus
-UpdateEquipmentTelemetryStatusResource --> TelemetryStatus
-
+Update
 package "tracking.interfaces.rest.transform" {
   class MeasurementResourceFromEntityAssembler
-  class EquipmentTelemetryStatusResourceFromEntityAssembler
   class TelemetryHistoryPointResourceFromEntityAssembler
   class RecordMeasurementCommandFromResourceAssembler
   class UpdateEquipmentTelemetryStatusCommandFromResourceAssembler
@@ -420,8 +459,6 @@ package "tracking.interfaces.rest.transform" {
 
 MeasurementResourceFromEntityAssembler ..> Measurement
 MeasurementResourceFromEntityAssembler ..> MeasurementResource
-EquipmentTelemetryStatusResourceFromEntityAssembler ..> EquipmentTelemetryStatus
-EquipmentTelemetryStatusResourceFromEntityAssembler ..> EquipmentTelemetryStatusResource
 TelemetryHistoryPointResourceFromEntityAssembler ..> TelemetryHistoryPoint
 TelemetryHistoryPointResourceFromEntityAssembler ..> TelemetryHistoryPointResource
 RecordMeasurementCommandFromResourceAssembler ..> RecordMeasurementResource
@@ -433,13 +470,20 @@ RecordTelemetryHistoryPointCommandFromResourceAssembler ..> RecordTelemetryHisto
 
 package "tracking.interfaces.rest" {
   class TelemetryController
+  class DeviceTelemetryStatusController
 }
+
+DeviceTelemetryStatusController --> TrackingQueryService
+DeviceTelemetryStatusController ..> DeviceTelemetryStatusResource
+note bottom of DeviceTelemetryStatusController
+  GET /api/v1/laboratories/{laboratoryId}/environments/{environmentId}
+      /devices/{deviceId}/telemetry-status (TS41)
+end note
 
 TelemetryController --> TrackingCommandService
 TelemetryController --> TrackingQueryService
 TelemetryController ..> ResponseEntityAssembler
 TelemetryController ..> MeasurementResourceFromEntityAssembler
-TelemetryController ..> EquipmentTelemetryStatusResourceFromEntityAssembler
 TelemetryController ..> TelemetryHistoryPointResourceFromEntityAssembler
 TelemetryController ..> RecordMeasurementCommandFromResourceAssembler
 TelemetryController ..> UpdateEquipmentTelemetryStatusCommandFromResourceAssembler

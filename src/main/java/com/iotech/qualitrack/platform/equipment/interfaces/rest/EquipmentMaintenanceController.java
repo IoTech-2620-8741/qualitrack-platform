@@ -49,8 +49,9 @@ public class EquipmentMaintenanceController {
             @ApiResponse(responseCode = "201", description = "Maintenance registered",
                     content = @Content(schema = @Schema(implementation = MaintenanceRecordResource.class))),
             @ApiResponse(responseCode = "400", description = "Invalid data or date in the future", content = @Content(schema = @Schema(implementation = ErrorResource.class))),
-            @ApiResponse(responseCode = "403", description = "Equipment not available to the account"),
-            @ApiResponse(responseCode = "404", description = "Equipment not located in the environment", content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+            @ApiResponse(responseCode = "403", description = "Equipment not available to the account, or an operator choosing another technician"),
+            @ApiResponse(responseCode = "404", description = "Equipment not located in the environment or technician not in the laboratory",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
     public ResponseEntity<?> registerMaintenance(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
                                                  @PathVariable Long equipmentId,

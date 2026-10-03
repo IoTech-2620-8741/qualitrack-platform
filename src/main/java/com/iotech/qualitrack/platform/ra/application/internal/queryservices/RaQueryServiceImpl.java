@@ -35,14 +35,17 @@ public class RaQueryServiceImpl implements RaQueryService {
     private final DeviationTrendRepository deviationTrendRepository;
     private final AuditLogRepository auditLogRepository;
     private final AuditReportRepository auditReportRepository;
+    private final com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalLaboratoryService laboratories;
 
     public RaQueryServiceImpl(
             KpiDashboardRepository kpiDashboardRepository,
             DeviationTrendRepository deviationTrendRepository,
             AuditLogRepository auditLogRepository,
             AuditReportRepository auditReportRepository,
-            com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaOperationalDataService data
+            com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaOperationalDataService data,
+            com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalLaboratoryService laboratories
     ) {
+        this.laboratories = laboratories;
         this.kpiDashboardRepository = kpiDashboardRepository;
         this.deviationTrendRepository = deviationTrendRepository;
         this.auditLogRepository = auditLogRepository;
@@ -78,6 +81,16 @@ public class RaQueryServiceImpl implements RaQueryService {
      * @param query The query containing optional equipment, batch, and date filters.
      * @return List of audit log entries matching the provided filters.
      */
+    @Override
+    public Optional<List<AuditLogEntry>> handle(com.iotech.qualitrack.platform.ra.domain.model.queries.GetStaffActivityQuery query) {
+        return laboratories.findStaffAccount(query.laboratoryId(), query.staffId())
+                .map(account -> account.map(auditLogRepository::findAllByPerformedBy).orElse(List.of()).stream()
+                        .sorted(java.util.Comparator.comparing(AuditLogEntry::getTimestamp,
+                                java.util.Comparator.nullsLast(java.util.Comparator.<String>naturalOrder())).reversed()
+                                .thenComparing(AuditLogEntry::getId, java.util.Comparator.reverseOrder()))
+                        .toList());
+    }
+
     @Override
     public List<AuditLogEntry> handle(GetAuditLogQuery query) {
         var hasEquipmentFilter = query.equipmentId() != null;

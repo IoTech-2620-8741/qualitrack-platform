@@ -21,6 +21,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -80,9 +81,12 @@ public class LaboratoryController {
     }
 
     @PutMapping("/{laboratoryId}")
-    @Operation(summary = "Update laboratory profile", description = "Updates an existing laboratory's basic information.")
+    @PreAuthorize("@tenantAccess.allows('laboratoryId', #laboratoryId) and hasAnyAuthority('ROLE_QA_MANAGER', 'ROLE_ADMIN')")
+    @Operation(summary = "Update laboratory profile",
+            description = "Updates an existing laboratory's basic information. Reserved to the quality managers of the laboratory.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Laboratory updated successfully", content = @Content(schema = @Schema(implementation = LaboratoryResource.class))),
+            @ApiResponse(responseCode = "403", description = "Laboratory not available to the account or missing quality role"),
             @ApiResponse(responseCode = "404", description = "Laboratory not found")
     })
     public ResponseEntity<?> updateLaboratory(

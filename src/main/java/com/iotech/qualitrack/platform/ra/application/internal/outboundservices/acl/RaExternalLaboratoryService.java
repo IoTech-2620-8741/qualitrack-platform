@@ -32,4 +32,15 @@ public class RaExternalLaboratoryService {
     public boolean existsLaboratoryById(Long laboratoryId) {
         return laboratoryId != null && laboratoryContextFacade.existsLaboratoryById(laboratoryId);
     }
+
+    /**
+     * Resolves the account of a staff member of the laboratory.
+     *
+     * @return the user id of the staff member (empty optional inside when it has no account), or empty when the
+     * staff member is not registered in the laboratory
+     */
+    public java.util.Optional<java.util.Optional<Long>> findStaffAccount(Long laboratoryId, Long staffId) {
+        return laboratoryContextFacade.findStaffMember(laboratoryId, staffId)
+                .map(staff -> java.util.Optional.ofNullable(staff.userId()));
+    }
 }

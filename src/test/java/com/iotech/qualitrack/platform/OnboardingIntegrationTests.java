@@ -199,7 +199,7 @@ class OnboardingIntegrationTests {
             deviations.save(new DeviationAlert(null, device.getId(), null, "PARAM-" + day, 9.3, 8.0, "C", day + "T12:00:00",
                     AlertSeverity.CRITICAL, AlertStatus.UNRESOLVED, null, null, null));
             maintenance.save(new MaintenanceRecord(null, device.getId(), null, java.time.LocalDate.parse(day),
-                    "Fixture technician", "MAINT-" + day, MaintenanceType.CALIBRATION));
+                    "Fixture technician", null, "MAINT-" + day, MaintenanceType.CALIBRATION));
             audit.save(new AuditLogEntry(null, AuditAction.UPDATE, "EQUIPMENT", device.getId(), account.id(), day + "T12:00:00", "LOG-" + day));
         }
         String body = """

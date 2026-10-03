@@ -39,6 +39,11 @@ public class MaintenanceRecord extends AbstractDomainAggregateRoot<MaintenanceRe
     private LocalDate maintenanceDate;
 
     private String technicianName;
+
+    /**
+     * Staff member who performed the maintenance; null for records registered with a typed name.
+     */
+    private Long technicianStaffId;
     private String description;
 
     private MaintenanceType type;
@@ -62,7 +67,9 @@ public class MaintenanceRecord extends AbstractDomainAggregateRoot<MaintenanceRe
      * @param description The summary of the activity.
      * @param type The type of maintenance performed.
      */
-    public MaintenanceRecord(Long id, Long equipmentId, Long environmentId, LocalDate maintenanceDate, String technicianName, String description, MaintenanceType type) {
+    public MaintenanceRecord(Long id, Long equipmentId, Long environmentId, LocalDate maintenanceDate, String technicianName,
+                             Long technicianStaffId, String description, MaintenanceType type) {
+        this.technicianStaffId = technicianStaffId;
         this.id = id;
         this.equipmentId = equipmentId;
         this.environmentId = environmentId;
@@ -77,9 +84,11 @@ public class MaintenanceRecord extends AbstractDomainAggregateRoot<MaintenanceRe
      * <p>Validates and transforms external text representations into rich domain objects.</p>
      *
      * @param command The command containing the maintenance activity data.
+     * @param technicianName Name of the staff member who performed it, kept for traceability.
      * @param today The current date in the laboratory; a performed maintenance cannot be dated after it.
      */
-    public MaintenanceRecord(RegisterMaintenanceCommand command, LocalDate today) {
+    public MaintenanceRecord(RegisterMaintenanceCommand command, String technicianName, LocalDate today) {
+        this.technicianStaffId = command.technicianStaffId();
         this.equipmentId = Objects.requireNonNull(command.equipmentId(), "Equipment ID is required");
         this.environmentId = command.environmentId();
 
@@ -94,7 +103,7 @@ public class MaintenanceRecord extends AbstractDomainAggregateRoot<MaintenanceRe
             throw new IllegalArgumentException("Maintenance date cannot be in the future");
         }
 
-        this.technicianName = Objects.requireNonNull(command.technicianName(), "Technician name is required");
+        this.technicianName = Objects.requireNonNull(technicianName, "Technician name is required");
         this.description = Objects.requireNonNull(command.description(), "Description is required");
 
         // Validamos que el tipo enviado coincida con los valores de nuestro Enum

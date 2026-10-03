@@ -260,6 +260,7 @@ package "ra.application.queryservices" {
     + handle(query: GetKpiDashboardByLaboratoryIdQuery): Optional<KpiDashboard>
     + handle(query: GetDeviationTrendsByEquipmentIdQuery): List<DeviationTrend>
     + handle(query: GetAuditLogQuery): List<AuditLogEntry>
+    + handle(query: GetStaffActivityQuery): Optional<List<AuditLogEntry>>
     + handle(query: GetAuditReportByIdQuery): Optional<AuditReport>
     + handle(query: GetAuditReportsByLaboratoryIdQuery): List<AuditReport>
     + handle(query: GetAuditReportsByBatchIdQuery): List<AuditReport>
@@ -320,6 +321,7 @@ package "ra.application.internal.outboundservices.acl" {
 
   class RaExternalLaboratoryService {
     + existsLaboratoryById(laboratoryId: Long): boolean
+    + findStaffAccount(laboratoryId: Long, staffId: Long): Optional<Optional<Long>>
   }
 }
 
@@ -335,6 +337,7 @@ package "ra.application.internal.eventhandlers" {
   class CaAuditEventHandler
   class DeviationTrendCalculatedEventHandler
   class EquipmentAuditEventHandler
+  class InventoryAuditEventHandler
   class KpiDashboardCalculatedEventHandler
   class LaboratoryAuditEventHandler
   class TrackingAuditEventHandler
@@ -529,7 +532,20 @@ package "ra.interfaces.rest" {
   class DeviationTrendController
   class KpiDashboardController
   class ReportController
+  class StaffAuditLogController
 }
+
+StaffAuditLogController --> RaQueryService
+StaffAuditLogController ..> AuditLogEntryResourceFromEntityAssembler
+note bottom of StaffAuditLogController
+  GET /api/v1/laboratories/{laboratoryId}/staff/{staffId}/audit-logs
+  Operations registered with the account of the staff member, newest first
+  (quality managers, administrators and auditors).
+end note
+note bottom of InventoryAuditEventHandler
+  RawMaterialSaved and InventoryMovementRecorded (RECEIPT, REVIEW) of Inventory;
+  consumptions are audited as raw material usages of the batch.
+end note
 
 AuditLogController --> RaQueryService
 AuditLogController --> AuditLogCommandService

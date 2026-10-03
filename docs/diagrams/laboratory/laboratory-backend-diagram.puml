@@ -18,6 +18,10 @@ package "ca.interfaces.acl" <<External>> {
   interface ComplianceContextFacade
 }
 
+package "iam.interfaces.acl" <<External>> {
+  class IamContextFacade
+}
+
 package "laboratory.domain.model.valueobjects" {
   class LaboratoryName <<value object>>
   class Regulation <<value object>>
@@ -88,9 +92,24 @@ package "laboratory.domain.model.aggregates" {
     - role: String
     - email: String
     - active: Boolean
+    - accessRole: StaffAccessRole
+    - userId: Long
+    + linkAccount(userId: Long): void
+    + belongsTo(laboratoryId: Long): boolean
     + deactivate(): void
   }
+
+  enum StaffAccessRole {
+    OPERATOR
+    AUDITOR
+  }
 }
+
+StaffMember --> StaffAccessRole
+note right of StaffMember
+  Registering a staff member creates their IAM account (the e-mail is the
+  username) through IamContextFacade; deactivating it disables the account.
+end note
 
 Laboratory --|> AbstractDomainAggregateRoot
 RawMaterial --|> AbstractDomainAggregateRoot
@@ -179,6 +198,7 @@ RawMaterialCommandServiceImpl --> RawMaterialRepository
 RawMaterialCommandServiceImpl --> LaboratoryRepository
 StaffCommandServiceImpl --> StaffRepository
 StaffCommandServiceImpl --> LaboratoryRepository
+StaffCommandServiceImpl --> ExternalIamService
 EnvironmentCommandServiceImpl --> EnvironmentRepository
 EnvironmentCommandServiceImpl --> LaboratoryRepository
 
@@ -221,7 +241,14 @@ EnvironmentUsageAssignedEventHandler ..> EnvironmentUsageAssignedEvent
 
 package "laboratory.application.internal.outboundservices.acl" {
   class LaboratoryExternalComplianceService
+  class ExternalIamService {
+    + existsAccount(email: String): boolean
+    + createAccount(laboratoryId, email, fullName, accessRole): StaffAccount
+    + disableAccount(userId: Long): void
+  }
 }
+
+ExternalIamService --> IamContextFacade
 
 LaboratoryExternalComplianceService --> ComplianceContextFacade
 RawMaterialLowStockEventHandler --> LaboratoryExternalComplianceService
@@ -232,7 +259,24 @@ package "laboratory.application.acl" {
 
 package "laboratory.interfaces.acl" {
   interface LaboratoryContextFacade
+  class StaffReference <<record>> {
+    + id: Long
+    + laboratoryId: Long
+    + fullName: String
+    + role: String
+    + active: boolean
+    + userId: Long
+    + accessRole: String
+    + isAccount(userId: Long): boolean
+    + isAuditor(): boolean
+  }
 }
+
+LaboratoryContextFacade ..> StaffReference
+note bottom of StaffReference
+  Equipment (maintenance technician) and Product Batch (staff participation)
+  reject auditors: they only consult the records.
+end note
 
 LaboratoryContextFacadeImpl ..|> LaboratoryContextFacade
 LaboratoryContextFacadeImpl --> LaboratoryRepository
@@ -338,6 +382,8 @@ package "laboratory.interfaces.rest.resources" {
   record RawMaterialResource
   record RegisterStaffResource
   record StaffMemberResource
+  record RegisteredStaffResource
+  record StaffCredentialsResource
   record CreateEnvironmentResource
   record UpdateEnvironmentResource
   record AssignEnvironmentUsageResource
@@ -385,9 +431,11 @@ EnvironmentResourceFromEntityAssembler ..> EnvironmentUsageAssignmentResource
 
 package "laboratory.interfaces.rest" {
   class LaboratoryController
+  note bottom of LaboratoryController
+    PUT /api/v1/laboratories/{laboratoryId} is reserved to the quality managers of the laboratory.
+  end note
   class LaboratoryRawMaterialsController
   class LaboratoryStaffController
-  class StaffController
   class LaboratoryEnvironmentsController
 }
 
@@ -400,8 +448,6 @@ LaboratoryRawMaterialsController --> RawMaterialQueryService
 LaboratoryStaffController --> StaffCommandService
 LaboratoryStaffController --> StaffQueryService
 
-StaffController --> StaffCommandService
-StaffController --> StaffQueryService
 LaboratoryEnvironmentsController --> EnvironmentCommandService
 LaboratoryEnvironmentsController --> EnvironmentQueryService
 LaboratoryEnvironmentsController --> LaboratoryQueryService
@@ -413,9 +459,7 @@ LaboratoryController ..> UpdateLaboratoryCommandFromResourceAssembler
 
 LaboratoryRawMaterialsController ..> RawMaterialResourceFromEntityAssembler
 
-LaboratoryStaffController ..> StaffResourceFromEntityAssembler
-LaboratoryStaffController ..> RegisterStaffCommandFromResourceAssembler
-StaffController ..> StaffResourceFromEntityAssembler
+LaboratoryLaboratoryStaffController ..> RegisterStaffCommandFromResourceAssembler
 LaboratoryEnvironmentsController ..> EnvironmentResourceFromEntityAssembler
 LaboratoryEnvironmentsController ..> RegisterEnvironmentCommandFromResourceAssembler
 LaboratoryEnvironmentsController ..> UpdateEnvironmentCommandFromResourceAssembler

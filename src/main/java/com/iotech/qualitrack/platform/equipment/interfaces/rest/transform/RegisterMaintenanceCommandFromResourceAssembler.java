@@ -22,7 +22,7 @@ public class RegisterMaintenanceCommandFromResourceAssembler {
                 environmentId,
                 equipmentId,
                 resource.maintenanceDate(),
-                resource.technicianName(),
+                resource.technicianStaffId(),
                 resource.description(),
                 resource.type()
         );

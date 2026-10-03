@@ -58,6 +58,7 @@ entity "maintenance_records" as maintenance_records {
   environment_id : BIGINT NULL
   maintenance_date : DATE NOT NULL
   technician_name : VARCHAR(150) NOT NULL
+  technician_staff_id : BIGINT NULL
   description : VARCHAR(1000) NOT NULL
   type : VARCHAR(50) NOT NULL
   created_at : DATETIME(6) NOT NULL

@@ -43,6 +43,23 @@ public interface LaboratoryContextFacade {
      * @param fullName the full name
      * @param role the role in the laboratory
      * @param active whether the staff member is active
+     * @param userId the account with which the staff member signs in, or null for older records
+     * @param accessRole OPERATOR or AUDITOR, or null for older records
      */
-    record StaffReference(Long id, Long laboratoryId, String fullName, String role, boolean active) { }
+    record StaffReference(Long id, Long laboratoryId, String fullName, String role, boolean active, Long userId,
+                          String accessRole) {
+        /**
+         * Whether the staff member is the authenticated user.
+         */
+        public boolean isAccount(Long userId) {
+            return this.userId != null && this.userId.equals(userId);
+        }
+
+        /**
+         * Whether the staff member is an auditor, who only consults the records and cannot take part in operations.
+         */
+        public boolean isAuditor() {
+            return "AUDITOR".equals(accessRole);
+        }
+    }
 }

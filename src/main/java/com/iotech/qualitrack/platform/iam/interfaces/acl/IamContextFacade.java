@@ -1,7 +1,14 @@
 package com.iotech.qualitrack.platform.iam.interfaces.acl;
 
+import com.iotech.qualitrack.platform.iam.application.commandservices.UserCommandService;
 import com.iotech.qualitrack.platform.iam.application.queryservices.UserQueryService;
+import com.iotech.qualitrack.platform.iam.domain.model.commands.CreateStaffAccountCommand;
+import com.iotech.qualitrack.platform.iam.domain.model.commands.DeactivateUserCommand;
+import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.Roles;
 import com.iotech.qualitrack.platform.iam.domain.model.queries.GetUserByIdQuery;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
+import com.iotech.qualitrack.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,11 +24,63 @@ public class IamContextFacade {
 
     private final UserQueryService userQueryService;
     private final com.iotech.qualitrack.platform.iam.domain.repositories.UserRepository userRepository;
+    private final UserCommandService userCommandService;
 
     public IamContextFacade(UserQueryService userQueryService,
-            com.iotech.qualitrack.platform.iam.domain.repositories.UserRepository userRepository) {
+            com.iotech.qualitrack.platform.iam.domain.repositories.UserRepository userRepository,
+            UserCommandService userCommandService) {
         this.userQueryService = userQueryService;
         this.userRepository = userRepository;
+        this.userCommandService = userCommandService;
+    }
+
+    /**
+     * Creates the sign-in account of a staff member registered by a quality manager and sends the credentials.
+     *
+     * @param laboratoryId laboratory the staff member works for
+     * @param email e-mail of the staff member, used as username
+     * @param fullName name of the staff member
+     * @param auditor true for a read-only auditor, false for an operator
+     * @return the account; the temporary password is returned so it can be handed over when it was not e-mailed
+     * @throws ApplicationException CONFLICT when the e-mail is already the username of another account
+     */
+    public StaffAccountReference createStaffAccount(Long laboratoryId, String email, String fullName, boolean auditor) {
+        var role = auditor ? Roles.ROLE_AUDITOR : Roles.ROLE_LAB_OPERATOR;
+        return switch (userCommandService.handle(new CreateStaffAccountCommand(laboratoryId, email, fullName, role))) {
+            case Result.Success<UserCommandService.StaffAccount, ApplicationError> success -> new StaffAccountReference(
+                    success.value().user().getId(), success.value().user().getUsernameValue(),
+                    success.value().temporaryPassword(), success.value().credentialsSent());
+            case Result.Failure<UserCommandService.StaffAccount, ApplicationError> failure ->
+                    throw new ApplicationException(failure.error());
+        };
+    }
+
+    /**
+     * Whether an account already uses the username.
+     */
+    public boolean existsUsername(String username) {
+        return userRepository.existsByUsername(username);
+    }
+
+    /**
+     * Prevents a deactivated staff member from signing in.
+     *
+     * @param userId the account of the staff member
+     */
+    public void deactivateUser(Long userId) {
+        var user = userRepository.findById(userId);
+        if (user.isPresent() && user.get().isActive()) userCommandService.handle(new DeactivateUserCommand(userId));
+    }
+
+    /**
+     * Sign-in account created for a staff member.
+     *
+     * @param userId the account identifier
+     * @param username the username (the staff member e-mail)
+     * @param temporaryPassword the password to change at the first sign in
+     * @param credentialsSent whether the credentials were e-mailed
+     */
+    public record StaffAccountReference(Long userId, String username, String temporaryPassword, boolean credentialsSent) {
     }
 
     public Long lockLaboratoryAssociation(Long userId) {

@@ -51,6 +51,14 @@ public interface RaQueryService {
     List<AuditLogEntry> handle(GetAuditLogQuery query);
 
     /**
+     * Handles retrieval of the operations registered by a staff member, newest first.
+     *
+     * @return the audit entries performed with the staff member account, or empty when the staff member is not
+     * registered in the laboratory
+     */
+    Optional<List<AuditLogEntry>> handle(com.iotech.qualitrack.platform.ra.domain.model.queries.GetStaffActivityQuery query);
+
+    /**
      * Handles retrieval of an audit report by its unique identifier.
      *
      * @param query Query containing the report identifier.

@@ -81,6 +81,9 @@ public class BatchParticipationCommandServiceImpl implements BatchParticipationC
         if (!member.get().active()) {
             return Result.failure(ApplicationError.conflict("StaffMember", "Inactive staff members cannot take part in a batch"));
         }
+        if (member.get().isAuditor()) {
+            return Result.failure(ApplicationError.validationError("staffId", "Auditors only consult the records and cannot take part in a batch"));
+        }
         if (!currentUser.managesQuality() && !member.get().isAccount(currentUser.userId())) {
             throw new AccessDeniedException("Staff members can only assign themselves to a batch");
         }

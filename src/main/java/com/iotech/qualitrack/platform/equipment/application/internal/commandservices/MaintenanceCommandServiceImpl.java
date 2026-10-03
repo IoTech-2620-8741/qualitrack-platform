@@ -60,6 +60,9 @@ public class MaintenanceCommandServiceImpl implements MaintenanceCommandService 
         if (!technician.get().active()) {
             return Result.failure(ApplicationError.validationError("technicianStaffId", "The technician is not an active staff member"));
         }
+        if (technician.get().isAuditor()) {
+            return Result.failure(ApplicationError.validationError("technicianStaffId", "Auditors only consult the records and cannot perform maintenance"));
+        }
         if (!currentUser.managesQuality() && !technician.get().isAccount(currentUser.userId())) {
             throw new AccessDeniedException("Staff members can only register maintenance they performed");
         }

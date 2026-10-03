@@ -121,6 +121,13 @@ class StaffAccountIntegrationTests {
         assertThat(call("POST", lab.environment() + "/equipments/" + press + "/maintenance-records", auditor.token(),
                 maintenanceBody(auditor.staffId())).statusCode()).isEqualTo(403);
         assertThat(call("POST", statusChanges, operator.token(), "{\"status\":\"MAINTENANCE\"}").statusCode()).isEqualTo(201);
+        var profile = """
+                {"name":"Renamed lab %s","phone":"+51987654322","applicableRegulations":["BPA"],"address":"Lima"}
+                """.formatted(UUID.randomUUID());
+        assertThat(call("PUT", "/laboratories/" + lab.id(), operator.token(), profile).statusCode()).isEqualTo(403);
+        assertThat(call("PUT", "/laboratories/" + lab.id(), lab.manager().token(), profile).statusCode()).isEqualTo(200);
+        assertThat(call("POST", lab.environment() + "/equipments/" + press + "/maintenance-records", lab.manager().token(),
+                maintenanceBody(auditor.staffId())).statusCode()).isEqualTo(400);
         assertThat(call("GET", lab.staff() + "/" + operator.staffId() + "/audit-logs", auditor.token(), null).statusCode())
                 .isEqualTo(200);
     }

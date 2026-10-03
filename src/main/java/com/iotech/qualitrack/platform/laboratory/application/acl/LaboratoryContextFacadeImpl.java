@@ -49,6 +49,7 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
         if (laboratoryId == null || laboratoryId <= 0 || staffId == null || staffId <= 0) return Optional.empty();
         return staffQueryService.handle(new GetStaffMemberByIdQuery(laboratoryId, staffId))
                 .map(member -> new StaffReference(member.getId(), member.getLaboratoryId(), member.getFullName(),
-                        member.getRole(), member.isActive(), member.getUserId()));
+                        member.getRole(), member.isActive(), member.getUserId(),
+                        member.getAccessRole() == null ? null : member.getAccessRole().name()));
     }
 }

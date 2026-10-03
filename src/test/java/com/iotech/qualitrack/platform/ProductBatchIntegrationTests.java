@@ -228,6 +228,8 @@ class ProductBatchIntegrationTests {
         assertThat(himself.statusCode()).withFailMessage(himself.body()).isEqualTo(201);
         assertThat(call("POST", participations, token, "{\"staffId\":" + staffId + "}").statusCode()).isEqualTo(409);
         assertThat(call("POST", participations, token, "{\"staffId\":999999}").statusCode()).isEqualTo(404);
+        var auditor = TestStaff.register(this::call, plant.lab(), token, "Batch auditor", "AUDITOR");
+        assertThat(call("POST", participations, token, "{\"staffId\":" + auditor.staffId() + "}").statusCode()).isEqualTo(400);
         var outsider = plant();
         long foreignStaff = staff(outsider, "Luis Ramos", "Analyst");
         assertThat(call("POST", participations, token, "{\"staffId\":" + foreignStaff + "}").statusCode()).isEqualTo(404);

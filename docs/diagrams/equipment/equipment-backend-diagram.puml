@@ -352,6 +352,7 @@ package "equipment.interfaces.acl" {
   interface EquipmentContextFacade {
     + findEquipment(laboratoryId, equipmentId): Optional<EquipmentReference>
     + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
+    + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
   }
   class EquipmentReference <<record>>
   class DeviceReference <<record>>
@@ -576,7 +577,8 @@ note bottom of LaboratoryEquipmentController
   .../environments/{environmentId}/equipments/{equipmentId}/maintenance-records (TS35, TS36)
   .../environments/{environmentId}/environmental-devices                      (TS38)
   .../environments/{environmentId}/container-monitors                         (TS40)
-  /api/v1/equipments/{equipmentId}/bpm-configs stays until Tracking thresholds (phase 5)
+  /api/v1/equipments/{equipmentId}/bpm-configs: process parameters of the equipment (Report);
+  environmental thresholds and actuation rules live in Tracking profiles
 end note
 
 @enduml

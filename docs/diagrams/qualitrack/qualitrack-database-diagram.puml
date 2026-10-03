@@ -268,23 +268,38 @@ package "Batch Context" {
 }
 
 package "Tracking Context" {
-  entity "equipment_telemetry" as equipment_telemetry {
+  entity "environmental_profiles" as environmental_profiles {
     * id : BIGINT <<PK>>
     --
     * created_at : DATETIME
     * updated_at : DATETIME
-    * equipment_id : BIGINT <<UK>>
+    * laboratory_id : BIGINT
+    * scope : VARCHAR(30)
+    environment_id : BIGINT <<UK>>
+    device_id : BIGINT <<UK>>
+    * version : BIGINT
+    configured_by : BIGINT
+    configured_at : DATETIME
   }
 
-  entity "equipment_telemetry_statuses" as equipment_telemetry_statuses {
-    * id : BIGINT <<PK>>
+  entity "environmental_profile_thresholds" as environmental_profile_thresholds {
+    * profile_id : BIGINT <<PK>> <<FK>>
+    * position : INT <<PK>>
     --
-    * created_at : DATETIME
-    * updated_at : DATETIME
-    * equipment_id : BIGINT
-    * is_online : BOOLEAN
-    * current_status : VARCHAR(40)
-    * last_heartbeat : VARCHAR(50)
+    * metric : VARCHAR(30)
+    normal_min : DOUBLE
+    normal_max : DOUBLE
+    critical_min : DOUBLE
+    critical_max : DOUBLE
+  }
+
+  entity "environmental_profile_actuation_rules" as environmental_profile_actuation_rules {
+    * profile_id : BIGINT <<PK>> <<FK>>
+    * position : INT <<PK>>
+    --
+    * metric : VARCHAR(30)
+    * state : VARCHAR(20)
+    * action : VARCHAR(30)
   }
 
   entity "telemetry_measurements" as telemetry_measurements {
@@ -292,28 +307,38 @@ package "Tracking Context" {
     --
     * created_at : DATETIME
     * updated_at : DATETIME
+    laboratory_id : BIGINT
+    environment_id : BIGINT
     * equipment_id : BIGINT
     * parameter_name : VARCHAR(120)
-    * value : DOUBLE
+    value : DOUBLE
+    text_value : VARCHAR(120)
     * unit : VARCHAR(40)
     * timestamp : VARCHAR(50)
+    measured_at : DATETIME
+    state : VARCHAR(20)
+    threshold_value : DOUBLE
+    profile_version : BIGINT
   }
 
-  entity "telemetry_history_points" as telemetry_history_points {
+  entity "actuation_events" as actuation_events {
     * id : BIGINT <<PK>>
     --
     * created_at : DATETIME
     * updated_at : DATETIME
-    * equipment_id : BIGINT
-    * parameter_name : VARCHAR(120)
-    * recorded_value : DOUBLE
-    * timestamp : VARCHAR(50)
-    * is_anomaly : BOOLEAN
+    * laboratory_id : BIGINT
+    * environment_id : BIGINT
+    * device_id : BIGINT
+    * action : VARCHAR(30)
+    trigger_metric : VARCHAR(30)
+    trigger_state : VARCHAR(20)
+    * result : VARCHAR(20)
+    * occurred_at : DATETIME
+    profile_version : BIGINT
   }
 
-  equipment_telemetry ||--o{ equipment_telemetry_statuses : "equipment_id"
-  equipment_telemetry ||--o{ telemetry_measurements : "equipment_id"
-  equipment_telemetry ||--o{ telemetry_history_points : "equipment_id"
+  environmental_profiles ||--o{ environmental_profile_thresholds : "profile_id"
+  environmental_profiles ||--o{ environmental_profile_actuation_rules : "profile_id"
 }
 
 package "Compliance and Alerts Context" {

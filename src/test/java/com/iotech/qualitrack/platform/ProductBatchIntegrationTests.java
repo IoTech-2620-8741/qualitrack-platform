@@ -162,6 +162,65 @@ class ProductBatchIntegrationTests {
         assertThat(call("POST", batches + "/999999/releases", token, release).statusCode()).isIn(403, 404);
     }
 
+    @Test
+    void batchesConsumeReleasedLotsOnceAndOnlyWhileOpen() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var lot = releasedLot(plant, "100");
+        var batches = plant.products() + "/" + id(call("POST", plant.products(), token, product("PRD-U", "Usage product"))) + "/batches";
+        long batchId = id(call("POST", batches, token, batch("PB-USE", "2026-10-01")));
+        var usages = batches + "/" + batchId + "/raw-material-usages";
+        var operator = operatorOf(plant);
+        var body = usage(lot.id(), "30", "kg", "op-" + UUID.randomUUID());
+
+        var created = call("POST", usages, operator.token(), body);
+        assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
+        assertThat(created.body()).contains("\"inventoryReceiptId\":" + lot.id()).contains("\"rawMaterialId\":" + lot.material());
+        assertThat(((Number) JsonPath.read(created.body(), "$.stockAfter")).doubleValue()).isEqualTo(70);
+        var retried = call("POST", usages, operator.token(), body);
+        assertThat(retried.statusCode()).isEqualTo(201);
+        assertThat(id(retried)).isEqualTo(id(created));
+        assertThat(usableStock(plant, lot)).isEqualTo(70);
+
+        assertThat(call("POST", usages, operator.token(), usage(lot.id(), "500", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(409);
+        assertThat(call("POST", usages, operator.token(), usage(lot.id(), "1", "L", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(400);
+        var otherPlant = plant();
+        var foreignLot = releasedLot(otherPlant, "10");
+        assertThat(call("POST", usages, operator.token(), usage(foreignLot.id(), "1", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(404);
+
+        call("POST", batches + "/" + batchId + "/releases", token, "{\"releaseDate\":\"2026-10-05\",\"notes\":\"Approved\"}");
+        assertThat(call("POST", usages, operator.token(), usage(lot.id(), "1", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(409);
+        assertThat(usableStock(plant, lot)).isEqualTo(70);
+    }
+
+    private record Lot(long environment, long material, long id) { }
+
+    private Lot releasedLot(Plant plant, String amount) throws Exception {
+        var token = plant.manager().token();
+        long storage = environment(plant, "WH-RM-" + UUID.randomUUID().toString().substring(0, 6));
+        var materials = "/laboratories/" + plant.lab() + "/environments/" + storage + "/raw-materials";
+        long material = id(call("POST", materials, token,
+                "{\"code\":\"RM-" + UUID.randomUUID().toString().substring(0, 8) + "\",\"name\":\"Active ingredient\",\"unit\":\"kg\",\"minimumStock\":1}"));
+        var received = call("POST", materials + "/" + material + "/batches", token, """
+                {"supplier":"Supplier","batchNumber":"SUP-1","unit":"kg","amount":%s,"receivedOn":"%s","expiresOn":"%s"}
+                """.formatted(amount, java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusYears(1)));
+        assertThat(received.statusCode()).withFailMessage(received.body()).isEqualTo(201);
+        long lot = id(received);
+        assertThat(call("POST", materials + "/" + material + "/batches/" + lot + "/reviews", token,
+                "{\"status\":\"RELEASED\",\"reason\":\"Certificate reviewed\"}").statusCode()).isEqualTo(201);
+        return new Lot(storage, material, lot);
+    }
+
+    private double usableStock(Plant plant, Lot lot) throws Exception {
+        var material = call("GET", "/laboratories/" + plant.lab() + "/environments/" + lot.environment() + "/raw-materials/" + lot.material(),
+                plant.manager().token(), null);
+        return ((Number) JsonPath.read(material.body(), "$.usableStock")).doubleValue();
+    }
+
+    private static String usage(long lot, String amount, String unit, String operationId) {
+        return "{\"rawMaterialBatchId\":%d,\"amountUsed\":%s,\"unit\":\"%s\",\"operationId\":\"%s\"}".formatted(lot, amount, unit, operationId);
+    }
+
     private static String batch(String number, String startDate) {
         return """
                 {"batchNumber":"%s","quantity":5000,"unit":"units","startDate":"%s","notes":"Standard run"}

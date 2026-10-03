@@ -3,17 +3,21 @@ package com.iotech.qualitrack.platform.inventory.interfaces.acl;
 import com.iotech.qualitrack.platform.shared.domain.model.valueobjects.StockUnit;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
 
 /**
- * Boundary for receipt selection and atomic stock consumption.
+ * Boundary for atomic stock consumption by Product Batch Management.
  * The implementation validates tenant ownership and records movements under a pessimistic lock.
  * A repeated operationId must return its original result; reuse with different input must fail.
  */
 public interface InventoryContextFacade {
-    List<AvailableReceipt> findUsableReceipts(Long laboratoryId, Long rawMaterialId, LocalDate onDate);
-
+    /**
+     * Consumes stock of a raw material lot for a product batch.
+     *
+     * @param request the lot, product batch, amount and idempotency key
+     * @return the stock change of the lot
+     * @throws com.iotech.qualitrack.platform.shared.application.result.ApplicationException NOT_FOUND when the lot is
+     * not in the laboratory, CONFLICT when it cannot be used, lacks stock or the operation id was used with other values
+     */
     Consumption consume(ConsumptionRequest request);
 
     /**
@@ -33,9 +37,6 @@ public interface InventoryContextFacade {
             operationId = operationId.trim();
         }
     }
-
-    record AvailableReceipt(Long id, Long rawMaterialId, String batchNumber, String unit,
-                            BigDecimal availableAmount, LocalDate expiresOn) { }
 
     record Consumption(Long rawMaterialBatchId, Long productBatchId, BigDecimal amountUsed,
                        String unit, BigDecimal stockBefore, BigDecimal stockAfter, String operationId) { }

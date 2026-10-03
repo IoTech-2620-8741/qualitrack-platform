@@ -15,9 +15,6 @@ import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LegacyInventoryF
 
 public interface InventoryQueryService {
     List<LegacyInventoryFacade.Material> handle(GetPendingLegacyMaterialsQuery query);
-    List<MaterialStockSummary> handle(GetInventoryMaterialsQuery query);
-    List<RawMaterialBatch> handle(GetMaterialReceiptsQuery query);
-    List<InventoryMovement> handle(GetMaterialMovementsQuery query);
     List<MaterialStockSummary> handle(GetEnvironmentRawMaterialsQuery query);
     Optional<MaterialStockSummary> handle(GetEnvironmentRawMaterialByIdQuery query);
     List<RawMaterialBatch> handle(GetRawMaterialBatchesQuery query);

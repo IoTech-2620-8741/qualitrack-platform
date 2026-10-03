@@ -40,18 +40,6 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
         this.clock = inventoryClock;
         this.legacy = legacy;
     }
-    public List<MaterialStockSummary> handle(GetInventoryMaterialsQuery query) {
-        var lab = query.laboratoryId();
-        return repository.materials(lab).stream().map(this::summary).toList();
-    }
-    public List<RawMaterialBatch> handle(GetMaterialReceiptsQuery query) {
-        requireMaterial(query.laboratoryId(), query.materialId());
-        return repository.receipts(query.laboratoryId(), query.materialId());
-    }
-    public List<InventoryMovement> handle(GetMaterialMovementsQuery query) {
-        requireMaterial(query.laboratoryId(), query.materialId());
-        return repository.movements(query.laboratoryId(), query.materialId());
-    }
     @Override
     public List<LegacyInventoryFacade.Material> handle(GetPendingLegacyMaterialsQuery query) {
         return legacy.materials(query.laboratoryId()).stream()
@@ -112,7 +100,4 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
             throw new ApplicationException(ApplicationError.notFound("Material", id));
     }
 
-    private void requireMaterial(Long lab, Long id) {
-        if (repository.material(lab, id, false).isEmpty()) throw new ApplicationException(ApplicationError.notFound("Material", id));
-    }
 }

@@ -24,6 +24,7 @@ public class ReceiptConsumedEventHandler {
             event.amount().doubleValue(), event.unit(), event.occurredAt().toString());
         usage.recordStockChange(event.stockBefore(), event.stockAfter());
         usage.assignInventoryReceipt(event.receiptId());
+        usage.assignOperation(event.operationId());
         events.publishEvent(RawMaterialLinkedToBatchEvent.from(usages.save(usage)));
     }
 }

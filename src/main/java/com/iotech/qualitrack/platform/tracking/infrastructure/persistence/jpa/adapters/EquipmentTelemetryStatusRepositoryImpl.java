@@ -6,6 +6,8 @@ import com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.as
 import com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.repositories.EquipmentTelemetryStatusPersistenceRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,5 +55,10 @@ public class EquipmentTelemetryStatusRepositoryImpl implements EquipmentTelemetr
     @Override
     public boolean existsById(Long id) {
         return persistenceRepository.existsById(id);
+    }
+
+    @Override
+    public Optional<Instant> findLastReceivedAt(Long equipmentId) {
+        return Optional.ofNullable(persistenceRepository.findLastCreatedAtByEquipmentId(equipmentId)).map(Date::toInstant);
     }
 }

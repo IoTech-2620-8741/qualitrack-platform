@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Covers the Equipment and IoT device API (TS31-TS40) through HTTP.
+ * Covers the Equipment and IoT device API (TS31-TS41) through HTTP.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class EquipmentIntegrationTests {
@@ -204,6 +204,38 @@ class EquipmentIntegrationTests {
         var listed = call("GET", plant.equipment(), token, null);
         assertThat(JsonPath.<List<String>>read(listed.body(), "$[?(@.deviceType == 'CONTAINER_MONITOR')].name"))
                 .containsExactlyInAnyOrder("Cold cabinet monitor", "Shelf monitor");
+    }
+
+    @Test
+    void deviceTelemetryStatusTellsWhetherTheDeviceIsCommunicating() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var devices = "/laboratories/" + plant.lab() + "/devices";
+        long monitor = id(call("POST", devices + "/container-monitors", token, device("Cold cabinet monitor", "CNT-" + suffix())));
+        var telemetryStatus = plant.environment(plant.storage()) + "/devices/" + monitor + "/telemetry-status";
+        assertThat(call("GET", telemetryStatus, token, null).statusCode()).isEqualTo(404);
+
+        assertThat(call("POST", plant.environment(plant.storage()) + "/container-monitors", token, "{\"deviceId\":" + monitor + "}")
+                .statusCode()).isEqualTo(201);
+        var silent = call("GET", telemetryStatus, operatorOf(plant).token(), null);
+        assertThat(silent.statusCode()).withFailMessage(silent.body()).isEqualTo(200);
+        assertThat(silent.body()).contains("\"connectionStatus\":\"REQUIRES_REVIEW\"").contains("\"lastCommunicationAt\":null")
+                .contains("\"expectedPeriodSeconds\":300");
+
+        var measurement = call("POST", "/equipments/" + monitor + "/telemetry-measurements", token, """
+                {"parameterName":"TEMPERATURE","value":5.2,"unit":"C","timestamp":"%s"}
+                """.formatted(OffsetDateTime.now()));
+        assertThat(measurement.statusCode()).withFailMessage(measurement.body()).isEqualTo(201);
+        var connected = call("GET", telemetryStatus, token, null);
+        assertThat(connected.body()).contains("\"connectionStatus\":\"CONNECTED\"");
+        assertThat(JsonPath.<String>read(connected.body(), "$.lastCommunicationAt")).isNotNull();
+
+        long press = located(plant, plant.storage(), "Tablet press");
+        assertThat(call("GET", plant.environment(plant.storage()) + "/devices/" + press + "/telemetry-status", token, null)
+                .statusCode()).isEqualTo(404);
+        long otherEnvironment = environment(plant, "QC-" + suffix());
+        assertThat(call("GET", plant.environment(otherEnvironment) + "/devices/" + monitor + "/telemetry-status", token, null)
+                .statusCode()).isEqualTo(404);
     }
 
     private long located(Plant plant, long environmentId, String name) throws Exception {

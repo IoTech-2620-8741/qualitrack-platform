@@ -2,7 +2,10 @@ package com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.r
 
 import com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.entities.TelemetryHistoryPointPersistenceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -60,4 +63,7 @@ public interface TelemetryHistoryPointPersistenceRepository
     List<TelemetryHistoryPointPersistenceEntity> findAllByEquipmentIdAndIsAnomalyTrueOrderByTimestampDesc(
             Long equipmentId
     );
+
+    @Query("select max(p.createdAt) from TelemetryHistoryPointPersistenceEntity p where p.equipmentId = :equipmentId")
+    Date findLastCreatedAtByEquipmentId(@Param("equipmentId") Long equipmentId);
 }

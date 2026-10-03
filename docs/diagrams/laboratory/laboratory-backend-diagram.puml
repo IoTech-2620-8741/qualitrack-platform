@@ -259,7 +259,24 @@ package "laboratory.application.acl" {
 
 package "laboratory.interfaces.acl" {
   interface LaboratoryContextFacade
+  class StaffReference <<record>> {
+    + id: Long
+    + laboratoryId: Long
+    + fullName: String
+    + role: String
+    + active: boolean
+    + userId: Long
+    + accessRole: String
+    + isAccount(userId: Long): boolean
+    + isAuditor(): boolean
+  }
 }
+
+LaboratoryContextFacade ..> StaffReference
+note bottom of StaffReference
+  Equipment (maintenance technician) and Product Batch (staff participation)
+  reject auditors: they only consult the records.
+end note
 
 LaboratoryContextFacadeImpl ..|> LaboratoryContextFacade
 LaboratoryContextFacadeImpl --> LaboratoryRepository
@@ -414,6 +431,9 @@ EnvironmentResourceFromEntityAssembler ..> EnvironmentUsageAssignmentResource
 
 package "laboratory.interfaces.rest" {
   class LaboratoryController
+  note bottom of LaboratoryController
+    PUT /api/v1/laboratories/{laboratoryId} is reserved to the quality managers of the laboratory.
+  end note
   class LaboratoryRawMaterialsController
   class LaboratoryStaffController
   class LaboratoryEnvironmentsController

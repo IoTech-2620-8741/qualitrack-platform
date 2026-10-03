@@ -3,6 +3,7 @@ package com.iotech.qualitrack.platform.inventory.interfaces.acl;
 import com.iotech.qualitrack.platform.shared.domain.model.valueobjects.StockUnit;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 /**
  * Boundary for atomic stock consumption by Product Batch Management.
@@ -24,6 +25,13 @@ public interface InventoryContextFacade {
      * Checks that a raw material exists in the laboratory and is kept in the environment.
      */
     boolean isRawMaterialInEnvironment(Long laboratoryId, Long environmentId, Long rawMaterialId);
+
+    /**
+     * Finds the environment where a raw material of the laboratory is kept.
+     *
+     * @return the environment, or empty when the material is not in the laboratory or has no environment yet
+     */
+    Optional<Long> findRawMaterialEnvironment(Long laboratoryId, Long rawMaterialId);
 
     record ConsumptionRequest(Long laboratoryId, Long rawMaterialBatchId, Long productBatchId,
                               BigDecimal amountUsed, String unit, String operationId) {

@@ -3,22 +3,28 @@ package com.iotech.qualitrack.platform.inventory.application.acl;
 import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
 import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.ConsumeRawMaterialBatchCommand;
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialByIdQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.ReceiptConsumption;
+import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
 import com.iotech.qualitrack.platform.inventory.interfaces.acl.InventoryContextFacade;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class InventoryContextFacadeImpl implements InventoryContextFacade {
     private final InventoryCommandService commands;
     private final InventoryQueryService queries;
+    private final InventoryRepository repository;
 
-    public InventoryContextFacadeImpl(InventoryCommandService commands, InventoryQueryService queries) {
+    public InventoryContextFacadeImpl(InventoryCommandService commands, InventoryQueryService queries, InventoryRepository repository) {
         this.commands = commands;
         this.queries = queries;
+        this.repository = repository;
     }
 
     public Consumption consume(ConsumptionRequest request) {
@@ -36,5 +42,10 @@ public class InventoryContextFacadeImpl implements InventoryContextFacade {
 
     public boolean isRawMaterialInEnvironment(Long laboratoryId, Long environmentId, Long rawMaterialId) {
         return queries.handle(new GetEnvironmentRawMaterialByIdQuery(laboratoryId, environmentId, rawMaterialId)).isPresent();
+    }
+
+    public Optional<Long> findRawMaterialEnvironment(Long laboratoryId, Long rawMaterialId) {
+        if (laboratoryId == null || rawMaterialId == null) return Optional.empty();
+        return repository.material(laboratoryId, rawMaterialId, false).map(RawMaterial::getEnvironmentId);
     }
 }

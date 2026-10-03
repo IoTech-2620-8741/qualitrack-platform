@@ -2,13 +2,18 @@ package com.iotech.qualitrack.platform.batch.interfaces.rest;
 
 import com.iotech.qualitrack.platform.batch.application.commandservices.BatchParticipationCommandService;
 import com.iotech.qualitrack.platform.batch.application.commandservices.RawMaterialUsageCommandService;
+import com.iotech.qualitrack.platform.batch.application.queryservices.BatchTraceabilityQueryService;
+import com.iotech.qualitrack.platform.batch.domain.model.queries.GetBatchTraceabilityQuery;
 import com.iotech.qualitrack.platform.batch.domain.model.commands.RegisterEquipmentUsageCommand;
 import com.iotech.qualitrack.platform.batch.domain.model.commands.RegisterRawMaterialUsageCommand;
 import com.iotech.qualitrack.platform.batch.domain.model.commands.RegisterStaffParticipationCommand;
 import com.iotech.qualitrack.platform.batch.interfaces.rest.resources.*;
 import com.iotech.qualitrack.platform.batch.interfaces.rest.transform.BatchParticipationResourceFromEntityAssembler;
+import com.iotech.qualitrack.platform.batch.interfaces.rest.transform.BatchTraceabilityResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.batch.interfaces.rest.transform.RawMaterialUsageResourceFromEntityAssembler;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.resources.ErrorResource;
+import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -24,7 +29,8 @@ import org.springframework.web.bind.annotation.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * REST controller for the resources that take part in the manufacturing of a product batch (TS65-TS67).
+ * REST controller for the resources that take part in the manufacturing of a product batch (TS65-TS67)
+ * and its traceability (TS70).
  *
  * <p>Tenant isolation of every path identifier is enforced by the IAM tenant interceptor and the batch
  * must belong to the product of the environment in the path. Authorized laboratory staff register the
@@ -38,11 +44,14 @@ public class BatchManufacturingController {
 
     private final RawMaterialUsageCommandService rawMaterialUsageCommandService;
     private final BatchParticipationCommandService participationCommandService;
+    private final BatchTraceabilityQueryService traceabilityQueryService;
 
     public BatchManufacturingController(RawMaterialUsageCommandService rawMaterialUsageCommandService,
-                                        BatchParticipationCommandService participationCommandService) {
+                                        BatchParticipationCommandService participationCommandService,
+                                        BatchTraceabilityQueryService traceabilityQueryService) {
         this.rawMaterialUsageCommandService = rawMaterialUsageCommandService;
         this.participationCommandService = participationCommandService;
+        this.traceabilityQueryService = traceabilityQueryService;
     }
 
     @PostMapping(value = "/raw-material-usages", consumes = APPLICATION_JSON_VALUE)
@@ -103,5 +112,21 @@ public class BatchManufacturingController {
         var command = new RegisterStaffParticipationCommand(laboratoryId, environmentId, productId, batchId, resource.staffId());
         return ResponseEntityAssembler.toResponseEntityFromResult(participationCommandService.handle(command),
                 BatchParticipationResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/traceability")
+    @Operation(summary = "Get the traceability of a batch",
+            description = "Raw material lots, equipment and staff that took part in the batch, plus its release or rejection.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Traceability of the batch",
+                    content = @Content(schema = @Schema(implementation = BatchTraceabilityResource.class))),
+            @ApiResponse(responseCode = "403", description = "Batch not available to the account"),
+            @ApiResponse(responseCode = "404", description = "Batch not registered for the product", content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> getTraceability(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                             @PathVariable Long productId, @PathVariable Long batchId) {
+        return traceabilityQueryService.handle(new GetBatchTraceabilityQuery(laboratoryId, environmentId, productId, batchId))
+                .<ResponseEntity<?>>map(traceability -> ResponseEntity.ok(BatchTraceabilityResourceFromEntityAssembler.toResourceFromEntity(traceability)))
+                .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.notFound("Batch", batchId)));
     }
 }

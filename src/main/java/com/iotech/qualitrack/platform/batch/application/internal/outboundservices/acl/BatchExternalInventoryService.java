@@ -4,6 +4,7 @@ import com.iotech.qualitrack.platform.inventory.interfaces.acl.InventoryContextF
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 /**
  * Outbound ACL used by Product Batch Management to reach the raw materials owned by Inventory.
@@ -34,5 +35,12 @@ public class BatchExternalInventoryService {
                         String unit, String operationId) {
         inventoryContextFacade.consume(new InventoryContextFacade.ConsumptionRequest(laboratoryId, rawMaterialBatchId,
                 productBatchId, amountUsed, unit, operationId));
+    }
+
+    /**
+     * Finds the environment where an Inventory raw material is kept, to address it in the client.
+     */
+    public Optional<Long> findRawMaterialEnvironment(Long laboratoryId, Long rawMaterialId) {
+        return inventoryContextFacade.findRawMaterialEnvironment(laboratoryId, rawMaterialId);
     }
 }

@@ -316,6 +316,17 @@ class OnboardingIntegrationTests {
     }
 
 
+    @Test
+    void historicalUsagesDoNotInventStockBalances() throws Exception {
+        var fixture = stockFixture("kg");
+        materialUsages.save(new RawMaterialUsage(null, fixture.batch(), fixture.material(), "Legacy material",
+                200.0, "kg", "2026-09-01"));
+        var traceability = call("GET", fixture.batchPath("/traceability"), fixture.account().token(), null);
+        assertThat(traceability.statusCode()).withFailMessage(traceability.body()).isEqualTo(200);
+        assertThat(traceability.body()).contains("\"stockBefore\":null", "\"stockAfter\":null", "\"rawMaterialEnvironmentId\":null");
+        assertThat(stock(fixture)).isEqualTo(100);
+    }
+
     private record StockFixture(Account account, long lab, long environment, long product, long batch, long material, long receipt) {
         String material(String suffix) {
             return "/laboratories/" + lab + "/environments/" + environment + "/raw-materials/" + material + suffix;

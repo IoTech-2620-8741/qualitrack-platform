@@ -233,6 +233,39 @@ class ProductBatchIntegrationTests {
         assertThat(call("POST", participations, operator.token(), "{\"staffId\":" + staff(plant, "Rosa Diaz", "Operator") + "}").statusCode()).isEqualTo(409);
     }
 
+    @Test
+    void traceabilityShowsEverythingThatTookPartInTheBatch() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var lot = releasedLot(plant, "100");
+        long productId = id(call("POST", plant.products(), token, product("PRD-T", "Traced product")));
+        var batches = plant.products() + "/" + productId + "/batches";
+        long batchId = id(call("POST", batches, token, batch("PB-TRACE", "2026-10-01")));
+        var batch = batches + "/" + batchId;
+        call("POST", batch + "/raw-material-usages", token, usage(lot.id(), "25", "kg", "op-" + UUID.randomUUID()));
+        call("POST", batch + "/equipment-usages", token, "{\"equipmentId\":" + equipment(plant, "Granulator") + "}");
+        call("POST", batch + "/staff-participations", token, "{\"staffId\":" + staff(plant, "Ana Torres", "Supervisor") + "}");
+
+        var open = call("GET", batch + "/traceability", operatorOf(plant).token(), null);
+        assertThat(open.statusCode()).withFailMessage(open.body()).isEqualTo(200);
+        assertThat(JsonPath.<Integer>read(open.body(), "$.batch.id")).isEqualTo((int) batchId);
+        assertThat(JsonPath.<String>read(open.body(), "$.product.code")).isEqualTo("PRD-T");
+        assertThat(JsonPath.<Integer>read(open.body(), "$.rawMaterials[0].inventoryReceiptId")).isEqualTo((int) lot.id());
+        assertThat(JsonPath.<Integer>read(open.body(), "$.rawMaterials[0].rawMaterialEnvironmentId")).isEqualTo((int) lot.environment());
+        assertThat(JsonPath.<String>read(open.body(), "$.equipment[0].equipmentName")).isEqualTo("Granulator");
+        assertThat(JsonPath.<String>read(open.body(), "$.staff[0].staffName")).isEqualTo("Ana Torres");
+        assertThat(open.body()).contains("\"release\":null").contains("\"rejection\":null");
+
+        call("POST", batch + "/releases", token, "{\"releaseDate\":\"2026-10-05\",\"notes\":\"Approved\"}");
+        var released = call("GET", batch + "/traceability", token, null);
+        assertThat(JsonPath.<String>read(released.body(), "$.release.signatureHash")).matches("[0-9a-f]{64}");
+        assertThat(JsonPath.<Integer>read(released.body(), "$.release.signedByUserId")).isEqualTo(plant.manager().id().intValue());
+
+        long otherProduct = id(call("POST", plant.products(), token, product("PRD-T2", "Other traced product")));
+        assertThat(call("GET", plant.products() + "/" + otherProduct + "/batches/" + batchId + "/traceability", token, null)
+                .statusCode()).isEqualTo(404);
+    }
+
     private long equipment(Plant plant, String name) throws Exception {
         var created = call("POST", "/equipments", plant.manager().token(), """
                 {"laboratoryId":%d,"name":"%s","type":"PRODUCTION","model":"M-1","serialNumber":"SN-%s"}

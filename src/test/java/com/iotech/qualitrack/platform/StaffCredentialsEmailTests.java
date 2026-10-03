@@ -23,7 +23,8 @@ import static org.mockito.Mockito.verify;
 /**
  * The credentials of a staff account are e-mailed when an SMTP server is configured.
  */
-@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:staff_mail;MODE=MySQL;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1")
+@SpringBootTest(properties = {"spring.datasource.url=jdbc:h2:mem:staff_mail;MODE=MySQL;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1",
+        "application.frontend-url=https://qualitrack.test"})
 class StaffCredentialsEmailTests {
     @Autowired UserCommandService users;
     @MockitoBean JavaMailSender mailSender;
@@ -40,7 +41,8 @@ class StaffCredentialsEmailTests {
         var message = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(message.capture());
         assertThat(message.getValue().getTo()).containsExactly(email);
-        assertThat(message.getValue().getText()).contains(email).contains(account.temporaryPassword()).contains("Ana Torres");
+        assertThat(message.getValue().getText()).contains(email).contains(account.temporaryPassword()).contains("Ana Torres")
+                .contains("https://qualitrack.test/iam/sign-in");
     }
 
     @Test

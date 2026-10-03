@@ -24,7 +24,7 @@ public class SmtpCredentialsNotifier implements CredentialsNotifier {
 
     public SmtpCredentialsNotifier(ObjectProvider<JavaMailSender> mailSender,
                                    @Value("${qualitrack.mail.from:}") String from,
-                                   @Value("${qualitrack.web.sign-in-url:http://localhost:4200/iam/sign-in}") String signInUrl) {
+                                   @Value("${qualitrack.web.sign-in-url:${application.frontend-url:http://localhost:4200}/iam/sign-in}") String signInUrl) {
         this.mailSender = mailSender;
         this.from = from;
         this.signInUrl = signInUrl;

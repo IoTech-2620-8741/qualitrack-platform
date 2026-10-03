@@ -13,6 +13,8 @@ public record MaintenanceRecordResource(
         Long environmentId,
         @Schema(description = "Date the maintenance was performed (ISO 8601)", example = "2026-05-20") String maintenanceDate,
         @Schema(description = "Name of the technician who performed the maintenance", example = "John Smith") String technicianName,
+        @Schema(description = "Staff member who performed the maintenance, null for records with a typed name", example = "4",
+                nullable = true) Long technicianStaffId,
         @Schema(description = "Detailed description of the intervention", example = "Annual calibration and sensor replacement")
         String description,
         @Schema(description = "Type of maintenance performed", example = "PREVENTIVE",

@@ -140,22 +140,28 @@ class EquipmentIntegrationTests {
         var maintenance = plant.environment(plant.storage()) + "/equipments/" + press + "/maintenance-records";
 
         assertThat(call("GET", maintenance, token, null).body()).isEqualTo("[]");
-        var operator = operatorOf(plant);
-        var older = call("POST", maintenance, operator.token(), maintenanceBody(LocalDate.now().minusDays(10), "INSPECTION"));
+        var operator = staffOperator(plant, "Luis Paredes");
+        var colleague = staffOperator(plant, "Rosa Diaz");
+        var older = call("POST", maintenance, operator.token(), maintenanceBody(LocalDate.now().minusDays(10), "INSPECTION", operator.staffId()));
         assertThat(older.statusCode()).withFailMessage(older.body()).isEqualTo(201);
-        assertThat(older.body()).contains("\"environmentId\":" + plant.storage()).contains("\"type\":\"INSPECTION\"");
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "calibration")).statusCode()).isEqualTo(201);
+        assertThat(older.body()).contains("\"environmentId\":" + plant.storage()).contains("\"type\":\"INSPECTION\"")
+                .contains("\"technicianName\":\"Luis Paredes\"").contains("\"technicianStaffId\":" + operator.staffId());
+        assertThat(call("POST", maintenance, operator.token(), maintenanceBody(LocalDate.now(), "INSPECTION", colleague.staffId()))
+                .statusCode()).isEqualTo(403);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "calibration", colleague.staffId())).statusCode())
+                .isEqualTo(201);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "OTHER", 999999L)).statusCode()).isEqualTo(404);
 
         var history = call("GET", maintenance, operator.token(), null);
         assertThat(JsonPath.<List<String>>read(history.body(), "$[*].type")).containsExactly("CALIBRATION", "INSPECTION");
 
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now().plusDays(1), "PREVENTIVE")).statusCode()).isEqualTo(400);
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "PAINTING")).statusCode()).isEqualTo(400);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now().plusDays(1), "PREVENTIVE", colleague.staffId())).statusCode()).isEqualTo(400);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "PAINTING", colleague.staffId())).statusCode()).isEqualTo(400);
 
         long unlocated = id(call("POST", plant.equipment(), token, equipment("Unlocated mixer", "SN-" + suffix())));
         var unlocatedMaintenance = plant.environment(plant.storage()) + "/equipments/" + unlocated + "/maintenance-records";
         assertThat(call("GET", unlocatedMaintenance, token, null).statusCode()).isEqualTo(404);
-        assertThat(call("POST", unlocatedMaintenance, token, maintenanceBody(LocalDate.now(), "PREVENTIVE")).statusCode()).isEqualTo(404);
+        assertThat(call("POST", unlocatedMaintenance, token, maintenanceBody(LocalDate.now(), "PREVENTIVE", colleague.staffId())).statusCode()).isEqualTo(404);
     }
 
     @Test
@@ -258,10 +264,10 @@ class EquipmentIntegrationTests {
                 """.formatted(name, identity, suffix());
     }
 
-    private static String maintenanceBody(LocalDate date, String type) {
+    private static String maintenanceBody(LocalDate date, String type, long technicianStaffId) {
         return """
-                {"maintenanceDate":"%s","technicianName":"Fixture technician","description":"Routine check","type":"%s"}
-                """.formatted(date, type);
+                {"maintenanceDate":"%s","technicianStaffId":%d,"description":"Routine check","type":"%s"}
+                """.formatted(date, technicianStaffId, type);
     }
 
     private static String suffix() {
@@ -295,9 +301,12 @@ class EquipmentIntegrationTests {
     }
 
     private Account operatorOf(Plant plant) throws Exception {
-        var operator = account("ROLE_LAB_OPERATOR");
-        new TransactionTemplate(transactions).executeWithoutResult(status -> iam.assignLaboratory(operator.id(), plant.lab()));
-        return operator;
+        var operator = staffOperator(plant, "Plant operator");
+        return new Account(operator.userId(), operator.token());
+    }
+
+    private TestStaff.Member staffOperator(Plant plant, String fullName) throws Exception {
+        return TestStaff.register(this::call, plant.lab(), plant.manager().token(), fullName, "OPERATOR");
     }
 
     private Account account(String role) throws Exception {

@@ -26,7 +26,7 @@ public class UserOnboardingController {
     @GetMapping
     @Operation(summary = "Get current user's onboarding state",
             description = "Resolves subscription entitlement and laboratory from the authenticated user. "
-                    + "nextStep is SUBSCRIPTION, LABORATORY or READY.")
+                    + "nextStep is PASSWORD_CHANGE, SUBSCRIPTION, LABORATORY or READY.")
     @ApiResponse(responseCode = "200", description = "Authoritative onboarding state")
     @ApiResponse(responseCode = "401", description = "Authentication required")
     public ResponseEntity<UserOnboardingResource> getOnboarding(@AuthenticationPrincipal UserDetailsImpl user) {

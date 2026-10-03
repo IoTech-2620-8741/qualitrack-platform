@@ -40,6 +40,7 @@ package "iam.domain.model.valueobjects" {
     ROLE_ADMIN
     ROLE_QA_MANAGER
     ROLE_LAB_OPERATOR
+    ROLE_AUDITOR
   }
 
   enum UserStatus {
@@ -67,6 +68,9 @@ package "iam.domain.model.aggregates" {
     - roles: Set<Role>
     - laboratoryId: Long
     - status: UserStatus
+    - passwordChangeRequired: boolean
+    + {static} staffAccount(username, temporaryPasswordHash, role, laboratoryId): User
+    + changePassword(newPasswordHash: String): void
     + addRole(role: Role): void
     + addRoles(roles: Collection<Role>): void
     + deactivate(): void
@@ -106,6 +110,19 @@ package "iam.domain.model.commands" {
   }
 
   class SeedRolesCommand <<record>>
+
+  class CreateStaffAccountCommand <<record>> {
+    + laboratoryId: Long
+    + email: String
+    + fullName: String
+    + role: Roles
+  }
+
+  class ChangePasswordCommand <<record>> {
+    + userId: Long
+    + currentPassword: String
+    + newPassword: String
+  }
 }
 
 package "iam.domain.model.queries" {
@@ -179,6 +196,14 @@ package "iam.application.commandservices" {
     + handle(command: SignUpCommand): Result<User, ApplicationError>
     + handle(command: AssignRoleCommand): Result<Long, ApplicationError>
     + handle(command: DeactivateUserCommand): Result<Long, ApplicationError>
+    + handle(command: CreateStaffAccountCommand): Result<StaffAccount, ApplicationError>
+    + handle(command: ChangePasswordCommand): Result<User, ApplicationError>
+  }
+
+  class StaffAccount <<record>> {
+    + user: User
+    + temporaryPassword: String
+    + credentialsSent: boolean
   }
 
   class AuthenticatedUser <<record>> {
@@ -224,6 +249,33 @@ UserCommandServiceImpl --> UserRepository
 UserCommandServiceImpl --> RoleRepository
 UserCommandServiceImpl --> HashingService
 UserCommandServiceImpl --> TokenService
+UserCommandServiceImpl --> TemporaryPasswordGenerator
+UserCommandServiceImpl --> CredentialsNotifier
+
+package "iam.application.internal.outboundservices.credentials" {
+  interface TemporaryPasswordGenerator {
+    + generate(): String
+  }
+  interface CredentialsNotifier {
+    + send(credentials: StaffCredentials): boolean
+  }
+}
+
+package "iam.infrastructure.credentials" {
+  class SecureRandomTemporaryPasswordGenerator
+}
+
+package "iam.infrastructure.notifications.smtp" {
+  class SmtpCredentialsNotifier
+}
+
+SecureRandomTemporaryPasswordGenerator ..|> TemporaryPasswordGenerator
+SmtpCredentialsNotifier ..|> CredentialsNotifier
+note right of SmtpCredentialsNotifier
+  Uses the JavaMailSender configured with spring.mail.*.
+  Without SMTP it returns false and the temporary password
+  is returned once to the quality manager.
+end note
 
 RoleCommandServiceImpl ..|> RoleCommandService
 RoleCommandServiceImpl --> RoleRepository
@@ -253,10 +305,14 @@ package "iam.interfaces.acl" {
     + getUsernameByUserId(userId: Long): String
     + getRoleNamesByUserId(userId: Long): List<String>
     + userHasRole(userId: Long, roleName: String): boolean
+    + createStaffAccount(laboratoryId, email, fullName, auditor): StaffAccountReference
+    + existsUsername(username: String): boolean
+    + deactivateUser(userId: Long): void
   }
 }
 
 IamContextFacade --> UserQueryService
+IamContextFacade --> UserCommandService
 
 package "iam.infrastructure.hashing.bcrypt" {
   class BCryptHashingService {
@@ -329,6 +385,14 @@ BearerAuthorizationRequestFilter ..> UsernamePasswordAuthenticationTokenBuilder
 
 UnauthorizedRequestHandlerEntryPoint ..|> AuthenticationEntryPoint
 
+class ForbiddenRequestHandler
+class ReadOnlyAuditorAuthorizationManager
+note bottom of ReadOnlyAuditorAuthorizationManager
+  Users whose only role is ROLE_AUDITOR can read but not write, except
+  their password change, notification preferences and report generation.
+  Subscription and billing paths require ROLE_QA_MANAGER or ROLE_ADMIN.
+end note
+
 package "iam.infrastructure.authorization.sfs.configuration" {
   class WebSecurityConfiguration {
     + authenticationManager(passwordEncoder: BCryptPasswordEncoder): AuthenticationManager
@@ -342,6 +406,8 @@ WebSecurityConfiguration --> UnauthorizedRequestHandlerEntryPoint
 WebSecurityConfiguration --> BearerTokenService
 WebSecurityConfiguration --> TokenService
 WebSecurityConfiguration --> BearerAuthorizationRequestFilter
+WebSecurityConfiguration --> ForbiddenRequestHandler
+WebSecurityConfiguration --> ReadOnlyAuditorAuthorizationManager
 
 package "iam.infrastructure.persistence.jpa.entities" {
   class UserPersistenceEntity {
@@ -349,6 +415,7 @@ package "iam.infrastructure.persistence.jpa.entities" {
     - password: String
     - laboratoryId: Long
     - status: UserStatus
+    - passwordChangeRequired: boolean
     - roles: Set<RolePersistenceEntity>
   }
 

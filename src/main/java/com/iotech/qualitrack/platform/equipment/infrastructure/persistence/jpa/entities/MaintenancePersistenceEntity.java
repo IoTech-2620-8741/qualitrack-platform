@@ -34,6 +34,9 @@ public class MaintenancePersistenceEntity extends AuditableAbstractPersistenceEn
     @Column(name = "technician_name", nullable = false, length = 150)
     private String technicianName;
 
+    @Column(name = "technician_staff_id")
+    private Long technicianStaffId;
+
     @Column(nullable = false, length = 1000)
     private String description;
 

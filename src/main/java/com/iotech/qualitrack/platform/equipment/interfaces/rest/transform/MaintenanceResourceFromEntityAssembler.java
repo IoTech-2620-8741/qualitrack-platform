@@ -21,6 +21,7 @@ public class MaintenanceResourceFromEntityAssembler {
                 entity.getEnvironmentId(),
                 entity.getMaintenanceDate() != null ? entity.getMaintenanceDate().toString() : null,
                 entity.getTechnicianName(),
+                entity.getTechnicianStaffId(),
                 entity.getDescription(),
                 entity.getType().name()
         );

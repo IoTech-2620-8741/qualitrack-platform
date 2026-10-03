@@ -47,6 +47,8 @@ entity "staff_members" as staff_members {
   role : VARCHAR(100) NOT NULL
   email : VARCHAR(150) NOT NULL UNIQUE
   active : BOOLEAN NOT NULL
+  access_role : VARCHAR(20) NULL
+  user_id : BIGINT NULL UNIQUE
   created_at : DATETIME(6) NOT NULL
   updated_at : DATETIME(6) NOT NULL
 }

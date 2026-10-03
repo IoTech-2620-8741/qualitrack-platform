@@ -107,9 +107,10 @@ package "equipment.domain.model.aggregates" {
     - environmentId: Long
     - maintenanceDate: LocalDate
     - technicianName: String
+    - technicianStaffId: Long
     - description: String
     - type: MaintenanceType
-    + MaintenanceRecord(command: RegisterMaintenanceCommand, today: LocalDate)
+    + MaintenanceRecord(command: RegisterMaintenanceCommand, technicianName: String, today: LocalDate)
   }
 }
 
@@ -205,7 +206,7 @@ package "equipment.domain.model.commands" {
     + environmentId: Long
     + equipmentId: Long
     + maintenanceDate: String
-    + technicianName: String
+    + technicianStaffId: Long
     + description: String
     + type: String
   }
@@ -429,6 +430,7 @@ package "equipment.infrastructure.persistence.jpa.entities" {
     - environmentId: Long
     - maintenanceDate: LocalDate
     - technicianName: String
+    - technicianStaffId: Long
     - description: String
     - type: MaintenanceType
   }

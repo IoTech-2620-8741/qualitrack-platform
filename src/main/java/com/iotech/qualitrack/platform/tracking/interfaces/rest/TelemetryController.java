@@ -21,7 +21,6 @@ import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.RecordT
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.TelemetryHistoryPointResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.UpdateEquipmentTelemetryStatusCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,7 +34,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/equipments/{equipmentId}", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Equipment", description = "Equipment telemetry endpoints")
 public class TelemetryController {
 
     private final TrackingCommandService trackingCommandService;

@@ -17,6 +17,7 @@ public final class BatchPersistenceAssembler {
         return new Batch(
                 entity.getId(),
                 entity.getLabId(),
+                entity.getEnvironmentId(),
                 entity.getProductId(),
                 entity.getProductName(),
                 entity.getBatchNumber(),
@@ -39,6 +40,7 @@ public final class BatchPersistenceAssembler {
         }
 
         entity.setLabId(batch.getLabId());
+        entity.setEnvironmentId(batch.getEnvironmentId());
         entity.setProductId(batch.getProductId());
         entity.setProductName(batch.getProductName());
         entity.setBatchNumber(batch.getBatchNumber());

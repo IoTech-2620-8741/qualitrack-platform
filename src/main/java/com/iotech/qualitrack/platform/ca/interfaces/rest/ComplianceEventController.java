@@ -28,8 +28,7 @@ public class ComplianceEventController {
 
     @GetMapping(value = "/equipments/{equipmentId}/compliance-events")
     @Operation(
-            summary = "Get equipment compliance events",
-            tags = {"Equipment"}
+            summary = "Get equipment compliance events"
     )
     public ResponseEntity<List<ComplianceEventResource>> getEquipmentComplianceEvents(
             @PathVariable Long equipmentId
@@ -39,8 +38,7 @@ public class ComplianceEventController {
 
     @GetMapping(value = "/batches/{batchId}/compliance-events")
     @Operation(
-            summary = "Get batch compliance events",
-            tags = {"Batches"}
+            summary = "Get batch compliance events"
     )
     public ResponseEntity<List<ComplianceEventResource>> getBatchComplianceEvents(
             @PathVariable Long batchId

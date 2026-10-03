@@ -7,7 +7,6 @@ import com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.Sub
 import com.iotech.qualitrack.platform.subscription.interfaces.rest.resources.SubscriptionResource;
 import com.iotech.qualitrack.platform.subscription.interfaces.rest.transform.SubscriptionResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +19,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/laboratories/{laboratoryId}", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Laboratories", description = "Laboratory subscription and billing endpoints")
 public class LaboratorySubscriptionController {
 
     private final SubscriptionQueryService subscriptionQueryService;

@@ -137,7 +137,7 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
             before, receipt.getStatus().name(), "Product batch consumption", request.operationId());
         var material = material(request.laboratoryId(), receipt.getRawMaterialId(), false);
         events.publishEvent(new ReceiptConsumedIntegrationEvent(receipt.getId(), material.getId(), material.getName(),
-            request.productBatchId(), request.amountUsed(), receipt.getUnit(), before, receipt.getAvailableAmount(), movement.occurredAt()));
+            request.productBatchId(), request.amountUsed(), receipt.getUnit(), before, receipt.getAvailableAmount(), movement.occurredAt(), request.operationId()));
         return Result.success(consumption(movement));
     }
 

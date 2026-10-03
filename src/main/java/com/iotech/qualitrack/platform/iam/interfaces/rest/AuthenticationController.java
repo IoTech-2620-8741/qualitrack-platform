@@ -9,7 +9,6 @@ import com.iotech.qualitrack.platform.iam.interfaces.rest.transform.SignUpComman
 import com.iotech.qualitrack.platform.iam.interfaces.rest.transform.UserResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +20,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/authentication", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Authentication", description = "Authentication and user registration endpoints")
 public class AuthenticationController {
 
     private final UserCommandService userCommandService;

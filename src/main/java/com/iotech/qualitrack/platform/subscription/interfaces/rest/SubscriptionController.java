@@ -12,7 +12,6 @@ import com.iotech.qualitrack.platform.subscription.interfaces.rest.resources.Upd
 import com.iotech.qualitrack.platform.subscription.interfaces.rest.transform.SubscriptionPaymentResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.subscription.interfaces.rest.transform.UpdateSubscriptionStatusCommandFromResourceAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +25,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/subscriptions", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Subscriptions", description = "Subscription endpoints")
 public class SubscriptionController {
 
     private final SubscriptionCommandService subscriptionCommandService;

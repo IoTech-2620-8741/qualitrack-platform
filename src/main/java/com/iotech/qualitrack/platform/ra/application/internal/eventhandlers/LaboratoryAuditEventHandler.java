@@ -4,7 +4,6 @@ import com.iotech.qualitrack.platform.laboratory.interfaces.events.EnvironmentRe
 import com.iotech.qualitrack.platform.laboratory.interfaces.events.EnvironmentUpdatedIntegrationEvent;
 import com.iotech.qualitrack.platform.laboratory.interfaces.events.EnvironmentUsageAssignedIntegrationEvent;
 import com.iotech.qualitrack.platform.laboratory.interfaces.events.LaboratoryRegisteredIntegrationEvent;
-import com.iotech.qualitrack.platform.laboratory.interfaces.events.ProductCreatedIntegrationEvent;
 import com.iotech.qualitrack.platform.laboratory.interfaces.events.RawMaterialCreatedIntegrationEvent;
 import com.iotech.qualitrack.platform.laboratory.interfaces.events.RawMaterialLowStockIntegrationEvent;
 import com.iotech.qualitrack.platform.laboratory.interfaces.events.StaffDeactivatedIntegrationEvent;
@@ -40,19 +39,6 @@ public class LaboratoryAuditEventHandler {
                 AuditAction.REGISTER,
                 "LABORATORY",
                 event.laboratoryId(),
-                currentUser.userId(),
-                event.toString()
-        );
-    }
-
-    @EventListener(ProductCreatedIntegrationEvent.class)
-    public void on(ProductCreatedIntegrationEvent event) {
-        log.info("RA received product created event: {}", event);
-
-        raContextFacade.recordAuditLog(
-                AuditAction.REGISTER,
-                "PHARMACEUTICAL_PRODUCT",
-                event.productId(),
                 currentUser.userId(),
                 event.toString()
         );

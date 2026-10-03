@@ -10,7 +10,6 @@ import com.iotech.qualitrack.platform.ca.interfaces.rest.transform.NotificationP
 import com.iotech.qualitrack.platform.ca.interfaces.rest.transform.UpdateNotificationPreferenceCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +24,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         value = "/api/v1/users/{userId}/notification-preferences",
         produces = APPLICATION_JSON_VALUE
 )
-@Tag(name = "Users", description = "User notification preference endpoints")
 public class NotificationPreferenceController {
 
     private final CaCommandService caCommandService;

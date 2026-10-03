@@ -11,7 +11,6 @@ import com.iotech.qualitrack.platform.ra.domain.model.queries.GetAuditReportById
 import com.iotech.qualitrack.platform.ra.interfaces.rest.resources.AuditReportResource;
 import com.iotech.qualitrack.platform.ra.interfaces.rest.transform.AuditReportResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +21,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/reports", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Reports", description = "Audit report query endpoints")
 public class ReportController {
 
     private final RaQueryService raQueryService;

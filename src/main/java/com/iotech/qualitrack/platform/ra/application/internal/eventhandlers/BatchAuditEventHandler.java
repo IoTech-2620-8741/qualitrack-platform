@@ -1,8 +1,10 @@
 package com.iotech.qualitrack.platform.ra.application.internal.eventhandlers;
 
 import com.iotech.qualitrack.platform.batch.interfaces.events.BatchCreatedIntegrationEvent;
+import com.iotech.qualitrack.platform.batch.interfaces.events.BatchParticipationRegisteredIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.BatchRejectedIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.BatchReleasedIntegrationEvent;
+import com.iotech.qualitrack.platform.batch.interfaces.events.ProductCreatedIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.RawMaterialLinkedToBatchIntegrationEvent;
 import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.AuditAction;
 import com.iotech.qualitrack.platform.ra.interfaces.acl.RaContextFacade;
@@ -73,6 +75,30 @@ public class BatchAuditEventHandler {
         raContextFacade.recordAuditLog(
                 AuditAction.REGISTER,
                 "RAW_MATERIAL_USAGE",
+                event.batchId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(ProductCreatedIntegrationEvent.class)
+    public void on(ProductCreatedIntegrationEvent event) {
+        log.info("RA received product created event: {}", event);
+        raContextFacade.recordAuditLog(
+                AuditAction.REGISTER,
+                "PHARMACEUTICAL_PRODUCT",
+                event.productId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(BatchParticipationRegisteredIntegrationEvent.class)
+    public void on(BatchParticipationRegisteredIntegrationEvent event) {
+        log.info("RA received batch participation event: {}", event);
+        raContextFacade.recordAuditLog(
+                AuditAction.REGISTER,
+                "BATCH",
                 event.batchId(),
                 currentUser.userId(),
                 event.toString()

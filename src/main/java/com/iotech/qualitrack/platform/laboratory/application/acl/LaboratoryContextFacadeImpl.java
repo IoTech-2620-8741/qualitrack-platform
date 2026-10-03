@@ -2,10 +2,14 @@ package com.iotech.qualitrack.platform.laboratory.application.acl;
 
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.EnvironmentQueryService;
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.LaboratoryQueryService;
+import com.iotech.qualitrack.platform.laboratory.application.queryservices.StaffQueryService;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetLaboratoryByIdQuery;
+import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffByLabIdQuery;
 import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 /**
  * Application-layer implementation of the Laboratory ACL facade.
@@ -15,11 +19,14 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
 
     private final LaboratoryQueryService laboratoryQueryService;
     private final EnvironmentQueryService environmentQueryService;
+    private final StaffQueryService staffQueryService;
 
     public LaboratoryContextFacadeImpl(LaboratoryQueryService laboratoryQueryService,
-                                       EnvironmentQueryService environmentQueryService) {
+                                       EnvironmentQueryService environmentQueryService,
+                                       StaffQueryService staffQueryService) {
         this.laboratoryQueryService = laboratoryQueryService;
         this.environmentQueryService = environmentQueryService;
+        this.staffQueryService = staffQueryService;
     }
 
     @Override
@@ -35,5 +42,15 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
     public boolean existsEnvironment(Long laboratoryId, Long environmentId) {
         if (laboratoryId == null || laboratoryId <= 0 || environmentId == null || environmentId <= 0) return false;
         return environmentQueryService.handle(new GetEnvironmentByIdQuery(laboratoryId, environmentId)).isPresent();
+    }
+
+    @Override
+    public Optional<StaffReference> findStaffMember(Long laboratoryId, Long staffId) {
+        if (laboratoryId == null || laboratoryId <= 0 || staffId == null || staffId <= 0) return Optional.empty();
+        return staffQueryService.handle(new GetStaffByLabIdQuery(laboratoryId)).stream()
+                .filter(member -> staffId.equals(member.getId()))
+                .findFirst()
+                .map(member -> new StaffReference(member.getId(), member.getLaboratoryId(), member.getFullName(),
+                        member.getRole(), member.isActive()));
     }
 }

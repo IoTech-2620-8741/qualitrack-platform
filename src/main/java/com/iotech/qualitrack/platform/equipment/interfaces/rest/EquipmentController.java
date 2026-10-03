@@ -12,7 +12,6 @@ import com.iotech.qualitrack.platform.equipment.interfaces.rest.transform.Regist
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +22,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping(value = "/api/v1/equipments", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Equipment", description = "Equipment management endpoints")
 public class EquipmentController {
 
     private final EquipmentCommandService equipmentCommandService;

@@ -157,7 +157,7 @@ class OnboardingIntegrationTests {
         activateFixture(account, OffsetDateTime.now().plusDays(5));
         var created = call("POST", "/laboratories", account.token(), laboratory());
         long lab = ((Number) JsonPath.read(created.body(), "$.id")).longValue();
-        var batch = batches.save(new Batch(null, lab, 51L, "Fixture product", "FIXTURE-PDF-" + UUID.randomUUID(),
+        var batch = batches.save(new Batch(null, lab, null, 51L, "Fixture product", "FIXTURE-PDF-" + UUID.randomUUID(),
                 150.0, "units", BatchStatus.RELEASED, "2026-09-01", "2026-09-03", "DEMO: isolated test record"));
         materialUsages.save(new RawMaterialUsage(null, batch.getId(), 71L, "Fixture material from persistence",
                 75.0, "g", "2026-09-01"));
@@ -265,7 +265,7 @@ class OnboardingIntegrationTests {
         assertThat(stock(fixture)).isEqualTo(50);
         assertThat(((Number) JsonPath.read(accepted.body(), "$.stockBefore")).doubleValue()).isEqualTo(100);
         assertThat(((Number) JsonPath.read(accepted.body(), "$.stockAfter")).doubleValue()).isEqualTo(50);
-        var history = call("GET", "/laboratories/" + fixture.lab() + "/inventory/materials/" + fixture.material() + "/movements", fixture.account().token(), null);
+        var history = call("GET", fixture.material("/movements"), fixture.account().token(), null);
         assertThat(history.statusCode()).withFailMessage(history.body()).isEqualTo(200);
         assertThat(((Number) JsonPath.read(history.body(), "$[0].productBatchId")).longValue()).isEqualTo(fixture.batch());
         assertThat(((Number) JsonPath.read(history.body(), "$[0].amount")).doubleValue()).isEqualTo(-50);
@@ -308,24 +308,34 @@ class OnboardingIntegrationTests {
     void materialHistoryAndConsumptionRejectOtherLaboratories() throws Exception {
         var owner = stockFixture("kg");
         var other = stockFixture("kg");
-        var crossed = new StockFixture(other.account(), other.lab(), other.batch(), owner.material(), owner.receipt());
+        var crossed = new StockFixture(other.account(), other.lab(), other.environment(), other.product(), other.batch(), owner.material(), owner.receipt());
         assertThat(consume(crossed, "10", "kg").statusCode()).isEqualTo(404);
-        assertThat(call("GET", "/laboratories/" + owner.lab() + "/inventory/materials/" + owner.material() + "/movements", other.account().token(), null).statusCode()).isEqualTo(403);
-        assertThat(call("GET", "/laboratories/" + owner.lab() + "/inventory/materials/" + owner.material() + "/movements", null, null).statusCode()).isEqualTo(401);
+        assertThat(call("GET", owner.material("/movements"), other.account().token(), null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", owner.material("/movements"), null, null).statusCode()).isEqualTo(401);
         assertThat(stock(owner)).isEqualTo(100);
     }
+
 
     @Test
     void historicalUsagesDoNotInventStockBalances() throws Exception {
         var fixture = stockFixture("kg");
         materialUsages.save(new RawMaterialUsage(null, fixture.batch(), fixture.material(), "Legacy material",
                 200.0, "kg", "2026-09-01"));
-        var history = call("GET", "/batches/" + fixture.batch() + "/raw-materials", fixture.account().token(), null);
-        assertThat(history.body()).contains("\"stockBefore\":null", "\"stockAfter\":null");
+        var traceability = call("GET", fixture.batchPath("/traceability"), fixture.account().token(), null);
+        assertThat(traceability.statusCode()).withFailMessage(traceability.body()).isEqualTo(200);
+        assertThat(traceability.body()).contains("\"stockBefore\":null", "\"stockAfter\":null", "\"rawMaterialEnvironmentId\":null");
         assertThat(stock(fixture)).isEqualTo(100);
     }
 
-    private record StockFixture(Account account, long lab, long batch, long material, long receipt) { }
+    private record StockFixture(Account account, long lab, long environment, long product, long batch, long material, long receipt) {
+        String material(String suffix) {
+            return "/laboratories/" + lab + "/environments/" + environment + "/raw-materials/" + material + suffix;
+        }
+
+        String batchPath(String suffix) {
+            return "/laboratories/" + lab + "/environments/" + environment + "/products/" + product + "/batches/" + batch + suffix;
+        }
+    }
 
     private StockFixture stockFixture(String unit) throws Exception {
         var account = account();
@@ -350,29 +360,29 @@ class OnboardingIntegrationTests {
         var review = call("POST", materials + "/" + materialId + "/batches/" + receiptId + "/reviews", account.token(),
                 "{\"status\":\"RELEASED\",\"reason\":\"Certificate and quantity reviewed\"}");
         assertThat(review.statusCode()).withFailMessage(review.body()).isEqualTo(201);
-        var product = call("POST", "/laboratories/" + lab + "/products", account.token(), """
+        var product = call("POST", "/laboratories/" + lab + "/environments/" + JsonPath.read(environment.body(), "$.id") + "/products", account.token(), """
                 {"name":"Stock test product","code":"P-%s","description":"Test","specifications":"Test only"}
                 """.formatted(UUID.randomUUID()));
         assertThat(product.statusCode()).withFailMessage(product.body()).isEqualTo(201);
-        var products = call("GET", "/laboratories/" + lab + "/products", account.token(), null);
-        long productId = ((Number) JsonPath.read(products.body(), "$[0].id")).longValue();
-        var batch = call("POST", "/batches", account.token(), """
-                {"labId":%d,"productId":%d,"batchNumber":"STOCK-%s","quantity":10,"unit":"g","startDate":"2026-09-08","notes":""}
-                """.formatted(lab, productId, UUID.randomUUID()));
+        long productId = ((Number) JsonPath.read(product.body(), "$.id")).longValue();
+        var batch = call("POST", "/laboratories/" + lab + "/environments/" + JsonPath.read(environment.body(), "$.id") + "/products/" + productId + "/batches", account.token(), """
+                {"batchNumber":"STOCK-%s","quantity":10,"unit":"g","startDate":"2026-09-08","notes":""}
+                """.formatted(UUID.randomUUID().toString().substring(0, 8)));
         assertThat(batch.statusCode()).withFailMessage(batch.body()).isEqualTo(201);
         assertThat(JsonPath.<String>read(batch.body(), "$.unit")).isEqualTo("g");
-        return new StockFixture(account, lab, ((Number) JsonPath.read(batch.body(), "$.id")).longValue(), materialId, receiptId);
+        long environmentId = ((Number) JsonPath.read(environment.body(), "$.id")).longValue();
+        return new StockFixture(account, lab, environmentId, productId, ((Number) JsonPath.read(batch.body(), "$.id")).longValue(), materialId, receiptId);
     }
 
     private HttpResponse<String> consume(StockFixture fixture, String quantity, String unit) throws Exception {
-        return call("POST", "/laboratories/" + fixture.lab() + "/inventory/consumptions", fixture.account().token(),
-                "{\"receiptId\":" + fixture.receipt() + ",\"productBatchId\":" + fixture.batch()
-                + ",\"amount\":" + quantity + ",\"unit\":\"" + unit + "\",\"operationId\":\"" + UUID.randomUUID() + "\"}");
+        return call("POST", fixture.batchPath("/raw-material-usages"), fixture.account().token(),
+                "{\"rawMaterialBatchId\":" + fixture.receipt() + ",\"amountUsed\":" + quantity + ",\"unit\":\"" + unit
+                + "\",\"operationId\":\"" + UUID.randomUUID() + "\"}");
     }
 
     private double stock(StockFixture fixture) throws Exception {
-        var response = call("GET", "/laboratories/" + fixture.lab() + "/inventory/materials", fixture.account().token(), null);
-        return ((Number) JsonPath.read(response.body(), "$[0].usableStock")).doubleValue();
+        var response = call("GET", fixture.material(""), fixture.account().token(), null);
+        return ((Number) JsonPath.read(response.body(), "$.usableStock")).doubleValue();
     }
 
     private Account account() throws Exception {

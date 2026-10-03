@@ -9,7 +9,6 @@ import com.iotech.qualitrack.platform.inventory.interfaces.rest.resources.*;
 import com.iotech.qualitrack.platform.inventory.interfaces.rest.transform.*;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,7 +26,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/laboratories/{laboratoryId}/inventory")
 @PreAuthorize("@tenantAccess.allows('laboratoryId', #laboratoryId)")
-@Tag(name = "Inventory", description = "Raw materials, lots, stock and expiration within an environment")
 public class InventoryController {
     private final InventoryCommandService commands;
     private final InventoryQueryService queries;

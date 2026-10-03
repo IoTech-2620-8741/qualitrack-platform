@@ -10,7 +10,6 @@ import com.iotech.qualitrack.platform.ra.interfaces.rest.transform.AuditLogEntry
 import com.iotech.qualitrack.platform.ra.interfaces.rest.transform.RecordAuditLogEntryCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +26,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         value = "/api/v1/batches/{batchId}/audit-logs",
         produces = APPLICATION_JSON_VALUE
 )
-@Tag(name = "Batches", description = "Batch audit log endpoints")
 public class BatchAuditLogController {
 
     private static final String ENTITY_TYPE = "BATCH";

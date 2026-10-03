@@ -5,7 +5,6 @@ import com.iotech.qualitrack.platform.ca.domain.model.queries.GetComplianceEvent
 import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.ComplianceEventResource;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.transform.ComplianceEventResourceFromEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +17,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/raw-materials/{legacyRawMaterialId}/compliance-events", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Raw Materials", description = "Raw material compliance event endpoints")
 public class RawMaterialComplianceEventController {
 
     private final CaQueryService caQueryService;

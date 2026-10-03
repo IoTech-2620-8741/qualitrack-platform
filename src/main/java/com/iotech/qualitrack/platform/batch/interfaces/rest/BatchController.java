@@ -19,7 +19,6 @@ import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ErrorResp
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +32,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/batches", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Batches", description = "Batch management endpoints")
 public class BatchController {
 
     private final BatchCommandService batchCommandService;

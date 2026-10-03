@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +21,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/batches/{batchId}/raw-materials", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Batches", description = "Batch management endpoints")
 public class BatchRawMaterialUsageController {
 
     private final RawMaterialUsageQueryService rawMaterialUsageQueryService;

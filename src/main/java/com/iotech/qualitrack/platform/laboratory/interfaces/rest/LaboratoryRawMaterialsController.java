@@ -6,7 +6,6 @@ import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetRawMate
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.resources.CreateRawMaterialResource;
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.resources.RawMaterialResource;
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.transform.RawMaterialResourceFromEntityAssembler;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,7 +15,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping(value = "/api/v1/laboratories/{laboratoryId}/raw-materials", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Laboratories", description = "Laboratory management endpoints")
 public class LaboratoryRawMaterialsController {
 
     private final RawMaterialQueryService rawMaterialQueryService;

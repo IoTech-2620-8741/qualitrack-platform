@@ -47,8 +47,7 @@ public class DeviationAlertController {
     @PostMapping(value = "/equipments/{equipmentId}/deviation-alerts", consumes = APPLICATION_JSON_VALUE)
     @org.springframework.security.access.prepost.PreAuthorize("#resource.batchId() == null || @tenantAccess.allows('batchId', #resource.batchId())")
     @Operation(
-            summary = "Create equipment deviation alert",
-            tags = {"Equipment"}
+            summary = "Create equipment deviation alert"
     )
     public ResponseEntity<?> createEquipmentAlert(
             @PathVariable Long equipmentId,
@@ -73,8 +72,7 @@ public class DeviationAlertController {
 
     @GetMapping(value = "/deviation-alerts/{alertId}")
     @Operation(
-            summary = "Get deviation alert by ID",
-            tags = {"Deviation Alerts"}
+            summary = "Get deviation alert by ID"
     )
     public ResponseEntity<DeviationAlertResource> getAlertById(
             @PathVariable Long alertId
@@ -90,8 +88,7 @@ public class DeviationAlertController {
 
     @GetMapping(value = "/equipments/{equipmentId}/deviation-alerts")
     @Operation(
-            summary = "Get equipment deviation alerts",
-            tags = {"Equipment"}
+            summary = "Get equipment deviation alerts"
     )
     public ResponseEntity<List<DeviationAlertResource>> getEquipmentAlerts(
             @PathVariable Long equipmentId,
@@ -113,8 +110,7 @@ public class DeviationAlertController {
 
     @GetMapping(value = "/batches/{batchId}/deviation-alerts")
     @Operation(
-            summary = "Get batch deviation alerts",
-            tags = {"Batches"}
+            summary = "Get batch deviation alerts"
     )
     public ResponseEntity<List<DeviationAlertResource>> getBatchAlerts(
             @PathVariable Long batchId,
@@ -137,8 +133,7 @@ public class DeviationAlertController {
     @PatchMapping(value = "/deviation-alerts/{alertId}", consumes = APPLICATION_JSON_VALUE)
     @org.springframework.security.access.prepost.PreAuthorize("@tenantAccess.allows('userId', #resource.performedBy())")
     @Operation(
-            summary = "Update deviation alert status",
-            tags = {"Deviation Alerts"}
+            summary = "Update deviation alert status"
     )
     public ResponseEntity<?> updateAlertStatus(
             @PathVariable Long alertId,

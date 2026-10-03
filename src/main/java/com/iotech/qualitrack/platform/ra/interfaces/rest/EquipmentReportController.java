@@ -13,7 +13,6 @@ import com.iotech.qualitrack.platform.shared.application.result.ApplicationError
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +28,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  */
 @RestController
 @RequestMapping(value = "/api/v1/equipments/{equipmentId}")
-@Tag(name = "Equipment", description = "Equipment report endpoints")
 public class EquipmentReportController {
 
     private final RaCommandService raCommandService;

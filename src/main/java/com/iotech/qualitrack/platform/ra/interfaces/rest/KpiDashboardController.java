@@ -12,7 +12,6 @@ import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +25,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         value = "/api/v1/laboratories/{laboratoryId}/kpi-dashboards",
         produces = APPLICATION_JSON_VALUE
 )
-@Tag(name = "Laboratories", description = "Laboratory KPI dashboard endpoints")
 public class KpiDashboardController {
 
     private final RaCommandService raCommandService;

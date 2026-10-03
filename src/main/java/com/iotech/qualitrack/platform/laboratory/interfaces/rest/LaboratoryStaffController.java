@@ -9,7 +9,6 @@ import com.iotech.qualitrack.platform.laboratory.interfaces.rest.transform.Regis
 import com.iotech.qualitrack.platform.laboratory.interfaces.rest.transform.StaffResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.resources.MessageResource;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,7 +19,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping(value = "/api/v1/laboratories/{laboratoryId}/staff", produces = APPLICATION_JSON_VALUE)
-@Tag(name = "Laboratories", description = "Laboratory management endpoints")
 public class LaboratoryStaffController {
 
     private final StaffCommandService staffCommandService;

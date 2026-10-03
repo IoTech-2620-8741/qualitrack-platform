@@ -94,6 +94,80 @@ class ProductBatchIntegrationTests {
         assertThat(call("GET", plant.products(), outsider.manager().token(), null).statusCode()).isEqualTo(403);
     }
 
+    @Test
+    void laboratoryStaffRegistersBatchesOfAProduct() throws Exception {
+        var plant = plant();
+        var batches = plant.products() + "/" + id(call("POST", plant.products(), plant.manager().token(), product("PRD-B", "Batch product"))) + "/batches";
+        var operator = operatorOf(plant);
+
+        var created = call("POST", batches, operator.token(), batch("PB-2026-001", "2026-10-01"));
+        assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
+        long batchId = id(created);
+        assertThat(created.headers().firstValue("Location")).hasValueSatisfying(location -> assertThat(location).endsWith(batches + "/" + batchId));
+        assertThat(created.body()).contains("\"status\":\"PENDING\"").contains("\"environmentId\":" + plant.production())
+                .contains("\"productName\":\"Batch product\"");
+        assertThat(call("POST", batches, operator.token(), batch("PB-2026-002", "2026-10-02")).statusCode()).isEqualTo(201);
+
+        assertThat(JsonPath.<List<String>>read(call("GET", batches, operator.token(), null).body(), "$[*].batchNumber"))
+                .containsExactly("PB-2026-002", "PB-2026-001");
+        assertThat(call("GET", batches + "/" + batchId, operator.token(), null).statusCode()).isEqualTo(200);
+        assertThat(call("GET", "/laboratories/" + plant.lab() + "/batches", operator.token(), null).body()).contains("PB-2026-001");
+
+        var otherProduct = plant.products() + "/" + id(call("POST", plant.products(), plant.manager().token(), product("PRD-C", "Other product"))) + "/batches";
+        assertThat(call("POST", otherProduct, operator.token(), batch("PB-2026-001", "2026-10-03")).statusCode()).isEqualTo(409);
+        assertThat(call("GET", otherProduct + "/" + batchId, operator.token(), null).statusCode()).isEqualTo(404);
+        assertThat(call("POST", batches, operator.token(), batch("PB-BAD-DATE", "10/02/2026")).statusCode()).isEqualTo(400);
+
+        long storage = environment(plant, "WH-PT");
+        var wrongEnvironment = "/laboratories/" + plant.lab() + "/environments/" + storage + "/products/"
+                + batches.split("/products/")[1];
+        assertThat(call("GET", wrongEnvironment, operator.token(), null).statusCode()).isEqualTo(404);
+        assertThat(call("POST", wrongEnvironment, operator.token(), batch("PB-X", "2026-10-03")).statusCode()).isEqualTo(404);
+
+        var otherPlant = plant();
+        var otherBatches = otherPlant.products() + "/" + id(call("POST", otherPlant.products(), otherPlant.manager().token(),
+                product("PRD-B", "Batch product"))) + "/batches";
+        assertThat(call("POST", otherBatches, otherPlant.manager().token(), batch("PB-2026-001", "2026-10-01")).statusCode()).isEqualTo(201);
+        assertThat(call("GET", batches, otherPlant.manager().token(), null).statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void qualityRolesReleaseOrRejectBatchesOnce() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var batches = plant.products() + "/" + id(call("POST", plant.products(), token, product("PRD-R", "Release product"))) + "/batches";
+        long released = id(call("POST", batches, token, batch("PB-REL", "2026-10-01")));
+        long rejected = id(call("POST", batches, token, batch("PB-REJ", "2026-10-01")));
+        var operator = operatorOf(plant);
+        var release = "{\"releaseDate\":\"2026-10-05\",\"notes\":\"All controls passed\"}";
+        var rejection = "{\"rejectionDate\":\"2026-10-05\",\"reason\":\"Out of specification\"}";
+
+        assertThat(call("POST", batches + "/" + released + "/releases", operator.token(), release).statusCode()).isEqualTo(403);
+        var signed = call("POST", batches + "/" + released + "/releases", token, release);
+        assertThat(signed.statusCode()).withFailMessage(signed.body()).isEqualTo(201);
+        assertThat(signed.body()).contains("\"status\":\"RELEASED\"").contains("\"releaseDate\":\"2026-10-05\"")
+                .contains("\"releasedByUserId\":" + plant.manager().id());
+        assertThat(JsonPath.<String>read(signed.body(), "$.signatureHash")).matches("[0-9a-f]{64}");
+        assertThat(call("POST", batches + "/" + released + "/releases", token, release).statusCode()).isEqualTo(409);
+        assertThat(call("POST", batches + "/" + released + "/rejections", token, rejection).statusCode()).isEqualTo(409);
+
+        assertThat(call("POST", batches + "/" + rejected + "/rejections", operator.token(), rejection).statusCode()).isEqualTo(403);
+        var record = call("POST", batches + "/" + rejected + "/rejections", token, rejection);
+        assertThat(record.statusCode()).withFailMessage(record.body()).isEqualTo(201);
+        assertThat(record.body()).contains("\"status\":\"REJECTED\"").contains("\"reason\":\"Out of specification\"");
+        assertThat(call("POST", batches + "/" + rejected + "/releases", token, release).statusCode()).isEqualTo(409);
+        assertThat(call("GET", batches + "/" + rejected, token, null).body()).contains("\"status\":\"REJECTED\"");
+        assertThat(call("POST", batches + "/" + rejected + "/rejections", token, "{\"rejectionDate\":\"2026-10-05\",\"reason\":\" \"}")
+                .statusCode()).isEqualTo(400);
+        assertThat(call("POST", batches + "/999999/releases", token, release).statusCode()).isIn(403, 404);
+    }
+
+    private static String batch(String number, String startDate) {
+        return """
+                {"batchNumber":"%s","quantity":5000,"unit":"units","startDate":"%s","notes":"Standard run"}
+                """.formatted(number, startDate);
+    }
+
     private static String product(String code, String name) {
         return """
                 {"code":"%s","name":"%s","description":"Test product","specifications":"Tablet, blister pack"}

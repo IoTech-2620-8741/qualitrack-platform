@@ -106,7 +106,7 @@ class InventoryPersistenceTests {
             new BigDecimal(amount), today().minusDays(1), today().plusYears(1))).toOptional().orElseThrow();
     }
     private long batch(long lab, BatchStatus status) {
-        return batches.save(new Batch(null, lab, 1L, "Fixture", "B-" + UUID.randomUUID(), 10.0,
+        return batches.save(new Batch(null, lab, null, 1L, "Fixture", "B-" + UUID.randomUUID(), 10.0,
             "units", status, LocalDate.now().toString(), null, "Test")).getId();
     }
     private ConsumptionRequest request(RawMaterialBatch receipt, long batch, String amount, String operation) {

@@ -166,9 +166,9 @@ class EnvironmentInventoryIntegrationTests {
                 """.formatted(UUID.randomUUID()));
         assertThat(product.statusCode()).withFailMessage(product.body()).isEqualTo(201);
         long productId = id(product);
-        var batch = call("POST", "/batches", token, """
-                {"labId":%d,"productId":%d,"batchNumber":"USE-%s","quantity":10,"unit":"g","startDate":"%s","notes":""}
-                """.formatted(warehouse.lab(), productId, UUID.randomUUID(), LocalDate.now()));
+        var batch = call("POST", "/laboratories/" + warehouse.lab() + "/environments/" + warehouse.environment() + "/products/" + productId + "/batches", token, """
+                {"batchNumber":"USE-%s","quantity":10,"unit":"g","startDate":"%s","notes":""}
+                """.formatted(UUID.randomUUID().toString().substring(0, 8), LocalDate.now()));
         assertThat(batch.statusCode()).withFailMessage(batch.body()).isEqualTo(201);
         long batchId = id(batch);
         var consumption = call("POST", "/laboratories/" + warehouse.lab() + "/inventory/consumptions", token,

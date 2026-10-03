@@ -18,6 +18,7 @@ public class BatchResourceFromEntityAssembler {
         return new BatchResource(
                 entity.getId(),
                 entity.getLabId(),
+                entity.getEnvironmentId(),
                 entity.getProductId(),
                 entity.getProductName(),
                 entity.getBatchNumber(),

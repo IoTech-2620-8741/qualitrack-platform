@@ -157,7 +157,7 @@ class OnboardingIntegrationTests {
         activateFixture(account, OffsetDateTime.now().plusDays(5));
         var created = call("POST", "/laboratories", account.token(), laboratory());
         long lab = ((Number) JsonPath.read(created.body(), "$.id")).longValue();
-        var batch = batches.save(new Batch(null, lab, 51L, "Fixture product", "FIXTURE-PDF-" + UUID.randomUUID(),
+        var batch = batches.save(new Batch(null, lab, null, 51L, "Fixture product", "FIXTURE-PDF-" + UUID.randomUUID(),
                 150.0, "units", BatchStatus.RELEASED, "2026-09-01", "2026-09-03", "DEMO: isolated test record"));
         materialUsages.save(new RawMaterialUsage(null, batch.getId(), 71L, "Fixture material from persistence",
                 75.0, "g", "2026-09-01"));
@@ -355,9 +355,9 @@ class OnboardingIntegrationTests {
                 """.formatted(UUID.randomUUID()));
         assertThat(product.statusCode()).withFailMessage(product.body()).isEqualTo(201);
         long productId = ((Number) JsonPath.read(product.body(), "$.id")).longValue();
-        var batch = call("POST", "/batches", account.token(), """
-                {"labId":%d,"productId":%d,"batchNumber":"STOCK-%s","quantity":10,"unit":"g","startDate":"2026-09-08","notes":""}
-                """.formatted(lab, productId, UUID.randomUUID()));
+        var batch = call("POST", "/laboratories/" + lab + "/environments/" + JsonPath.read(environment.body(), "$.id") + "/products/" + productId + "/batches", account.token(), """
+                {"batchNumber":"STOCK-%s","quantity":10,"unit":"g","startDate":"2026-09-08","notes":""}
+                """.formatted(UUID.randomUUID().toString().substring(0, 8)));
         assertThat(batch.statusCode()).withFailMessage(batch.body()).isEqualTo(201);
         assertThat(JsonPath.<String>read(batch.body(), "$.unit")).isEqualTo("g");
         return new StockFixture(account, lab, ((Number) JsonPath.read(batch.body(), "$.id")).longValue(), materialId, receiptId);

@@ -30,7 +30,7 @@ class StockRollbackTests {
     void aFailedUsageWriteRollsBackTheAlreadyDecrementedInventory() {
         var material = materials.save(new RawMaterial(null, 42L, "Rollback fixture", "RM-ROLLBACK",
                 "Supplier", "SUP-1", "2028-01-01", new BigDecimal("100"), "kg", BigDecimal.ZERO));
-        var batch = batches.save(new Batch(null, 42L, 1L, "ROLLBACK-LOT", "Fixture", 10.0,
+        var batch = batches.save(new Batch(null, 42L, null, 1L, "ROLLBACK-LOT", "Fixture", 10.0,
                 "units", BatchStatus.IN_PROGRESS, "2026-09-08", null, "Test"));
         doThrow(new IllegalStateException("Simulated usage write failure")).when(usages).save(any());
         assertThatThrownBy(() -> commands.handle(new LinkRawMaterialCommand(batch.getId(), material.getId(), 50.0, "kg")))

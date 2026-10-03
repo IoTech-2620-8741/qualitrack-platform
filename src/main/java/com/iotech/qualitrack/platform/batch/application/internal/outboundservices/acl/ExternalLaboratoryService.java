@@ -21,16 +21,6 @@ public class ExternalLaboratoryService {
     }
 
     /**
-     * Verifies if a laboratory exists by its ID through the Laboratory bounded context.
-     *
-     * @param labId the numeric identity of the laboratory
-     * @return true if the laboratory exists, false otherwise
-     */
-    public boolean existsLaboratoryById(Long labId) {
-        return laboratoryContextFacade.existsLaboratoryById(labId);
-    }
-
-    /**
      * Verifies that the environment is registered in the laboratory.
      *
      * @param laboratoryId the laboratory identifier

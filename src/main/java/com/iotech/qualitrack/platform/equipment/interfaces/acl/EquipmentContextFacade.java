@@ -27,6 +27,15 @@ public interface EquipmentContextFacade {
     Optional<DeviceReference> findDevice(Long laboratoryId, Long environmentId, Long deviceId);
 
     /**
+     * Finds the environmental device located in an environment; an environment has at most one.
+     *
+     * @param laboratoryId the laboratory that owns the environment
+     * @param environmentId the environment supervised by the device
+     * @return the environmental device, or empty when the environment has none
+     */
+    Optional<DeviceReference> findEnvironmentalDevice(Long laboratoryId, Long environmentId);
+
+    /**
      * Equipment data shared with other bounded contexts.
      *
      * @param id the equipment identifier

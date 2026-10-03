@@ -228,8 +228,9 @@ class EquipmentIntegrationTests {
         assertThat(silent.body()).contains("\"connectionStatus\":\"REQUIRES_REVIEW\"").contains("\"lastCommunicationAt\":null")
                 .contains("\"expectedPeriodSeconds\":300");
 
-        var measurement = call("POST", "/equipments/" + monitor + "/telemetry-measurements", token, """
-                {"parameterName":"TEMPERATURE","value":5.2,"unit":"C","timestamp":"%s"}
+        var measurement = call("POST", plant.environment(plant.storage()) + "/container-monitors/" + monitor
+                + "/telemetry-measurements", token, """
+                {"metric":"TEMPERATURE","value":5.2,"measuredAt":"%s"}
                 """.formatted(OffsetDateTime.now()));
         assertThat(measurement.statusCode()).withFailMessage(measurement.body()).isEqualTo(201);
         var connected = call("GET", telemetryStatus, token, null);

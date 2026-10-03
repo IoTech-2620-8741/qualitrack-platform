@@ -3,18 +3,13 @@ package com.iotech.qualitrack.platform.tracking.interfaces.rest;
 import com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ResponseEntityAssembler;
 import com.iotech.qualitrack.platform.tracking.application.commandservices.TrackingCommandService;
 import com.iotech.qualitrack.platform.tracking.application.queryservices.TrackingQueryService;
-import com.iotech.qualitrack.platform.tracking.domain.model.entities.EquipmentTelemetryStatus;
-import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetEquipmentTelemetryStatusByEquipmentIdQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetLatestMeasurementsQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetTelemetryHistoryQuery;
-import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.TelemetryStatus;
-import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.EquipmentTelemetryStatusResource;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.MeasurementResource;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.RecordMeasurementResource;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.RecordTelemetryHistoryPointResource;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.TelemetryHistoryPointResource;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.UpdateEquipmentTelemetryStatusResource;
-import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.EquipmentTelemetryStatusResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.MeasurementResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.RecordMeasurementCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.RecordTelemetryHistoryPointCommandFromResourceAssembler;
@@ -77,25 +72,6 @@ public class TelemetryController {
                 result,
                 measurementId -> measurementId,
                 HttpStatus.CREATED
-        );
-    }
-
-    @GetMapping("/telemetry-status")
-    @Operation(summary = "Get equipment telemetry status")
-    public ResponseEntity<EquipmentTelemetryStatusResource> getEquipmentTelemetryStatus(
-            @PathVariable Long equipmentId
-    ) {
-        var status = trackingQueryService.handle(
-                new GetEquipmentTelemetryStatusByEquipmentIdQuery(equipmentId)
-        ).orElseGet(() -> EquipmentTelemetryStatus.update(
-                equipmentId,
-                false,
-                TelemetryStatus.OFFLINE,
-                null
-        ));
-
-        return ResponseEntity.ok(
-                EquipmentTelemetryStatusResourceFromEntityAssembler.toResourceFromEntity(status)
         );
     }
 

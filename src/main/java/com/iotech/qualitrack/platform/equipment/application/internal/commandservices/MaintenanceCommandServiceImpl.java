@@ -10,6 +10,10 @@ import com.iotech.qualitrack.platform.shared.application.result.ApplicationError
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.LocalDate;
 
 /**
  * Application service implementation that executes maintenance commands.
@@ -19,37 +23,35 @@ public class MaintenanceCommandServiceImpl implements MaintenanceCommandService 
 
     private final MaintenanceRepository maintenanceRepository;
     private final EquipmentRepository equipmentRepository;
+    private final Clock clock;
     private final ApplicationEventPublisher eventPublisher;
 
     public MaintenanceCommandServiceImpl(MaintenanceRepository maintenanceRepository,
                                          EquipmentRepository equipmentRepository,
+                                         Clock equipmentClock,
                                          ApplicationEventPublisher eventPublisher) {
         this.maintenanceRepository = maintenanceRepository;
         this.equipmentRepository = equipmentRepository;
+        this.clock = equipmentClock;
         this.eventPublisher = eventPublisher;
     }
 
     @Override
-    public Result<Long, ApplicationError> handle(RegisterMaintenanceCommand command) {
-        if (!equipmentRepository.existsById(command.equipmentId())) {
-            return Result.failure(ApplicationError.notFound(
-                    "Equipment",
-                    String.valueOf(command.equipmentId())
-            ));
+    @Transactional
+    public Result<MaintenanceRecord, ApplicationError> handle(RegisterMaintenanceCommand command) {
+        var located = equipmentRepository.findById(command.equipmentId())
+                .filter(equipment -> equipment.isLocatedIn(command.laboratoryId(), command.environmentId()));
+        if (located.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Equipment", command.equipmentId()));
         }
-
+        MaintenanceRecord maintenanceRecord;
         try {
-            var maintenanceRecord = new MaintenanceRecord(command);
-            var savedRecord = maintenanceRepository.save(maintenanceRecord);
-
-            eventPublisher.publishEvent(MaintenanceRegisteredEvent.from(savedRecord));
-
-            return Result.success(savedRecord.getId());
-
+            maintenanceRecord = new MaintenanceRecord(command, LocalDate.now(clock));
         } catch (IllegalArgumentException e) {
             return Result.failure(ApplicationError.validationError("MaintenanceRecord", e.getMessage()));
-        } catch (Exception e) {
-            return Result.failure(ApplicationError.unexpected("register-maintenance", e.getMessage()));
         }
+        var savedRecord = maintenanceRepository.save(maintenanceRecord);
+        eventPublisher.publishEvent(MaintenanceRegisteredEvent.from(savedRecord));
+        return Result.success(savedRecord);
     }
 }

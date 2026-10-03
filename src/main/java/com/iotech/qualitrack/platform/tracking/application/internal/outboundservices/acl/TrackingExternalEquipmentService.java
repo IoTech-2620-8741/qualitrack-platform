@@ -3,6 +3,7 @@ package com.iotech.qualitrack.platform.tracking.application.internal.outboundser
 import com.iotech.qualitrack.platform.equipment.domain.model.entities.BpmParameterConfig;
 import com.iotech.qualitrack.platform.equipment.domain.repositories.BpmParameterConfigRepository;
 import com.iotech.qualitrack.platform.equipment.domain.repositories.EquipmentRepository;
+import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -19,19 +20,35 @@ public class TrackingExternalEquipmentService {
 
     private final EquipmentRepository equipmentRepository;
     private final BpmParameterConfigRepository bpmParameterConfigRepository;
+    private final EquipmentContextFacade equipmentContextFacade;
 
     /**
      * Creates a new TrackingExternalEquipmentService.
      *
      * @param equipmentRepository equipment repository from the Equipment bounded context
      * @param bpmParameterConfigRepository BPM parameter configuration repository
+     * @param equipmentContextFacade Equipment facade that resolves the IoT devices of an environment
      */
     public TrackingExternalEquipmentService(
             EquipmentRepository equipmentRepository,
-            BpmParameterConfigRepository bpmParameterConfigRepository
+            BpmParameterConfigRepository bpmParameterConfigRepository,
+            EquipmentContextFacade equipmentContextFacade
     ) {
         this.equipmentRepository = equipmentRepository;
         this.bpmParameterConfigRepository = bpmParameterConfigRepository;
+        this.equipmentContextFacade = equipmentContextFacade;
+    }
+
+    /**
+     * Verifies that the device is an environmental device or container monitor located in the environment.
+     *
+     * @param laboratoryId the laboratory that owns the device
+     * @param environmentId the environment where the device must be located
+     * @param deviceId the device (equipment) identifier
+     * @return true when Equipment recognises it as an IoT device of the environment
+     */
+    public boolean isDeviceLocatedIn(Long laboratoryId, Long environmentId, Long deviceId) {
+        return equipmentContextFacade.findDevice(laboratoryId, environmentId, deviceId).isPresent();
     }
 
     /**

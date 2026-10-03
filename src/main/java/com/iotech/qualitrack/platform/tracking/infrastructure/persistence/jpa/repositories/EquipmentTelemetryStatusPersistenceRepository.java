@@ -2,7 +2,10 @@ package com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.r
 
 import com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.entities.EquipmentTelemetryStatusPersistenceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,4 +30,7 @@ public interface EquipmentTelemetryStatusPersistenceRepository
      * @return equipment telemetry status persistence entities
      */
     List<EquipmentTelemetryStatusPersistenceEntity> findAllByOrderByLastHeartbeatDesc();
+
+    @Query("select max(s.createdAt) from EquipmentTelemetryStatusPersistenceEntity s where s.equipmentId = :equipmentId")
+    Date findLastCreatedAtByEquipmentId(@Param("equipmentId") Long equipmentId);
 }

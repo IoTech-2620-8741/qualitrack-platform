@@ -29,4 +29,11 @@ public class ExternalLabService {
     public boolean existsLaboratoryById(Long labId) {
         return laboratoryContextFacade.existsLaboratoryById(labId);
     }
+
+    /**
+     * Checks that the environment exists and belongs to the laboratory.
+     */
+    public boolean existsEnvironment(Long laboratoryId, Long environmentId) {
+        return laboratoryContextFacade.existsEnvironment(laboratoryId, environmentId);
+    }
 }

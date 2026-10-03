@@ -58,7 +58,7 @@ class OnboardingIntegrationTests {
         var account = account();
         assertThat(call("GET", "/users/me/onboarding", account.token(), null).body())
                 .contains("\"nextStep\":\"SUBSCRIPTION\"").contains("\"laboratoryId\":null");
-        assertThat(call("GET", "/equipments?labId=1", account.token(), null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", "/laboratories/1/equipments", account.token(), null).statusCode()).isEqualTo(403);
         assertThat(call("POST", "/laboratories", account.token(), laboratory()).statusCode()).isEqualTo(403);
         activateFixture(account, OffsetDateTime.now().plusDays(5));
         assertThat(call("GET", "/users/me/onboarding", account.token(), null).body())
@@ -70,7 +70,7 @@ class OnboardingIntegrationTests {
         assertThat(subscriptions.findActiveByUserId(account.id()).orElseThrow().getLaboratoryId()).isEqualTo(laboratoryId);
         assertThat(call("GET", "/users/me/onboarding", account.token(), null).body()).contains("\"nextStep\":\"READY\"");
         assertThat(call("POST", "/laboratories", account.token(), laboratory()).statusCode()).isEqualTo(409);
-        assertThat(call("GET", "/equipments?labId=" + laboratoryId, account.token(), null).body()).isEqualTo("[]");
+        assertThat(call("GET", "/laboratories/" + laboratoryId + "/equipments", account.token(), null).body()).isEqualTo("[]");
         var metrics = call("GET", "/laboratories/" + laboratoryId + "/kpi-dashboards", account.token(), null);
         assertThat(metrics.statusCode()).isEqualTo(200);
         assertThat(metrics.body()).contains("\"metrics\":[]").contains("\"overallHealthScore\":null");
@@ -82,7 +82,7 @@ class OnboardingIntegrationTests {
         activateFixture(account, OffsetDateTime.now().minusDays(1));
         var state = call("GET", "/users/me/onboarding?success=true", account.token(), null);
         assertThat(state.body()).contains("\"nextStep\":\"SUBSCRIPTION\"");
-        assertThat(call("GET", "/equipments?labId=1", account.token(), null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", "/laboratories/1/equipments", account.token(), null).statusCode()).isEqualTo(403);
         assertThat(call("GET", "/users/me/onboarding", null, null).statusCode()).isEqualTo(401);
         assertThat(call("GET", "/users/me/onboarding", "invalid-token", null).statusCode()).isEqualTo(401);
     }
@@ -109,7 +109,7 @@ class OnboardingIntegrationTests {
         assertThat(secondLab.statusCode()).withFailMessage(secondLab.body()).isEqualTo(201);
         long foreignId = ((Number) JsonPath.read(secondLab.body(), "$.id")).longValue();
         assertThat(call("GET", "/laboratories/" + foreignId, first.token(), null).statusCode()).isEqualTo(403);
-        assertThat(call("GET", "/equipments?labId=" + foreignId, first.token(), null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", "/laboratories/" + foreignId + "/equipments", first.token(), null).statusCode()).isEqualTo(403);
         long foreignSubscription = subscriptions.findActiveByUserId(second.id()).orElseThrow().getId();
         assertThat(call("GET", "/subscriptions/" + foreignSubscription + "/payments", first.token(), null).statusCode()).isEqualTo(403);
     }
@@ -193,12 +193,12 @@ class OnboardingIntegrationTests {
         activateFixture(account, OffsetDateTime.now().plusDays(5));
         var created = call("POST", "/laboratories", account.token(), laboratory());
         long lab = ((Number) JsonPath.read(created.body(), "$.id")).longValue();
-        var device = equipment.save(new Equipment(null, lab, "DEMO period fixture", new EquipmentType("Refrigerator"),
-                "Model", "SN-" + UUID.randomUUID(), EquipmentStatus.OPERATIONAL, null));
+        var device = equipment.save(new Equipment(null, lab, null, "DEMO period fixture", new EquipmentType("Refrigerator"),
+                "Model", "SN-" + UUID.randomUUID(), EquipmentStatus.OPERATIONAL, null, null, null));
         for (String day : java.util.List.of("2026-08-31", "2026-09-01", "2026-09-05", "2026-09-06")) {
             deviations.save(new DeviationAlert(null, device.getId(), null, "PARAM-" + day, 9.3, 8.0, "C", day + "T12:00:00",
                     AlertSeverity.CRITICAL, AlertStatus.UNRESOLVED, null, null, null));
-            maintenance.save(new MaintenanceRecord(null, device.getId(), java.time.LocalDate.parse(day),
+            maintenance.save(new MaintenanceRecord(null, device.getId(), null, java.time.LocalDate.parse(day),
                     "Fixture technician", "MAINT-" + day, MaintenanceType.CALIBRATION));
             audit.save(new AuditLogEntry(null, AuditAction.UPDATE, "EQUIPMENT", device.getId(), account.id(), day + "T12:00:00", "LOG-" + day));
         }

@@ -2,7 +2,10 @@ package com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.r
 
 import com.iotech.qualitrack.platform.tracking.infrastructure.persistence.jpa.entities.MeasurementPersistenceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -23,4 +26,7 @@ public interface MeasurementPersistenceRepository extends JpaRepository<Measurem
      * @return measurement persistence entities
      */
     List<MeasurementPersistenceEntity> findAllByEquipmentIdOrderByTimestampDesc(Long equipmentId);
+
+    @Query("select max(m.createdAt) from MeasurementPersistenceEntity m where m.equipmentId = :equipmentId")
+    Date findLastCreatedAtByEquipmentId(@Param("equipmentId") Long equipmentId);
 }

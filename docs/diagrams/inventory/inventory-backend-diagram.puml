@@ -63,10 +63,10 @@ package "inventory.interfaces" as Inventoryinterfaces {
   package "inventory.interfaces.acl" {
     class InventoryTenantResourceLookup
     interface InventoryContextFacade {
-      +findUsableReceipts(laboratoryId, rawMaterialId, onDate): List<AvailableReceipt>
       +consume(request: ConsumptionRequest): Consumption
+      +isRawMaterialInEnvironment(laboratoryId, environmentId, rawMaterialId): boolean
+      +findRawMaterialEnvironment(laboratoryId, rawMaterialId): Optional<Long>
     }
-    class "InventoryContextFacade.AvailableReceipt" as AvailableReceipt <<record>>
     class "InventoryContextFacade.ConsumptionRequest" as ConsumptionRequest <<record>>
     class "InventoryContextFacade.Consumption" as Consumption <<record>>
   }
@@ -100,27 +100,19 @@ package "inventory.interfaces" as Inventoryinterfaces {
       +getEnvironmentBatches(laboratoryId, environmentId, expirationStatus, withinDays)
       +importRawMaterial(laboratoryId, environmentId, resource)
     }
-    class InventoryController <<deprecated reads>> {
-      +materials(laboratoryId)
-      +receipts(laboratoryId, materialId)
-      +usable(laboratoryId, materialId)
-      +consume(laboratoryId, resource)
-      +history(laboratoryId, materialId)
+    class InventoryController <<legacy preview>> {
       +pending(laboratoryId)
     }
     class InventoryExceptionHandler
   }
   
   package "inventory.interfaces.rest.resources" {
-    class AvailableReceiptResource <<record>>
-    class ConsumeRawMaterialBatchResource <<record>>
     class ImportRawMaterialResource <<record>>
     class RawMaterialBatchReviewResource <<record>>
     class RawMaterialStockResource <<record>>
     class InventoryMovementResource <<record>>
     class LegacyMaterialResource <<record>>
     class RawMaterialResource <<record>>
-    class ReceiptConsumptionResource <<record>>
     class ReceiptResource <<record>>
     class ReceiveRawMaterialBatchResource <<record>>
     class ReviewRawMaterialBatchResource <<record>>
@@ -128,13 +120,10 @@ package "inventory.interfaces" as Inventoryinterfaces {
   }
   
   package "inventory.interfaces.rest.transform" {
-    class AvailableReceiptResourceFromEntityAssembler
-    class ConsumeRawMaterialBatchCommandFromResourceAssembler
     class InventoryMovementResourceFromEntityAssembler
     class LegacyMaterialResourceFromEntityAssembler
     class RawMaterialBatchReviewResourceFromEntityAssembler
     class RawMaterialResourceFromEntityAssembler
-    class ReceiptConsumptionResourceFromEntityAssembler
     class ReceiptResourceFromEntityAssembler
     class ReceiveRawMaterialBatchCommandFromResourceAssembler
     class ReviewRawMaterialBatchCommandFromResourceAssembler
@@ -176,9 +165,6 @@ package "inventory.application" as Inventoryapplication {
   
   package "inventory.application.queryservices" {
     interface InventoryQueryService {
-      +handle(GetInventoryMaterialsQuery): List<MaterialStockSummary>
-      +handle(GetMaterialReceiptsQuery): List<RawMaterialBatch>
-      +handle(GetMaterialMovementsQuery): List<InventoryMovement>
       +handle(GetPendingLegacyMaterialsQuery): List<LegacyInventoryFacade.Material>
       +handle(GetEnvironmentRawMaterialsQuery): List<MaterialStockSummary>
       +handle(GetEnvironmentRawMaterialByIdQuery): Optional<MaterialStockSummary>
@@ -292,17 +278,6 @@ package "inventory.domain" as Inventorydomain {
   }
   
   package "inventory.domain.model.queries" {
-    class GetInventoryMaterialsQuery <<record>> {
-      +laboratoryId: Long
-    }
-    class GetMaterialMovementsQuery <<record>> {
-      +laboratoryId: Long
-      +materialId: Long
-    }
-    class GetMaterialReceiptsQuery <<record>> {
-      +laboratoryId: Long
-      +materialId: Long
-    }
     class GetPendingLegacyMaterialsQuery <<record>> {
       +laboratoryId: Long
     }
@@ -457,16 +432,10 @@ InventoryMovementRecorder --> Clock
 InventoryMovementRecorder ..> InventoryMovement
 InventoryContextFacadeImpl --> InventoryCommandService
 InventoryContextFacadeImpl --> InventoryQueryService
-InventoryContextFacade ..> AvailableReceipt
 InventoryContextFacade ..> ConsumptionRequest
 InventoryContextFacade ..> Consumption
 InventoryConfiguration ..> Clock : inventoryClock
-InventoryController --> InventoryCommandService
 InventoryController --> InventoryQueryService
-InventoryController --> InventoryImportService
-InventoryController --> InventoryContextFacade
-InventoryController --> Clock
-InventoryController ..> ResponseEntityAssembler
 InventoryCommandServiceImpl ..> ApplicationException
 InventoryQueryServiceImpl ..> ApplicationException
 InventoryCommandService ..> Result
@@ -481,9 +450,6 @@ InventoryCommandService ..> ConsumeRawMaterialBatchCommand
 InventoryCommandService ..> ReceiveRawMaterialBatchCommand
 InventoryCommandService ..> ReviewRawMaterialBatchCommand
 InventoryCommandService ..> SaveRawMaterialCommand
-InventoryQueryService ..> GetInventoryMaterialsQuery
-InventoryQueryService ..> GetMaterialMovementsQuery
-InventoryQueryService ..> GetMaterialReceiptsQuery
 InventoryQueryService ..> GetPendingLegacyMaterialsQuery
 InventoryMaterialEntity --|> AuditableAbstractPersistenceEntity
 InventoryMaterialPersistenceRepository --|> JpaRepository
@@ -506,23 +472,12 @@ InventoryRepositoryImpl --> InventoryMovementPersistenceRepository
 InventoryRepositoryImpl --> InventoryMovementPersistenceAssembler
 InventoryMovementPersistenceAssembler ..> InventoryMovementEntity
 InventoryMovementPersistenceAssembler ..> InventoryMovement
-InventoryController ..> AvailableReceiptResourceFromEntityAssembler
-AvailableReceiptResourceFromEntityAssembler ..> AvailableReceiptResource
-InventoryController ..> ConsumeRawMaterialBatchCommandFromResourceAssembler
-ConsumeRawMaterialBatchCommandFromResourceAssembler ..> ConsumeRawMaterialBatchCommand
-ConsumeRawMaterialBatchCommandFromResourceAssembler ..> ConsumeRawMaterialBatchResource
-InventoryController ..> InventoryMovementResourceFromEntityAssembler
 InventoryMovementResourceFromEntityAssembler ..> InventoryMovement
 InventoryMovementResourceFromEntityAssembler ..> InventoryMovementResource
 InventoryController ..> LegacyMaterialResourceFromEntityAssembler
 LegacyMaterialResourceFromEntityAssembler ..> LegacyMaterialResource
-InventoryController ..> RawMaterialResourceFromEntityAssembler
 RawMaterialResourceFromEntityAssembler ..> MaterialStockSummary
 RawMaterialResourceFromEntityAssembler ..> RawMaterialResource
-InventoryController ..> ReceiptConsumptionResourceFromEntityAssembler
-ReceiptConsumptionResourceFromEntityAssembler ..> ReceiptConsumption
-ReceiptConsumptionResourceFromEntityAssembler ..> ReceiptConsumptionResource
-InventoryController ..> ReceiptResourceFromEntityAssembler
 ReceiptResourceFromEntityAssembler ..> RawMaterialBatch
 ReceiptResourceFromEntityAssembler ..> ReceiptResource
 EnvironmentInventoryController ..> ReceiveRawMaterialBatchCommandFromResourceAssembler
@@ -546,7 +501,6 @@ InventoryCommandServiceImpl --> InventoryExternalLaboratoryService
 InventoryQueryServiceImpl --> InventoryExternalLaboratoryService
 InventoryImportServiceImpl --> InventoryExternalLaboratoryService
 InventoryTenantResourceLookup --> InventoryRepository
-AvailableReceiptResourceFromEntityAssembler ..> AvailableReceipt
 LegacyMaterialResourceFromEntityAssembler ..> LegacyInventoryFacade
 note bottom of InventoryCommandServiceImpl
   Receipt lock before operationId lookup; batch locked before consumption.
@@ -570,38 +524,27 @@ note bottom of EnvironmentInventoryController
   Catalog changes, reviews and legacy imports require QA_MANAGER or ADMIN.
 end note
 note bottom of InventoryController
-  Deprecated laboratory-wide reads kept for the mobile app;
-  consumptions stay until Product Batch exposes raw-material-usages.
+  Previews pre-Inventory records pending import into an environment.
+  Consumption is requested by Product Batch through InventoryContextFacade.
 end note
 
 Inventoryinterfaces -[hidden]down-> Inventoryapplication
 Inventoryapplication -[hidden]down-> Inventorydomain
 Inventorydomain -[hidden]down-> Inventoryinfrastructure
-AvailableReceiptResource -[hidden]down-> InventoryMovementResource
-ConsumeRawMaterialBatchResource -[hidden]down-> LegacyMaterialResource
 ImportRawMaterialResource -[hidden]down-> RawMaterialResource
-InventoryMovementResource -[hidden]down-> ReceiptConsumptionResource
 LegacyMaterialResource -[hidden]down-> ReceiptResource
 RawMaterialResource -[hidden]down-> ReceiveRawMaterialBatchResource
-ReceiptConsumptionResource -[hidden]down-> ReviewRawMaterialBatchResource
 ReceiptResource -[hidden]down-> SaveRawMaterialResource
-AvailableReceiptResourceFromEntityAssembler -[hidden]down-> InventoryMovementResourceFromEntityAssembler
-ConsumeRawMaterialBatchCommandFromResourceAssembler -[hidden]down-> LegacyMaterialResourceFromEntityAssembler
 InventoryMovementResourceFromEntityAssembler -[hidden]down-> RawMaterialResourceFromEntityAssembler
-LegacyMaterialResourceFromEntityAssembler -[hidden]down-> ReceiptConsumptionResourceFromEntityAssembler
 RawMaterialResourceFromEntityAssembler -[hidden]down-> ReceiptResourceFromEntityAssembler
-ReceiptConsumptionResourceFromEntityAssembler -[hidden]down-> ReceiveRawMaterialBatchCommandFromResourceAssembler
 ReceiptResourceFromEntityAssembler -[hidden]down-> ReviewRawMaterialBatchCommandFromResourceAssembler
 ReceiveRawMaterialBatchCommandFromResourceAssembler -[hidden]down-> SaveRawMaterialCommandFromResourceAssembler
 ConsumeRawMaterialBatchCommand -[hidden]down-> ReviewRawMaterialBatchCommand
 ReceiveRawMaterialBatchCommand -[hidden]down-> SaveRawMaterialCommand
-GetInventoryMaterialsQuery -[hidden]down-> GetMaterialReceiptsQuery
-GetMaterialMovementsQuery -[hidden]down-> GetPendingLegacyMaterialsQuery
 MaterialStockSummary -[hidden]down-> ReceiptConsumption
 ReceiptResourceFromEntityAssembler ..> RawMaterialBatch
 RawMaterialResourceFromEntityAssembler ..> MaterialStockSummary
 InventoryMovementResourceFromEntityAssembler ..> InventoryMovement
-ReceiptConsumptionResourceFromEntityAssembler ..> ReceiptConsumption
 note bottom of InventoryExceptionHandler
   Converts duplicate/concurrent persistence conflicts to HTTP 409.
   Other application errors use the shared exception handling.

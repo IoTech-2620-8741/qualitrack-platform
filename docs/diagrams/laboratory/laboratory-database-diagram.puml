@@ -51,19 +51,6 @@ entity "staff_members" as staff_members {
   updated_at : DATETIME(6) NOT NULL
 }
 
-entity "pharmaceutical_products" as pharmaceutical_products {
-  * <u>id</u> : BIGINT PK AUTO_INCREMENT
-  --
-  laboratory_id : BIGINT FK NOT NULL
-  code : VARCHAR(50) NOT NULL UNIQUE
-  name : VARCHAR(150) NOT NULL
-  description : VARCHAR(500)
-  specifications : VARCHAR(1000) NOT NULL
-  active : BOOLEAN NOT NULL
-  created_at : DATETIME(6) NOT NULL
-  updated_at : DATETIME(6) NOT NULL
-}
-
 entity "raw_materials" as raw_materials {
   * <u>id</u> : BIGINT PK AUTO_INCREMENT
   --
@@ -83,7 +70,6 @@ entity "raw_materials" as raw_materials {
 laboratories ||--o{ laboratory_regulations : "has"
 laboratories ||--o{ environments : "contains"
 laboratories ||--o{ staff_members : "employs"
-laboratories ||--o{ pharmaceutical_products : "catalogs"
 laboratories ||--o{ raw_materials : "manages"
 
 note bottom of raw_materials

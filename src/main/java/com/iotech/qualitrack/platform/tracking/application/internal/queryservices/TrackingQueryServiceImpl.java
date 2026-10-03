@@ -1,20 +1,28 @@
 package com.iotech.qualitrack.platform.tracking.application.internal.queryservices;
 
+import com.iotech.qualitrack.platform.tracking.application.internal.outboundservices.acl.TrackingExternalEquipmentService;
 import com.iotech.qualitrack.platform.tracking.application.queryservices.TrackingQueryService;
 import com.iotech.qualitrack.platform.tracking.domain.model.entities.EquipmentTelemetryStatus;
 import com.iotech.qualitrack.platform.tracking.domain.model.entities.Measurement;
 import com.iotech.qualitrack.platform.tracking.domain.model.entities.TelemetryHistoryPoint;
+import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetDeviceConnectionQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetEquipmentTelemetryStatusByEquipmentIdQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetLatestMeasurementsQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetTelemetryHistoryQuery;
+import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.DeviceConnection;
+import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.ExpectedCommunicationPeriod;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.EquipmentTelemetryStatusRepository;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.MeasurementRepository;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.TelemetryHistoryPointRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Application service implementation for Tracking read use cases.
@@ -29,6 +37,9 @@ public class TrackingQueryServiceImpl implements TrackingQueryService {
     private final MeasurementRepository measurementRepository;
     private final EquipmentTelemetryStatusRepository statusRepository;
     private final TelemetryHistoryPointRepository historyPointRepository;
+    private final TrackingExternalEquipmentService externalEquipmentService;
+    private final ExpectedCommunicationPeriod expectedCommunicationPeriod;
+    private final Clock clock;
 
     /**
      * Creates a new TrackingQueryServiceImpl.
@@ -36,15 +47,41 @@ public class TrackingQueryServiceImpl implements TrackingQueryService {
      * @param measurementRepository repository for telemetry measurements
      * @param statusRepository repository for equipment telemetry statuses
      * @param historyPointRepository repository for telemetry history points
+     * @param externalEquipmentService Equipment ACL that recognises the IoT devices of an environment
+     * @param expectedCommunicationPeriod silence after which a device requires review
+     * @param trackingClock clock used to evaluate the connection state
      */
     public TrackingQueryServiceImpl(
             MeasurementRepository measurementRepository,
             EquipmentTelemetryStatusRepository statusRepository,
-            TelemetryHistoryPointRepository historyPointRepository
+            TelemetryHistoryPointRepository historyPointRepository,
+            TrackingExternalEquipmentService externalEquipmentService,
+            ExpectedCommunicationPeriod expectedCommunicationPeriod,
+            Clock trackingClock
     ) {
         this.measurementRepository = measurementRepository;
         this.statusRepository = statusRepository;
         this.historyPointRepository = historyPointRepository;
+        this.externalEquipmentService = externalEquipmentService;
+        this.expectedCommunicationPeriod = expectedCommunicationPeriod;
+        this.clock = trackingClock;
+    }
+
+    @Override
+    public Optional<DeviceConnection> handle(GetDeviceConnectionQuery query) {
+        if (!externalEquipmentService.isDeviceLocatedIn(query.laboratoryId(), query.environmentId(), query.deviceId())) {
+            return Optional.empty();
+        }
+        // Any telemetry or heartbeat received from the device counts as communication.
+        var lastCommunication = Stream.of(
+                        measurementRepository.findLastReceivedAt(query.deviceId()),
+                        historyPointRepository.findLastReceivedAt(query.deviceId()),
+                        statusRepository.findLastReceivedAt(query.deviceId()))
+                .flatMap(Optional::stream)
+                .max(Comparator.<Instant>naturalOrder())
+                .orElse(null);
+        return Optional.of(DeviceConnection.evaluate(query.deviceId(), lastCommunication, clock.instant(),
+                expectedCommunicationPeriod));
     }
 
     /**

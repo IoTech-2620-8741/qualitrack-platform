@@ -17,6 +17,16 @@ public interface EquipmentContextFacade {
     Optional<EquipmentReference> findEquipment(Long laboratoryId, Long equipmentId);
 
     /**
+     * Finds an IoT device (environmental device or container monitor) located in an environment.
+     *
+     * @param laboratoryId the laboratory that must own the device
+     * @param environmentId the environment where the device must be located
+     * @param deviceId the device (equipment) identifier
+     * @return the device, or empty when it is not an IoT device located in the environment
+     */
+    Optional<DeviceReference> findDevice(Long laboratoryId, Long environmentId, Long deviceId);
+
+    /**
      * Equipment data shared with other bounded contexts.
      *
      * @param id the equipment identifier
@@ -34,5 +44,19 @@ public interface EquipmentContextFacade {
         public boolean isAvailable() {
             return "OPERATIONAL".equals(status);
         }
+    }
+
+    /**
+     * IoT device data shared with other bounded contexts.
+     *
+     * @param id the device (equipment) identifier
+     * @param laboratoryId the owning laboratory
+     * @param environmentId the environment where the device is located
+     * @param name the device name
+     * @param deviceType ENVIRONMENTAL_DEVICE or CONTAINER_MONITOR
+     * @param sensorExternalId the identifier with which Edge recognises the device
+     */
+    record DeviceReference(Long id, Long laboratoryId, Long environmentId, String name, String deviceType,
+                           String sensorExternalId) {
     }
 }

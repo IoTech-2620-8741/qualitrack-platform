@@ -2,6 +2,7 @@ package com.iotech.qualitrack.platform.tracking.domain.repositories;
 
 import com.iotech.qualitrack.platform.tracking.domain.model.entities.TelemetryHistoryPoint;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,4 +63,13 @@ public interface TelemetryHistoryPointRepository {
      * @return true when the history point exists
      */
     boolean existsById(Long id);
+
+    /**
+     * Moment in which the platform received the latest telemetry history point of the equipment, used to know whether
+     * the device is communicating (US55).
+     *
+     * @param equipmentId equipment or IoT device identifier
+     * @return the latest reception instant, or empty when nothing was received
+     */
+    Optional<Instant> findLastReceivedAt(Long equipmentId);
 }

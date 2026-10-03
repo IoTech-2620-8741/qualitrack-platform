@@ -338,7 +338,7 @@ class ProductBatchIntegrationTests {
         assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
         long lab = id(created);
         var production = call("POST", "/laboratories/" + lab + "/environments", manager.token(),
-                "{\"code\":\"PROD-01\",\"name\":\"Production area\",\"usage\":\"PRODUCTION\"}");
+                "{\"code\":\"PROD-01\",\"name\":\"Production area\"}");
         assertThat(production.statusCode()).withFailMessage(production.body()).isEqualTo(201);
         return new Plant(manager, lab, id(production));
     }

@@ -6,6 +6,7 @@ import com.iotech.qualitrack.platform.inventory.application.internal.outboundser
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
+import com.iotech.qualitrack.platform.inventory.interfaces.events.RawMaterialSavedIntegrationEvent;
 import com.iotech.qualitrack.platform.inventory.interfaces.events.ReceiptConsumedIntegrationEvent;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.*;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
@@ -59,7 +60,10 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         }
         var material = new RawMaterial(id, lab, environment, code, name, unit, minimumStock);
         if (repository.codeExists(lab, material.getCode(), id)) throw conflict("Material code already exists");
-        return Result.success(repository.saveMaterial(material, legacy));
+        var saved = repository.saveMaterial(material, legacy);
+        events.publishEvent(new RawMaterialSavedIntegrationEvent(saved.getId(), lab, environment, saved.getCode(), saved.getName(),
+                id == null));
+        return Result.success(saved);
     }
 
     @Override

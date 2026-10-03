@@ -114,8 +114,7 @@ class EnvironmentIntegrationTests {
         var lab = readyLaboratory();
         var base = "/laboratories/" + lab.id() + "/environments";
         call("POST", base, lab.manager().token(), "{\"code\":\"PROD-1\",\"name\":\"Production\"}");
-        var operator = account("ROLE_LAB_OPERATOR");
-        new TransactionTemplate(transactions).executeWithoutResult(status -> iam.assignLaboratory(operator.id(), lab.id()));
+        var operator = TestStaff.register(this::call, lab.id(), lab.manager().token(), "Environment operator", "OPERATOR");
 
         assertThat(call("GET", base, operator.token(), null).statusCode()).isEqualTo(200);
         assertThat(call("POST", base, operator.token(), "{\"code\":\"PROD-2\",\"name\":\"Production 2\"}")

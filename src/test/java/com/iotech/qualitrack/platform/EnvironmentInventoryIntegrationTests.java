@@ -140,8 +140,7 @@ class EnvironmentInventoryIntegrationTests {
     void operatorReceivesLotsButCannotChangeCatalogOrReview() throws Exception {
         var warehouse = warehouse();
         long material = id(registerMaterial(warehouse, "units", 5));
-        var operator = account("ROLE_LAB_OPERATOR");
-        new TransactionTemplate(transactions).executeWithoutResult(status -> iam.assignLaboratory(operator.id(), warehouse.lab()));
+        var operator = TestStaff.register(this::call, warehouse.lab(), warehouse.manager().token(), "Warehouse operator", "OPERATOR");
 
         assertThat(registerMaterialAs(warehouse, operator.token()).statusCode()).isEqualTo(403);
         var lot = receive(warehouse, material, "OP-1", "units", LocalDate.now().plusMonths(6), operator.token());

@@ -36,6 +36,9 @@ public class UserPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Column(nullable = false, length = 50)
     private UserStatus status;
 
+    @Column(name = "password_change_required", nullable = false)
+    private boolean passwordChangeRequired;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "iam_user_roles",

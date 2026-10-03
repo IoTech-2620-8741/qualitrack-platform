@@ -23,7 +23,8 @@ public class UserPersistenceAssembler {
                 entity.getPassword(),
                 roles,
                 entity.getLaboratoryId(),
-                entity.getStatus()
+                entity.getStatus(),
+                entity.isPasswordChangeRequired()
         );
     }
 
@@ -36,6 +37,7 @@ public class UserPersistenceAssembler {
         entity.setPassword(user.getPasswordValue());
         entity.setLaboratoryId(user.getLaboratoryId());
         entity.setStatus(user.getStatus());
+        entity.setPasswordChangeRequired(user.isPasswordChangeRequired());
 
         var roles = user.getRoles().stream()
                 .map(RolePersistenceAssembler::toPersistenceFromDomain)

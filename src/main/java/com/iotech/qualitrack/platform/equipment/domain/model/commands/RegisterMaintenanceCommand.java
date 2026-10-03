@@ -10,7 +10,7 @@ import static com.iotech.qualitrack.platform.equipment.domain.model.commands.Com
  * @param environmentId environment where the equipment is located
  * @param equipmentId equipment that received the maintenance
  * @param maintenanceDate date of the intervention (YYYY-MM-DD)
- * @param technicianName technician who performed it, up to 150 characters
+ * @param technicianStaffId staff member of the laboratory who performed it
  * @param description work done, up to 1000 characters
  * @param type maintenance type (PREVENTIVE, CORRECTIVE, CALIBRATION, INSPECTION or OTHER)
  */
@@ -19,7 +19,7 @@ public record RegisterMaintenanceCommand(
         Long environmentId,
         Long equipmentId,
         String maintenanceDate,
-        String technicianName,
+        Long technicianStaffId,
         String description,
         String type
 ) {
@@ -28,7 +28,7 @@ public record RegisterMaintenanceCommand(
         identifier(environmentId, "environmentId");
         identifier(equipmentId, "equipmentId");
         maintenanceDate = required(maintenanceDate, "maintenanceDate", 10);
-        technicianName = required(technicianName, "technicianName", 150);
+        identifier(technicianStaffId, "technicianStaffId");
         description = required(description, "description", 1000);
         type = required(type, "type", 50);
     }

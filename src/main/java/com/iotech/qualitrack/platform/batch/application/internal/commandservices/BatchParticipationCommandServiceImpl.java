@@ -15,6 +15,7 @@ import com.iotech.qualitrack.platform.shared.application.result.ApplicationError
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.shared.application.security.CurrentUser;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +78,12 @@ public class BatchParticipationCommandServiceImpl implements BatchParticipationC
         if (batch.isFailure()) return batch.map(value -> null);
         var member = laboratory.findStaffMember(command.laboratoryId(), command.staffId());
         if (member.isEmpty()) return Result.failure(ApplicationError.notFound("StaffMember", command.staffId()));
+        if (!member.get().active()) {
+            return Result.failure(ApplicationError.conflict("StaffMember", "Inactive staff members cannot take part in a batch"));
+        }
+        if (!currentUser.managesQuality() && !member.get().isAccount(currentUser.userId())) {
+            throw new AccessDeniedException("Staff members can only assign themselves to a batch");
+        }
         if (participations.existsStaffParticipation(command.batchId(), command.staffId())) {
             return Result.failure(ApplicationError.conflict("StaffParticipation", "The staff member is already associated with the batch"));
         }

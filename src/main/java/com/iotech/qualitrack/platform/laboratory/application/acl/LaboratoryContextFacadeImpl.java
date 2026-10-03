@@ -5,7 +5,7 @@ import com.iotech.qualitrack.platform.laboratory.application.queryservices.Labor
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.StaffQueryService;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetLaboratoryByIdQuery;
-import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffByLabIdQuery;
+import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffMemberByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
 import org.springframework.stereotype.Service;
 
@@ -47,10 +47,8 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
     @Override
     public Optional<StaffReference> findStaffMember(Long laboratoryId, Long staffId) {
         if (laboratoryId == null || laboratoryId <= 0 || staffId == null || staffId <= 0) return Optional.empty();
-        return staffQueryService.handle(new GetStaffByLabIdQuery(laboratoryId)).stream()
-                .filter(member -> staffId.equals(member.getId()))
-                .findFirst()
+        return staffQueryService.handle(new GetStaffMemberByIdQuery(laboratoryId, staffId))
                 .map(member -> new StaffReference(member.getId(), member.getLaboratoryId(), member.getFullName(),
-                        member.getRole(), member.isActive()));
+                        member.getRole(), member.isActive(), member.getUserId()));
     }
 }

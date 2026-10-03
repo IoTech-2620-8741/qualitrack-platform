@@ -20,6 +20,7 @@ public final class MaintenancePersistenceAssembler {
                 entity.getEnvironmentId(),
                 entity.getMaintenanceDate(),
                 entity.getTechnicianName(),
+                entity.getTechnicianStaffId(),
                 entity.getDescription(),
                 entity.getType()
         );
@@ -38,6 +39,7 @@ public final class MaintenancePersistenceAssembler {
         entity.setEnvironmentId(record.getEnvironmentId());
         entity.setMaintenanceDate(record.getMaintenanceDate());
         entity.setTechnicianName(record.getTechnicianName());
+        entity.setTechnicianStaffId(record.getTechnicianStaffId());
         entity.setDescription(record.getDescription());
         entity.setType(record.getType());
 

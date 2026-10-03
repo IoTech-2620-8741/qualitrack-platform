@@ -35,7 +35,7 @@ class InventoryPersistenceTests {
     @Autowired InventoryCommandService commands;
     @Autowired InventoryQueryService queries;
     @Autowired EnvironmentInventoryController controller;
-    @Autowired java.time.Clock clock;
+    @Autowired @org.springframework.beans.factory.annotation.Qualifier("inventoryClock") java.time.Clock clock;
     private LocalDate today() { return LocalDate.now(clock); }
     @Autowired InventoryImportService imports;
     @Autowired BatchRepository batches;

@@ -267,9 +267,9 @@ class ProductBatchIntegrationTests {
     }
 
     private long equipment(Plant plant, String name) throws Exception {
-        var created = call("POST", "/equipments", plant.manager().token(), """
-                {"laboratoryId":%d,"name":"%s","type":"PRODUCTION","model":"M-1","serialNumber":"SN-%s"}
-                """.formatted(plant.lab(), name, UUID.randomUUID().toString().substring(0, 12)));
+        var created = call("POST", "/laboratories/" + plant.lab() + "/equipments", plant.manager().token(), """
+                {"name":"%s","type":"PRODUCTION","model":"M-1","serialNumber":"SN-%s"}
+                """.formatted(name, UUID.randomUUID().toString().substring(0, 12)));
         assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
         return id(created);
     }

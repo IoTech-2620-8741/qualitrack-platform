@@ -161,12 +161,11 @@ class EnvironmentInventoryIntegrationTests {
         var usages = warehouse.rawMaterials() + "/" + material + "/usages";
         assertThat(call("GET", usages, token, null).body()).isEqualTo("[]");
 
-        var product = call("POST", "/laboratories/" + warehouse.lab() + "/products", token, """
+        var product = call("POST", "/laboratories/" + warehouse.lab() + "/environments/" + warehouse.environment() + "/products", token, """
                 {"name":"Usage product","code":"P-%s","description":"Test","specifications":"Test only"}
                 """.formatted(UUID.randomUUID()));
         assertThat(product.statusCode()).withFailMessage(product.body()).isEqualTo(201);
-        long productId = ((Number) JsonPath.read(call("GET", "/laboratories/" + warehouse.lab() + "/products", token, null).body(),
-                "$[0].id")).longValue();
+        long productId = id(product);
         var batch = call("POST", "/batches", token, """
                 {"labId":%d,"productId":%d,"batchNumber":"USE-%s","quantity":10,"unit":"g","startDate":"%s","notes":""}
                 """.formatted(warehouse.lab(), productId, UUID.randomUUID(), LocalDate.now()));

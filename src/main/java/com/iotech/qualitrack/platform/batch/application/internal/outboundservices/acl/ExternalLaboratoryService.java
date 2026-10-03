@@ -29,4 +29,15 @@ public class ExternalLaboratoryService {
     public boolean existsLaboratoryById(Long labId) {
         return laboratoryContextFacade.existsLaboratoryById(labId);
     }
+
+    /**
+     * Verifies that the environment is registered in the laboratory.
+     *
+     * @param laboratoryId the laboratory identifier
+     * @param environmentId the environment identifier
+     * @return true when the environment belongs to the laboratory
+     */
+    public boolean existsEnvironment(Long laboratoryId, Long environmentId) {
+        return laboratoryContextFacade.existsEnvironment(laboratoryId, environmentId);
+    }
 }

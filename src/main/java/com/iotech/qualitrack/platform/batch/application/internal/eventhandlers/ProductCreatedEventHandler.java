@@ -1,14 +1,14 @@
-package com.iotech.qualitrack.platform.laboratory.application.internal.eventhandlers;
+package com.iotech.qualitrack.platform.batch.application.internal.eventhandlers;
 
-import com.iotech.qualitrack.platform.laboratory.domain.model.events.ProductCreatedEvent;
-import com.iotech.qualitrack.platform.laboratory.interfaces.events.ProductCreatedIntegrationEvent;
+import com.iotech.qualitrack.platform.batch.domain.model.events.ProductCreatedEvent;
+import com.iotech.qualitrack.platform.batch.interfaces.events.ProductCreatedIntegrationEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 /**
- * Handles product creation domain events and publishes Laboratory integration events.
+ * Handles product creation domain events and publishes Product Batch integration events.
  */
 @Service
 @Slf4j
@@ -28,7 +28,7 @@ public class ProductCreatedEventHandler {
     /**
      * Handles pharmaceutical product creation events.
      *
-     * @param event The internal Laboratory domain event.
+     * @param event The internal Product Batch domain event.
      */
     @EventListener(ProductCreatedEvent.class)
     public void on(ProductCreatedEvent event) {

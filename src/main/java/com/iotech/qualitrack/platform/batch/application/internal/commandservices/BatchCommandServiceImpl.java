@@ -10,7 +10,7 @@ import com.iotech.qualitrack.platform.batch.domain.model.events.BatchCreatedEven
 import com.iotech.qualitrack.platform.batch.domain.model.events.BatchRejectedEvent;
 import com.iotech.qualitrack.platform.batch.domain.model.events.BatchReleasedEvent;
 import com.iotech.qualitrack.platform.batch.domain.repositories.BatchRepository;
-import com.iotech.qualitrack.platform.laboratory.domain.repositories.ProductRepository;
+import com.iotech.qualitrack.platform.batch.domain.repositories.ProductRepository;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import org.springframework.context.ApplicationEventPublisher;

@@ -350,12 +350,11 @@ class OnboardingIntegrationTests {
         var review = call("POST", materials + "/" + materialId + "/batches/" + receiptId + "/reviews", account.token(),
                 "{\"status\":\"RELEASED\",\"reason\":\"Certificate and quantity reviewed\"}");
         assertThat(review.statusCode()).withFailMessage(review.body()).isEqualTo(201);
-        var product = call("POST", "/laboratories/" + lab + "/products", account.token(), """
+        var product = call("POST", "/laboratories/" + lab + "/environments/" + JsonPath.read(environment.body(), "$.id") + "/products", account.token(), """
                 {"name":"Stock test product","code":"P-%s","description":"Test","specifications":"Test only"}
                 """.formatted(UUID.randomUUID()));
         assertThat(product.statusCode()).withFailMessage(product.body()).isEqualTo(201);
-        var products = call("GET", "/laboratories/" + lab + "/products", account.token(), null);
-        long productId = ((Number) JsonPath.read(products.body(), "$[0].id")).longValue();
+        long productId = ((Number) JsonPath.read(product.body(), "$.id")).longValue();
         var batch = call("POST", "/batches", account.token(), """
                 {"labId":%d,"productId":%d,"batchNumber":"STOCK-%s","quantity":10,"unit":"g","startDate":"2026-09-08","notes":""}
                 """.formatted(lab, productId, UUID.randomUUID()));

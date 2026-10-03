@@ -11,8 +11,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Sends the staff credentials by e-mail through the SMTP server configured with the {@code spring.mail.*}
- * properties (for example MAIL_HOST, MAIL_USERNAME and MAIL_PASSWORD). Without an SMTP server nothing is sent
- * and the quality manager receives the temporary password once to hand it over.
+ * properties (SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME and SPRING_MAIL_PASSWORD). Without an SMTP
+ * server, or when it cannot be reached, nothing is sent and the quality manager receives the temporary password once
+ * to hand it over.
  */
 @Slf4j
 @Component

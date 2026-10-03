@@ -1,5 +1,7 @@
 package com.iotech.qualitrack.platform.laboratory.interfaces.acl;
 
+import java.util.Optional;
+
 /**
  * Inbound Anti-Corruption Layer (ACL) facade for the Laboratory bounded context.
  * * <p>Exposes simplified capabilities to other bounded contexts (like Equipment or Tracking)
@@ -23,4 +25,24 @@ public interface LaboratoryContextFacade {
      * @return true when the environment exists in the laboratory
      */
     boolean existsEnvironment(Long laboratoryId, Long environmentId);
+
+    /**
+     * Finds a staff member registered in the laboratory.
+     *
+     * @param laboratoryId the laboratory that must own the staff member
+     * @param staffId the staff member identifier
+     * @return the staff member, or empty when it is not registered in the laboratory
+     */
+    Optional<StaffReference> findStaffMember(Long laboratoryId, Long staffId);
+
+    /**
+     * Staff data shared with other bounded contexts.
+     *
+     * @param id the staff member identifier
+     * @param laboratoryId the owning laboratory
+     * @param fullName the full name
+     * @param role the role in the laboratory
+     * @param active whether the staff member is active
+     */
+    record StaffReference(Long id, Long laboratoryId, String fullName, String role, boolean active) { }
 }

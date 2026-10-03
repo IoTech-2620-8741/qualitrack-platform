@@ -34,6 +34,7 @@ class ProductBatchIntegrationTests {
     @Autowired SubscriptionRepository subscriptions;
     @Autowired IamContextFacade iam;
     @Autowired PlatformTransactionManager transactions;
+    @Autowired com.iotech.qualitrack.platform.equipment.domain.repositories.EquipmentRepository equipmentRepository;
     private final HttpClient http = HttpClient.newHttpClient();
     private static final AtomicLong ruc = new AtomicLong(20700000000L);
 
@@ -191,6 +192,63 @@ class ProductBatchIntegrationTests {
         call("POST", batches + "/" + batchId + "/releases", token, "{\"releaseDate\":\"2026-10-05\",\"notes\":\"Approved\"}");
         assertThat(call("POST", usages, operator.token(), usage(lot.id(), "1", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(409);
         assertThat(usableStock(plant, lot)).isEqualTo(70);
+    }
+
+    @Test
+    void batchesRecordOperationalEquipmentAndRegisteredStaffOnce() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var batches = plant.products() + "/" + id(call("POST", plant.products(), token, product("PRD-P", "Participation product"))) + "/batches";
+        long batchId = id(call("POST", batches, token, batch("PB-PART", "2026-10-01")));
+        var operator = operatorOf(plant);
+        long press = equipment(plant, "Tablet press");
+        long mixer = equipment(plant, "Mixer");
+        var underMaintenance = equipmentRepository.findById(mixer).orElseThrow();
+        underMaintenance.updateStatus(com.iotech.qualitrack.platform.equipment.domain.model.valueobjects.EquipmentStatus.MAINTENANCE);
+        equipmentRepository.save(underMaintenance);
+        long staffId = staff(plant, "Ana Torres", "Production operator");
+
+        var equipmentUsages = batches + "/" + batchId + "/equipment-usages";
+        var used = call("POST", equipmentUsages, operator.token(), "{\"equipmentId\":" + press + "}");
+        assertThat(used.statusCode()).withFailMessage(used.body()).isEqualTo(201);
+        assertThat(used.body()).contains("\"equipmentName\":\"Tablet press\"").contains("\"registeredByUserId\":" + operator.id());
+        assertThat(call("POST", equipmentUsages, operator.token(), "{\"equipmentId\":" + press + "}").statusCode()).isEqualTo(409);
+        var maintenance = call("POST", equipmentUsages, operator.token(), "{\"equipmentId\":" + mixer + "}");
+        assertThat(maintenance.statusCode()).isEqualTo(409);
+        assertThat(maintenance.body()).contains("MAINTENANCE");
+        assertThat(call("POST", equipmentUsages, operator.token(), "{\"equipmentId\":999999}").statusCode()).isEqualTo(404);
+
+        var participations = batches + "/" + batchId + "/staff-participations";
+        var participated = call("POST", participations, operator.token(), "{\"staffId\":" + staffId + "}");
+        assertThat(participated.statusCode()).withFailMessage(participated.body()).isEqualTo(201);
+        assertThat(participated.body()).contains("\"staffName\":\"Ana Torres\"").contains("\"staffRole\":\"Production operator\"");
+        assertThat(call("POST", participations, operator.token(), "{\"staffId\":" + staffId + "}").statusCode()).isEqualTo(409);
+        assertThat(call("POST", participations, operator.token(), "{\"staffId\":999999}").statusCode()).isEqualTo(404);
+        var outsider = plant();
+        long foreignStaff = staff(outsider, "Luis Ramos", "Analyst");
+        assertThat(call("POST", participations, operator.token(), "{\"staffId\":" + foreignStaff + "}").statusCode()).isEqualTo(404);
+
+        call("POST", batches + "/" + batchId + "/rejections", token, "{\"rejectionDate\":\"2026-10-05\",\"reason\":\"Contamination\"}");
+        assertThat(call("POST", equipmentUsages, operator.token(), "{\"equipmentId\":" + equipment(plant, "Coater") + "}").statusCode()).isEqualTo(409);
+        assertThat(call("POST", participations, operator.token(), "{\"staffId\":" + staff(plant, "Rosa Diaz", "Operator") + "}").statusCode()).isEqualTo(409);
+    }
+
+    private long equipment(Plant plant, String name) throws Exception {
+        var created = call("POST", "/equipments", plant.manager().token(), """
+                {"laboratoryId":%d,"name":"%s","type":"PRODUCTION","model":"M-1","serialNumber":"SN-%s"}
+                """.formatted(plant.lab(), name, UUID.randomUUID().toString().substring(0, 12)));
+        assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
+        return id(created);
+    }
+
+    private long staff(Plant plant, String fullName, String role) throws Exception {
+        var created = call("POST", "/laboratories/" + plant.lab() + "/staff", plant.manager().token(), """
+                {"fullName":"%s","role":"%s","email":"%s@qualitrack.test"}
+                """.formatted(fullName, role, UUID.randomUUID()));
+        assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
+        List<Integer> ids = JsonPath.read(call("GET", "/laboratories/" + plant.lab() + "/staff", plant.manager().token(), null).body(),
+                "$[?(@.fullName == '" + fullName + "')].id");
+        return ids.getLast();
     }
 
     private record Lot(long environment, long material, long id) { }

@@ -30,4 +30,13 @@ public class ExternalLaboratoryService {
     public boolean existsEnvironment(Long laboratoryId, Long environmentId) {
         return laboratoryContextFacade.existsEnvironment(laboratoryId, environmentId);
     }
+
+    /**
+     * Finds a staff member registered in the laboratory.
+     *
+     * @return the staff member, or empty when it is not registered in the laboratory
+     */
+    public java.util.Optional<LaboratoryContextFacade.StaffReference> findStaffMember(Long laboratoryId, Long staffId) {
+        return laboratoryContextFacade.findStaffMember(laboratoryId, staffId);
+    }
 }

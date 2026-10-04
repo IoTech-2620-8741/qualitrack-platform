@@ -356,8 +356,13 @@ package "Compliance and Alerts Context" {
     --
     * created_at : DATETIME
     * updated_at : DATETIME
+    laboratory_id : BIGINT
+    environment_id : BIGINT
+    origin : VARCHAR(20)
     * equipment_id : BIGINT
     batch_id : BIGINT
+    measurement_id : BIGINT
+    last_measurement_id : BIGINT
     * parameter_name : VARCHAR(100)
     * recorded_value : DOUBLE
     * threshold_value : DOUBLE
@@ -365,8 +370,13 @@ package "Compliance and Alerts Context" {
     * timestamp : VARCHAR(30)
     * severity : VARCHAR(50)
     * status : VARCHAR(50)
+    deviation_count : INT
+    last_detected_at : DATETIME
+    normalized_at : DATETIME
     acknowledged_by : BIGINT
+    acknowledged_at : DATETIME
     resolved_by : BIGINT
+    resolved_at : DATETIME
     resolution_notes : VARCHAR(500)
   }
 

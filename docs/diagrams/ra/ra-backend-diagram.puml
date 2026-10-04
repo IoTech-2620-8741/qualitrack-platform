@@ -359,6 +359,10 @@ note bottom of BatchAuditEventHandler
   (container where the product batch is stored, US78).
 end note
 CaAuditEventHandler --> AuditLogCommandService
+note bottom of CaAuditEventHandler
+  DeviationAlert created -> REGISTER; escalated (higher severity of an open
+  incident), acknowledged and resolved -> UPDATE DEVIATION_ALERT.
+end note
 EquipmentAuditEventHandler --> AuditLogCommandService
 LaboratoryAuditEventHandler --> AuditLogCommandService
 TrackingAuditEventHandler --> AuditLogCommandService

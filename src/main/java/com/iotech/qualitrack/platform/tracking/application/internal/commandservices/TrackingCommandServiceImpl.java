@@ -14,9 +14,11 @@ import com.iotech.qualitrack.platform.tracking.domain.model.commands.UpdateConta
 import com.iotech.qualitrack.platform.tracking.domain.model.commands.UpdateEnvironmentThresholdsCommand;
 import com.iotech.qualitrack.platform.tracking.domain.model.entities.ActuationEvent;
 import com.iotech.qualitrack.platform.tracking.domain.model.entities.Measurement;
+import com.iotech.qualitrack.platform.tracking.domain.model.events.EnvironmentalConditionNormalizedEvent;
 import com.iotech.qualitrack.platform.tracking.domain.model.events.EnvironmentalDeviationDetectedEvent;
 import com.iotech.qualitrack.platform.tracking.domain.model.events.EnvironmentalProfileUpdatedEvent;
 import com.iotech.qualitrack.platform.tracking.domain.model.events.MeasurementRecordedEvent;
+import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.EnvironmentalState;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.MonitoredMetric.DeviceKind;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.ThresholdEvaluation;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.ActuationEventRepository;
@@ -37,7 +39,8 @@ import java.util.function.Consumer;
  *
  * <p>The platform evaluates every reading with the current profile of its environment or container monitor, records
  * the resulting state and reports a deviation to Compliance &amp; Alerting only when the condition of the metric gets
- * worse, so a sustained WARNING or CRITICAL condition does not create one alert per reading. The devices apply the
+ * worse, so a sustained WARNING or CRITICAL condition does not create one alert per reading, and reports when it
+ * returns to NORMAL. The devices apply the
  * same profile locally and execute the actions; the platform keeps the record of what they did.</p>
  */
 @Service
@@ -150,6 +153,12 @@ public class TrackingCommandServiceImpl implements TrackingCommandService {
             eventPublisher.publishEvent(new EnvironmentalDeviationDetectedEvent(saved.getId(), saved.getLaboratoryId(),
                     saved.getEnvironmentId(), deviceId, saved.getParameterName(), saved.getValue(), saved.getUnit(),
                     evaluation.state().name(), evaluation.exceededLimit(), saved.getMeasuredAt()));
+        }
+        if (evaluation != null && evaluation.state() == EnvironmentalState.NORMAL && previousState != null
+                && previousState != EnvironmentalState.NORMAL) {
+            eventPublisher.publishEvent(new EnvironmentalConditionNormalizedEvent(saved.getId(), saved.getLaboratoryId(),
+                    saved.getEnvironmentId(), deviceId, saved.getParameterName(), saved.getValue(), saved.getUnit(),
+                    saved.getMeasuredAt()));
         }
         return Result.success(new Recorded<>(saved, true));
     }

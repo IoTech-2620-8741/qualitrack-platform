@@ -6,12 +6,13 @@ import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
- * Deviation alert of an environment or monitored container with its incident data (US85).
+ * Deviation alert with the actions its container monitor executed for the same variable during the incident (US86).
  */
-@Schema(name = "DeviationAlertResponse", description = "Deviation alert and its lifecycle")
-public record DeviationAlertResource(
+@Schema(name = "DeviationAlertDetailResponse", description = "Deviation alert, its origin and the related actions")
+public record DeviationAlertDetailResource(
         @Schema(description = "Alert", example = "15") Long id,
         @Schema(description = "Laboratory; null for alerts registered before environments", example = "1", nullable = true) Long laboratoryId,
         @Schema(description = "Environment where the deviation was detected", example = "4", nullable = true) Long environmentId,
@@ -34,6 +35,8 @@ public record DeviationAlertResource(
         @Schema(description = "When the attention started", nullable = true) Instant acknowledgedAt,
         @Schema(description = "User who resolved the alert", nullable = true) Long resolvedBy,
         @Schema(description = "When the alert was resolved", nullable = true) Instant resolvedAt,
-        @Schema(description = "Corrective action or resolution notes", nullable = true) String resolutionNotes
+        @Schema(description = "Corrective action or resolution notes", nullable = true) String resolutionNotes,
+        @Schema(description = "Actions executed by the container monitor for the variable while the incident was open")
+        List<RelatedActuationResource> relatedActuations
 ) {
 }

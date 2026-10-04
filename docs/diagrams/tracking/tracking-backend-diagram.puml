@@ -317,6 +317,17 @@ package "tracking.domain.model.events" {
     + measuredAt: Instant
   }
 
+  class EnvironmentalConditionNormalizedEvent <<record>> {
+    + measurementId: Long
+    + laboratoryId: Long
+    + environmentId: Long
+    + deviceId: Long
+    + metric: MonitoredMetric
+    + value: Double
+    + unit: String
+    + measuredAt: Instant
+  }
+
   class EnvironmentalProfileUpdatedEvent <<record>> {
     + profileId: Long
     + laboratoryId: Long
@@ -403,6 +414,7 @@ TrackingCommandServiceImpl --> ApplicationEventPublisher
 TrackingCommandServiceImpl --> Clock
 TrackingCommandServiceImpl ..> MeasurementRecordedEvent
 TrackingCommandServiceImpl ..> EnvironmentalDeviationDetectedEvent
+TrackingCommandServiceImpl ..> EnvironmentalConditionNormalizedEvent : WARNING/CRITICAL -> NORMAL
 TrackingCommandServiceImpl ..> EnvironmentalProfileUpdatedEvent
 note right of TrackingCommandServiceImpl
   The device must be located in the environment and report the metric.
@@ -442,11 +454,14 @@ TrackingExternalEquipmentService --> EquipmentContextFacade
 package "tracking.application.internal.eventhandlers" {
   class MeasurementRecordedEventHandler
   class EnvironmentalDeviationDetectedEventHandler
+  class EnvironmentalConditionNormalizedEventHandler
   class EnvironmentalProfileUpdatedEventHandler
 }
 
 MeasurementRecordedEventHandler ..> MeasurementRecordedEvent
 EnvironmentalDeviationDetectedEventHandler ..> EnvironmentalDeviationDetectedEvent
+EnvironmentalConditionNormalizedEventHandler ..> EnvironmentalConditionNormalizedEvent
+EnvironmentalConditionNormalizedEventHandler --> ApplicationEventPublisher
 EnvironmentalProfileUpdatedEventHandler ..> EnvironmentalProfileUpdatedEvent
 MeasurementRecordedEventHandler --> ApplicationEventPublisher
 EnvironmentalDeviationDetectedEventHandler --> ApplicationEventPublisher
@@ -455,22 +470,44 @@ EnvironmentalProfileUpdatedEventHandler --> ApplicationEventPublisher
 package "tracking.interfaces.events" {
   class MeasurementRecordedIntegrationEvent <<record>>
   class EnvironmentalDeviationDetectedIntegrationEvent <<record>>
+  class EnvironmentalConditionNormalizedIntegrationEvent <<record>>
   class EnvironmentalProfileUpdatedIntegrationEvent <<record>>
 }
 
+package "tracking.interfaces.acl" {
+  interface TrackingContextFacade {
+    + findActuations(laboratoryId, deviceId, metric, from, to): List<ActuationReference>
+  }
+  class ActuationReference <<record>>
+}
+
+package "tracking.application.acl" {
+  class TrackingContextFacadeImpl
+}
+
+TrackingContextFacadeImpl ..|> TrackingContextFacade
+TrackingContextFacadeImpl --> ActuationEventRepository
+TrackingContextFacade ..> ActuationReference
+
 MeasurementRecordedEventHandler ..> MeasurementRecordedIntegrationEvent
 EnvironmentalDeviationDetectedEventHandler ..> EnvironmentalDeviationDetectedIntegrationEvent
+EnvironmentalConditionNormalizedEventHandler ..> EnvironmentalConditionNormalizedIntegrationEvent
 EnvironmentalProfileUpdatedEventHandler ..> EnvironmentalProfileUpdatedIntegrationEvent
 
 package "integration event consumers" <<External>> {
   class EnvironmentalDeviationComplianceEventHandler <<ca>>
+  class EnvironmentalConditionNormalizedComplianceEventHandler <<ca>>
+  class CaExternalTrackingService <<ca>>
   class TrackingAuditEventHandler <<ra>>
 }
 
 EnvironmentalDeviationComplianceEventHandler ..> EnvironmentalDeviationDetectedIntegrationEvent
+EnvironmentalConditionNormalizedComplianceEventHandler ..> EnvironmentalConditionNormalizedIntegrationEvent
+CaExternalTrackingService --> TrackingContextFacade : actions related to an alert
 TrackingAuditEventHandler ..> EnvironmentalProfileUpdatedIntegrationEvent
 note bottom of EnvironmentalDeviationComplianceEventHandler
-  Creates the WARNING / CRITICAL deviation alert of the device.
+  Opens the WARNING / CRITICAL alert of the incident, or adds the
+  deviation to the alert still open for the device and metric.
 end note
 note bottom of TrackingAuditEventHandler
   Audits UPDATE ENVIRONMENTAL_PROFILE.

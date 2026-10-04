@@ -5,11 +5,16 @@ import com.iotech.qualitrack.platform.ca.application.queryservices.CaQueryServic
 import com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert;
 import com.iotech.qualitrack.platform.ca.domain.model.commands.AcknowledgeAlertCommand;
 import com.iotech.qualitrack.platform.ca.domain.model.queries.GetAlertByIdQuery;
+import com.iotech.qualitrack.platform.ca.domain.model.queries.GetAlertDetailQuery;
 import com.iotech.qualitrack.platform.ca.domain.model.queries.GetAlertsQuery;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertSeverity;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertStatus;
+import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.DeviationRegistration;
+import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.CreateDeviationAlertResource;
+import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.DeviationAlertDetailResource;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.DeviationAlertResource;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.ResolveAlertResource;
+import com.iotech.qualitrack.platform.ca.interfaces.rest.transform.CreateDeviationAlertCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.transform.DeviationAlertResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.transform.ResolveAlertCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
@@ -33,15 +38,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.util.List;
-import java.util.function.Function;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * Deviation alerts of the equipment and batches of a laboratory and their lifecycle (TS75, TS76): an alert is
- * acknowledged and resolved by registering an acknowledgement or a resolution, with the authenticated user as actor.
+ * Deviation alerts of the environments of a laboratory and their lifecycle (TS73-TS76): alerts are registered and
+ * listed per environment, and acknowledged and resolved by registering an acknowledgement or a resolution, with the
+ * authenticated user as actor. While an alert is open, new deviations of the same device and variable are added to it.
  */
 @RestController
 @RequestMapping(value = "/api/v1", produces = APPLICATION_JSON_VALUE)
@@ -59,60 +65,95 @@ public class DeviationAlertController {
     }
 
     @GetMapping("/deviation-alerts/{alertId}")
-    @Operation(summary = "Get a deviation alert")
+    @Operation(summary = "Get a deviation alert",
+            description = "Origin (environment or container), variable, value, severity, lifecycle and the actions the "
+                    + "container monitor executed for the variable while the incident was open (US86).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Deviation alert",
-                    content = @Content(schema = @Schema(implementation = DeviationAlertResource.class))),
+                    content = @Content(schema = @Schema(implementation = DeviationAlertDetailResource.class))),
             @ApiResponse(responseCode = "403", description = "Alert not available to the account"),
             @ApiResponse(responseCode = "404", description = "Alert not found",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
     public ResponseEntity<?> getAlertById(@PathVariable Long alertId) {
-        return caQueryService.handle(new GetAlertByIdQuery(alertId))
-                .<ResponseEntity<?>>map(alert -> ResponseEntity.ok(DeviationAlertResourceFromEntityAssembler.toResourceFromEntity(alert)))
+        return caQueryService.handle(new GetAlertDetailQuery(alertId))
+                .<ResponseEntity<?>>map(detail -> ResponseEntity.ok(DeviationAlertResourceFromEntityAssembler.toDetailResourceFromEntity(detail)))
                 .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
                         ApplicationError.notFound("DeviationAlert", alertId)));
     }
 
-    @GetMapping("/laboratories/{laboratoryId}/equipments/{equipmentId}/deviation-alerts")
-    @Operation(summary = "Get the deviation alerts of an equipment",
-            description = "Optional filters: status (UNRESOLVED, ACKNOWLEDGED, RESOLVED) and severity.")
+    @GetMapping("/laboratories/{laboratoryId}/environments/{environmentId}/deviation-alerts")
+    @Operation(summary = "Get the deviation alerts of an environment",
+            description = "Alerts of the environment and its monitored containers, newest first (US85, TS74). Optional "
+                    + "filters: status (UNRESOLVED, ACKNOWLEDGED, RESOLVED), severity (LOW, WARNING, CRITICAL), deviceId and "
+                    + "active=true to keep only open alerts (unresolved or being attended).")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Alerts of the equipment",
+            @ApiResponse(responseCode = "200", description = "Alerts of the environment",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = DeviationAlertResource.class)))),
             @ApiResponse(responseCode = "400", description = "Unknown status or severity",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
-            @ApiResponse(responseCode = "403", description = "Equipment not available to the account")
+            @ApiResponse(responseCode = "403", description = "Environment not available to the account"),
+            @ApiResponse(responseCode = "404", description = "Environment not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
-    public ResponseEntity<?> getEquipmentAlerts(@PathVariable Long laboratoryId, @PathVariable Long equipmentId,
-                                                @RequestParam(required = false) String status,
-                                                @RequestParam(required = false) String severity) {
-        return alerts(status, severity, filters -> new GetAlertsQuery(equipmentId, null, filters.status(), filters.severity()));
+    public ResponseEntity<?> getEnvironmentAlerts(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                                  @RequestParam(required = false) String status,
+                                                  @RequestParam(required = false) String severity,
+                                                  @RequestParam(required = false) Long deviceId,
+                                                  @RequestParam(defaultValue = "false") boolean active) {
+        AlertStatus statusFilter;
+        AlertSeverity severityFilter;
+        try {
+            statusFilter = status == null || status.isBlank() ? null : AlertStatus.valueOf(status.trim().toUpperCase());
+            severityFilter = severity == null || severity.isBlank() ? null : AlertSeverity.valueOf(severity.trim().toUpperCase());
+        } catch (IllegalArgumentException exception) {
+            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                    ApplicationError.validationError("filters", "Unknown alert status or severity"));
+        }
+        List<DeviationAlertResource> resources = caQueryService
+                .handle(new GetAlertsQuery(laboratoryId, environmentId, deviceId, statusFilter, severityFilter, active)).stream()
+                .map(DeviationAlertResourceFromEntityAssembler::toResourceFromEntity)
+                .toList();
+        return ResponseEntity.ok(resources);
     }
 
-    @GetMapping("/batches/{batchId}/deviation-alerts")
-    @Operation(summary = "Get the deviation alerts of a batch",
-            description = "Optional filters: status (UNRESOLVED, ACKNOWLEDGED, RESOLVED) and severity.")
+    @PostMapping(value = "/laboratories/{laboratoryId}/environments/{environmentId}/deviation-alerts",
+            consumes = APPLICATION_JSON_VALUE)
+    @Operation(summary = "Register a deviation of an environment or container",
+            description = "Opens the alert of a deviation confirmed by Cloud for the environmental device or a container "
+                    + "monitor of the environment (TS73). When the same device and variable already have an open alert, "
+                    + "the deviation is added to that incident (its severity only rises) and the alert is returned with 200.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Alerts of the batch",
-                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = DeviationAlertResource.class)))),
-            @ApiResponse(responseCode = "400", description = "Unknown status or severity",
+            @ApiResponse(responseCode = "201", description = "Alert opened",
+                    content = @Content(schema = @Schema(implementation = DeviationAlertResource.class))),
+            @ApiResponse(responseCode = "200", description = "Deviation added to the open alert of the incident",
+                    content = @Content(schema = @Schema(implementation = DeviationAlertResource.class))),
+            @ApiResponse(responseCode = "400", description = "Missing data, unknown severity or device not located in the environment",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
-            @ApiResponse(responseCode = "403", description = "Batch not available to the account")
+            @ApiResponse(responseCode = "403", description = "Environment not available to the account or read-only user"),
+            @ApiResponse(responseCode = "404", description = "Environment not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
-    public ResponseEntity<?> getBatchAlerts(@PathVariable Long batchId,
-                                            @RequestParam(required = false) String status,
-                                            @RequestParam(required = false) String severity) {
-        return alerts(status, severity, filters -> new GetAlertsQuery(null, batchId, filters.status(), filters.severity()));
+    public ResponseEntity<?> registerDeviation(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                               @RequestBody CreateDeviationAlertResource resource) {
+        var command = CreateDeviationAlertCommandFromResourceAssembler.toCommandFromResource(laboratoryId, environmentId, resource);
+        var result = caCommandService.handle(command);
+        if (result instanceof Result.Success<DeviationRegistration, ApplicationError> success && !success.value().created()) {
+            return ResponseEntity.ok(DeviationAlertResourceFromEntityAssembler.toResourceFromEntity(success.value().alert()));
+        }
+        return ResponseEntityAssembler.toCreatedResponseEntityAtLocation(result,
+                registration -> DeviationAlertResourceFromEntityAssembler.toResourceFromEntity(registration.alert()),
+                registration -> ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/api/v1/deviation-alerts/{alertId}").buildAndExpand(registration.alert().getId()).toUri());
     }
 
     @PostMapping("/deviation-alerts/{alertId}/acknowledgements")
     @Operation(summary = "Acknowledge a deviation alert",
-            description = "Registers that the authenticated user is attending the alert (TS75).")
+            description = "Registers that the authenticated user is attending the alert (US87, TS75).")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Alert acknowledged",
                     content = @Content(schema = @Schema(implementation = DeviationAlertResource.class))),
-            @ApiResponse(responseCode = "403", description = "Alert not available to the account"),
+            @ApiResponse(responseCode = "403", description = "Alert not available to the account or read-only user"),
             @ApiResponse(responseCode = "404", description = "Alert not found",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
             @ApiResponse(responseCode = "409", description = "The alert is already acknowledged or resolved",
@@ -124,13 +165,14 @@ public class DeviationAlertController {
 
     @PostMapping(value = "/deviation-alerts/{alertId}/resolutions", consumes = APPLICATION_JSON_VALUE)
     @Operation(summary = "Resolve a deviation alert",
-            description = "Registers the resolution of the alert by the authenticated user with its notes (TS76).")
+            description = "Registers the resolution of the alert by the authenticated user with its notes (US88, TS76). "
+                    + "The incident is closed; a later deviation opens a new alert.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Alert resolved",
                     content = @Content(schema = @Schema(implementation = DeviationAlertResource.class))),
             @ApiResponse(responseCode = "400", description = "Resolution notes missing",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
-            @ApiResponse(responseCode = "403", description = "Alert not available to the account"),
+            @ApiResponse(responseCode = "403", description = "Alert not available to the account or read-only user"),
             @ApiResponse(responseCode = "404", description = "Alert not found",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
             @ApiResponse(responseCode = "409", description = "The alert is already resolved",
@@ -147,24 +189,5 @@ public class DeviationAlertController {
                 .orElseGet(() -> Result.failure(ApplicationError.notFound("DeviationAlert", alertId))));
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
                 DeviationAlertResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
-    }
-
-    private ResponseEntity<?> alerts(String status, String severity, Function<AlertFilters, GetAlertsQuery> query) {
-        AlertFilters filters;
-        try {
-            filters = new AlertFilters(
-                    status == null || status.isBlank() ? null : AlertStatus.valueOf(status.toUpperCase()),
-                    severity == null || severity.isBlank() ? null : AlertSeverity.valueOf(severity.toUpperCase()));
-        } catch (IllegalArgumentException exception) {
-            return ErrorResponseAssembler.toErrorResponseFromApplicationError(
-                    ApplicationError.validationError("filters", "Unknown alert status or severity"));
-        }
-        List<DeviationAlertResource> resources = caQueryService.handle(query.apply(filters)).stream()
-                .map(DeviationAlertResourceFromEntityAssembler::toResourceFromEntity)
-                .toList();
-        return ResponseEntity.ok(resources);
-    }
-
-    private record AlertFilters(AlertStatus status, AlertSeverity severity) {
     }
 }

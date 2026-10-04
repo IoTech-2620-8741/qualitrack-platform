@@ -5,27 +5,26 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
-/**
- * Spring Data JPA repository for telemetry measurement persistence entities.
- */
 public interface MeasurementPersistenceRepository extends JpaRepository<MeasurementPersistenceEntity, Long> {
-    /**
-     * Finds all measurements ordered by source timestamp descending.
-     *
-     * @return measurement persistence entities
-     */
-    List<MeasurementPersistenceEntity> findAllByOrderByTimestampDesc();
 
-    /**
-     * Finds measurements for an equipment ordered by source timestamp descending.
-     *
-     * @param equipmentId the equipment identifier
-     * @return measurement persistence entities
-     */
-    List<MeasurementPersistenceEntity> findAllByEquipmentIdOrderByTimestampDesc(Long equipmentId);
+    List<MeasurementPersistenceEntity> findAllByEquipmentIdAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
+            Long equipmentId, Instant from, Instant to);
+
+    List<MeasurementPersistenceEntity> findAllByEquipmentIdAndParameterNameAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
+            Long equipmentId, String parameterName, Instant from, Instant to);
+
+    Optional<MeasurementPersistenceEntity> findFirstByEquipmentIdAndParameterNameAndMeasuredAt(
+            Long equipmentId, String parameterName, Instant measuredAt);
+
+    Optional<MeasurementPersistenceEntity> findFirstByEquipmentIdAndParameterNameAndMeasuredAtBeforeOrderByMeasuredAtDesc(
+            Long equipmentId, String parameterName, Instant before);
+
+    List<MeasurementPersistenceEntity> findTop50ByEquipmentIdOrderByIdDesc(Long equipmentId);
 
     @Query("select max(m.createdAt) from MeasurementPersistenceEntity m where m.equipmentId = :equipmentId")
     Date findLastCreatedAtByEquipmentId(@Param("equipmentId") Long equipmentId);

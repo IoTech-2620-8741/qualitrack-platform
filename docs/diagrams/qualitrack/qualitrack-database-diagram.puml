@@ -14,9 +14,25 @@ package "IAM Context" {
     * created_at : DATETIME
     * updated_at : DATETIME
     * username : VARCHAR(80) <<UK>>
+    email : VARCHAR(120) <<UK>>
     * password : VARCHAR(255)
     laboratory_id : BIGINT
     * status : VARCHAR(50)
+    * password_change_required : BOOLEAN
+  }
+
+  entity "iam_password_recoveries" as iam_password_recoveries {
+    * id : BIGINT <<PK>>
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    * user_id : BIGINT <<FK>>
+    * code_hash : VARCHAR(255)
+    * requested_at : DATETIME
+    * expires_at : DATETIME
+    * failed_attempts : INT
+    * status : VARCHAR(20)
+    completed_at : DATETIME
   }
 
   entity "iam_roles" as iam_roles {
@@ -33,6 +49,7 @@ package "IAM Context" {
   }
 
   iam_users ||--o{ iam_user_roles : "user_id"
+  iam_users ||--o{ iam_password_recoveries : "user_id"
   iam_roles ||--o{ iam_user_roles : "role_id"
 }
 
@@ -477,6 +494,7 @@ package "Subscription Context" {
     current_period_end : VARCHAR(50)
     cancelled_at : VARCHAR(50)
     cancelled_by : BIGINT
+    * cancel_at_period_end : BOOLEAN
     --
     <<UK>> stripe_subscription_id
     <<UK>> stripe_checkout_session_id

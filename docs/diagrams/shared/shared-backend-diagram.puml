@@ -42,6 +42,33 @@ package "shared" {
     }
   }
 
+  package "application.notifications" {
+    interface EmailSender {
+      +send(message: EmailMessage): boolean
+    }
+
+    record EmailMessage {
+      +to: String
+      +subject: String
+      +text: String
+    }
+  }
+
+  package "infrastructure.notifications.email" {
+    class ResendEmailSender {
+      +isConfigured(): boolean
+      +send(message: EmailMessage): boolean
+    }
+
+    class SmtpEmailSender {
+      +send(message: EmailMessage): boolean
+    }
+
+    class ConfiguredEmailSender <<primary>> {
+      +send(message: EmailMessage): boolean
+    }
+  }
+
   package "domain.model.aggregates" {
     abstract class AbstractDomainAggregateRoot<T> {
       #registerDomainEvent(event: Object): void
@@ -136,6 +163,18 @@ package "shared" {
 
 Result <|.. Success
 Result <|.. Failure
+
+EmailSender ..> EmailMessage
+ResendEmailSender ..|> EmailSender
+SmtpEmailSender ..|> EmailSender
+ConfiguredEmailSender ..|> EmailSender
+ConfiguredEmailSender --> ResendEmailSender
+ConfiguredEmailSender --> SmtpEmailSender
+note bottom of ConfiguredEmailSender
+  Transactional e-mails (staff credentials, password recovery codes):
+  Resend API (POST /emails over HTTPS) when RESEND_API_KEY is set,
+  otherwise the SMTP server of spring.mail.*; without either nothing is sent.
+end note
 
 AbstractDomainAggregateRoot --|> AbstractAggregateRoot
 AuditableAbstractPersistenceEntity ..> AuditingEntityListener

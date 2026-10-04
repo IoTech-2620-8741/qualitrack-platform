@@ -75,7 +75,7 @@ public class RaCommandServiceImpl implements RaCommandService {
     }
 
     @Override
-    public Result<byte[], ApplicationError> handle(GenerateBatchReportCommand command) {
+    public Result<AuditReport, ApplicationError> handle(GenerateBatchReportCommand command) {
         return execute("BatchReport", () -> {
             var batch = data.batch(command.batchId());
             var recordedAlerts = command.includeDeviations() ? data.batchAlerts(batch.getId())
@@ -107,7 +107,7 @@ public class RaCommandServiceImpl implements RaCommandService {
     }
 
     @Override
-    public Result<byte[], ApplicationError> handle(GenerateComplianceReportCommand command) {
+    public Result<AuditReport, ApplicationError> handle(GenerateComplianceReportCommand command) {
         return execute("ComplianceReport", () -> {
             validatePeriod(command.startDate(), command.endDate());
             var alerts = data.laboratoryAlerts(command.laboratoryId()).stream()
@@ -120,10 +120,18 @@ public class RaCommandServiceImpl implements RaCommandService {
     }
 
     @Override
-    public Result<byte[], ApplicationError> handle(ExportEquipmentLogCommand command) {
+    public Result<AuditReport, ApplicationError> handle(ExportEquipmentLogCommand command) {
+        com.iotech.qualitrack.platform.equipment.domain.model.aggregates.Equipment device;
+        try {
+            device = data.equipment(command.equipmentId());
+        } catch (IllegalArgumentException exception) {
+            return Result.failure(ApplicationError.notFound("Equipment", command.equipmentId()));
+        }
+        if (!device.isLocatedIn(command.laboratoryId(), command.environmentId())) {
+            return Result.failure(ApplicationError.notFound("Equipment", command.equipmentId()));
+        }
         return execute("EquipmentLog", () -> {
             validatePeriod(command.startDate(), command.endDate());
-            var device = data.equipment(command.equipmentId());
             var entries = audit.findAllByEquipmentId(device.getId()).stream()
                     .filter(entry -> inPeriod(entry.getTimestamp(), command.startDate(), command.endDate())).toList();
             return report(ReportType.EQUIPMENT_LOG, command.format(), device.getLabId(),
@@ -133,12 +141,12 @@ public class RaCommandServiceImpl implements RaCommandService {
         });
     }
 
-    private byte[] report(ReportType type, ReportFormat format, Long laboratoryId, Long batchId,
+    private AuditReport report(ReportType type, ReportFormat format, Long laboratoryId, Long batchId,
             Long equipmentId, Long requestedBy, String from, String to, List<List<String>> rows) {
         return report(type, format, laboratoryId, batchId, equipmentId, requestedBy, from, to, rows, null);
     }
 
-    private byte[] report(ReportType type, ReportFormat format, Long laboratoryId, Long batchId,
+    private AuditReport report(ReportType type, ReportFormat format, Long laboratoryId, Long batchId,
             Long equipmentId, Long requestedBy, String from, String to, List<List<String>> rows,
             BiFunction<String, Instant, byte[]> customRenderer) {
         var actor = currentUser.userId();
@@ -157,7 +165,7 @@ public class RaCommandServiceImpl implements RaCommandService {
         record(AuditAction.GENERATE, equipmentId != null ? "EQUIPMENT" : batchId != null ? "BATCH" : "LABORATORY",
                 equipmentId != null ? equipmentId : batchId != null ? batchId : laboratoryId,
                 "Report generated from persisted operational records: " + type);
-        return bytes;
+        return report;
     }
 
     private void record(AuditAction action, String type, Long id, String details) {

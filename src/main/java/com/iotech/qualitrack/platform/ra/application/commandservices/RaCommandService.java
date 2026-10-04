@@ -1,5 +1,6 @@
 package com.iotech.qualitrack.platform.ra.application.commandservices;
 
+import com.iotech.qualitrack.platform.ra.domain.model.aggregates.AuditReport;
 import com.iotech.qualitrack.platform.ra.domain.model.aggregates.KpiDashboard;
 import com.iotech.qualitrack.platform.ra.domain.model.commands.CalculateDeviationTrendCommand;
 import com.iotech.qualitrack.platform.ra.domain.model.commands.CalculateKpiDashboardCommand;
@@ -41,26 +42,26 @@ public interface RaCommandService {
      * Handles the generation of a production batch report.
      *
      * @param command command containing batch report generation settings
-     * @return generated report content as bytes or an application error
+     * @return the stored report, whose content is downloaded from /reports/{reportId}/content, or an application error
      * @see GenerateBatchReportCommand
      */
-    Result<byte[], ApplicationError> handle(GenerateBatchReportCommand command);
+    Result<AuditReport, ApplicationError> handle(GenerateBatchReportCommand command);
 
     /**
      * Handles the generation of a regulatory compliance report.
      *
      * @param command command containing compliance report generation settings
-     * @return generated report content as bytes or an application error
+     * @return the stored report or an application error
      * @see GenerateComplianceReportCommand
      */
-    Result<byte[], ApplicationError> handle(GenerateComplianceReportCommand command);
+    Result<AuditReport, ApplicationError> handle(GenerateComplianceReportCommand command);
 
     /**
      * Handles the export of historical equipment logs.
      *
      * @param command command containing equipment log export settings
-     * @return exported log content as bytes or an application error
+     * @return the stored report, or not found when the equipment is not located in the environment
      * @see ExportEquipmentLogCommand
      */
-    Result<byte[], ApplicationError> handle(ExportEquipmentLogCommand command);
+    Result<AuditReport, ApplicationError> handle(ExportEquipmentLogCommand command);
 }

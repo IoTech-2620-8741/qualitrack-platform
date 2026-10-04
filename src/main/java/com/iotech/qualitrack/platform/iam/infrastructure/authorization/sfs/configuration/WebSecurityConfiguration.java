@@ -109,13 +109,12 @@ public class WebSecurityConfiguration {
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
                                 "/api/v1/authentication/**",
-                                "/api/v1/subscriptions/stripe/webhook",
                                 "/api/v1/stripe/webhooks"
                         ).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Only quality managers and administrators manage the subscription of the laboratory.
                         .requestMatchers("/api/v1/subscription-checkout-sessions/**", "/api/v1/subscriptions/**",
-                                "/api/v1/laboratories/*/subscriptions/**", "/api/v1/laboratories/*/billing-summary")
+                                "/api/v1/laboratories/*/subscriptions/**")
                         .hasAnyAuthority("ROLE_QA_MANAGER", "ROLE_ADMIN")
                         .anyRequest().access(new ReadOnlyAuditorAuthorizationManager())
                 )

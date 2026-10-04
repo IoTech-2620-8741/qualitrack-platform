@@ -45,6 +45,15 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
     }
 
     @Override
+    public Optional<EnvironmentReference> findEnvironment(Long laboratoryId, Long environmentId) {
+        if (laboratoryId == null || laboratoryId <= 0 || environmentId == null || environmentId <= 0) return Optional.empty();
+        return environmentQueryService.handle(new GetEnvironmentByIdQuery(laboratoryId, environmentId))
+                .map(environment -> new EnvironmentReference(environment.getId(), environment.getLaboratoryId(),
+                        environment.getCode(), environment.getName(),
+                        environment.getUsage() == null ? null : environment.getUsage().name()));
+    }
+
+    @Override
     public Optional<StaffReference> findStaffMember(Long laboratoryId, Long staffId) {
         if (laboratoryId == null || laboratoryId <= 0 || staffId == null || staffId <= 0) return Optional.empty();
         return staffQueryService.handle(new GetStaffMemberByIdQuery(laboratoryId, staffId))

@@ -36,6 +36,16 @@ public interface EquipmentContextFacade {
     Optional<DeviceReference> findEnvironmentalDevice(Long laboratoryId, Long environmentId);
 
     /**
+     * Finds a container monitor of the laboratory, which represents the monitored container where lots are stored
+     * (US43, US78).
+     *
+     * @param laboratoryId the laboratory that must own the container monitor
+     * @param deviceId the container monitor (equipment) identifier
+     * @return the container, or empty when the device is not a container monitor of the laboratory
+     */
+    Optional<ContainerReference> findContainerMonitor(Long laboratoryId, Long deviceId);
+
+    /**
      * Equipment data shared with other bounded contexts.
      *
      * @param id the equipment identifier
@@ -67,5 +77,32 @@ public interface EquipmentContextFacade {
      */
     record DeviceReference(Long id, Long laboratoryId, Long environmentId, String name, String deviceType,
                            String sensorExternalId) {
+    }
+
+    /**
+     * Monitored container shared with other bounded contexts.
+     *
+     * @param id the container monitor (equipment) identifier
+     * @param laboratoryId the owning laboratory
+     * @param environmentId the environment where the container is located, or null when it is not located yet
+     * @param name the container monitor name
+     * @param status the operational status name (OPERATIONAL, MAINTENANCE, OUT_OF_SERVICE or INACTIVE)
+     */
+    record ContainerReference(Long id, Long laboratoryId, Long environmentId, String name, String status) {
+        /**
+         * Only an operational container monitor can receive lots.
+         *
+         * @return true when the container monitor is operational
+         */
+        public boolean isAvailable() {
+            return "OPERATIONAL".equals(status);
+        }
+
+        /**
+         * @return true when the container is located in an environment
+         */
+        public boolean isLocated() {
+            return environmentId != null;
+        }
     }
 }

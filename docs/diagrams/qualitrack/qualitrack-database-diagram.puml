@@ -130,6 +130,10 @@ package "Inventory Context" {
     received_on : DATE NOT NULL
     expires_on : DATE NOT NULL
     status : VARCHAR(20) NOT NULL
+    container_monitor_id : BIGINT NULL
+    container_environment_id : BIGINT NULL
+    container_assigned_by : BIGINT NULL
+    container_assigned_at : DATETIME(6) NULL
     created_at : DATETIME(6) NOT NULL
     updated_at : DATETIME(6) NOT NULL
     --
@@ -223,6 +227,11 @@ package "Batch Context" {
     * start_date : VARCHAR(30)
     end_date : VARCHAR(30)
     notes : VARCHAR(500)
+    environment_id : BIGINT
+    container_monitor_id : BIGINT
+    container_environment_id : BIGINT
+    container_assigned_by : BIGINT
+    container_assigned_at : DATETIME
   }
 
   entity "raw_material_usages" as raw_material_usages {
@@ -540,6 +549,8 @@ raw_materials |o..o| inventory_materials : legacy_id / explicit import
 batches |o..o{ inventory_movements : product_batch_id
 iam_users ||..o{ inventory_movements : actor_id
 inventory_receipts |o..o{ raw_material_usages : inventory_receipt_id
+equipment |o..o{ inventory_receipts : container_monitor_id
+equipment |o..o{ batches : container_monitor_id
 
 note bottom of inventory_materials
   Catalogue only: usableStock and physicalStock are calculated,

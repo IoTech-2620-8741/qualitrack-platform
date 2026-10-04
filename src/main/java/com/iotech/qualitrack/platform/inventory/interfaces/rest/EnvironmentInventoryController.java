@@ -39,7 +39,7 @@ import java.util.List;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * REST controller for the raw material inventory kept in an environment (TS21-TS28).
+ * REST controller for the raw material inventory kept in an environment (TS21-TS30).
  *
  * <p>Tenant isolation of {@code laboratoryId}, {@code environmentId}, {@code rawMaterialId} and
  * {@code rawMaterialBatchId} is enforced by the IAM tenant interceptor. Catalog changes, lot reviews and
@@ -188,6 +188,40 @@ public class EnvironmentInventoryController {
         return queries.handle(new GetRawMaterialBatchByIdQuery(laboratoryId, environmentId, rawMaterialId, rawMaterialBatchId))
                 .<ResponseEntity<?>>map(batch -> ResponseEntity.ok(toBatchResource(batch)))
                 .orElseGet(() -> notFound("RawMaterialBatch", rawMaterialBatchId));
+    }
+
+    @GetMapping("/raw-materials/{rawMaterialId}/batches/{rawMaterialBatchId}/container-assignment")
+    @Operation(summary = "Get the container of a raw material lot",
+            description = "Monitored container and environment where the lot is stored (US44, TS30).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Container of the lot", content = @Content(schema = @Schema(implementation = ContainerAssignmentResource.class))),
+            @ApiResponse(responseCode = "404", description = "Lot not found, or the lot has no container", content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> getContainerAssignment(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                                    @PathVariable Long rawMaterialId, @PathVariable Long rawMaterialBatchId) {
+        return queries.handle(new GetRawMaterialBatchContainerQuery(laboratoryId, environmentId, rawMaterialId, rawMaterialBatchId))
+                .<ResponseEntity<?>>map(container -> ResponseEntity.ok(ContainerAssignmentResourceFromEntityAssembler.toResourceFromEntity(container)))
+                .orElseGet(() -> notFound("ContainerAssignment", rawMaterialBatchId));
+    }
+
+    @PutMapping(value = "/raw-materials/{rawMaterialId}/batches/{rawMaterialBatchId}/container-assignment", consumes = APPLICATION_JSON_VALUE)
+    @Operation(summary = "Store a raw material lot in a container",
+            description = "Stores the lot in an operational container monitor located in the environment of the raw material, "
+                    + "which must be a raw material storage area, replacing the previous container (US43, TS29). The change is "
+                    + "kept as a STORAGE movement of the lot.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lot stored in the container", content = @Content(schema = @Schema(implementation = ContainerAssignmentResource.class))),
+            @ApiResponse(responseCode = "400", description = "Missing container monitor", content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "Lot not found for the raw material", content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "409", description = "Not a raw material storage environment, container not located there or not operational", content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> assignContainer(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                             @PathVariable Long rawMaterialId, @PathVariable Long rawMaterialBatchId,
+                                             @RequestBody AssignContainerResource resource) {
+        var command = AssignRawMaterialBatchContainerCommandFromResourceAssembler.toCommandFromResource(
+                laboratoryId, environmentId, rawMaterialId, rawMaterialBatchId, resource);
+        return ResponseEntityAssembler.toResponseEntityFromResult(commands.handle(command),
+                ContainerAssignmentResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 
     @PostMapping(value = "/raw-materials/{rawMaterialId}/batches/{rawMaterialBatchId}/reviews", consumes = APPLICATION_JSON_VALUE)

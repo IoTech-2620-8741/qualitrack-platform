@@ -55,4 +55,13 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
                         device.getName(), device.getDeviceType().name(),
                         device.getSensorExternalId() == null ? null : device.getSensorExternalId().value()));
     }
+
+    @Override
+    public Optional<ContainerReference> findContainerMonitor(Long laboratoryId, Long deviceId) {
+        if (laboratoryId == null || laboratoryId <= 0 || deviceId == null || deviceId <= 0) return Optional.empty();
+        return equipmentQueryService.handle(new GetEquipmentByIdQuery(laboratoryId, deviceId))
+                .filter(equipment -> equipment.getDeviceType() == IotDeviceType.CONTAINER_MONITOR)
+                .map(container -> new ContainerReference(container.getId(), container.getLabId(), container.getEnvironmentId(),
+                        container.getName(), container.getStatus() == null ? null : container.getStatus().name()));
+    }
 }

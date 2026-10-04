@@ -1,6 +1,8 @@
 package com.iotech.qualitrack.platform.inventory.application.internal.commandservices;
 
+import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalEquipmentService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
+import com.iotech.qualitrack.platform.shared.application.security.CurrentUser;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchReview;import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.InventoryMovementRecorder;
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.*;
@@ -28,9 +30,14 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final InventoryExternalLaboratoryService laboratories;
+    private final InventoryExternalEquipmentService equipment;
+    private final CurrentUser currentUser;
     public InventoryCommandServiceImpl(InventoryRepository repository, BatchContextFacade batches,
             InventoryMovementRecorder recorder, ApplicationEventPublisher events, Clock inventoryClock,
-            InventoryExternalLaboratoryService laboratories) {
+            InventoryExternalLaboratoryService laboratories, InventoryExternalEquipmentService equipment,
+            CurrentUser currentUser) {
+        this.equipment = equipment;
+        this.currentUser = currentUser;
         this.repository = repository;
         this.laboratories = laboratories;
         this.batches = batches;
@@ -143,6 +150,44 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         events.publishEvent(new ReceiptConsumedIntegrationEvent(receipt.getId(), material.getId(), material.getName(),
             request.productBatchId(), request.amountUsed(), receipt.getUnit(), before, receipt.getAvailableAmount(), movement.occurredAt(), request.operationId()));
         return Result.success(consumption(movement));
+    }
+
+    /**
+     * Stores the lot in a container monitor located in the environment of the material, which must be a raw material
+     * storage area; the container must be operational. Storing it again in the same container changes nothing.
+     * Each change is kept as a STORAGE movement of the lot.
+     */
+    @Override
+    public Result<RawMaterialBatchContainer, ApplicationError> handle(AssignRawMaterialBatchContainerCommand command) {
+        var lab = command.laboratoryId();
+        var environmentId = command.environmentId();
+        var environment = laboratories.findEnvironment(lab, environmentId)
+            .orElseThrow(() -> new ApplicationException(ApplicationError.notFound("Environment", environmentId)));
+        materialInEnvironment(lab, environmentId, command.materialId(), false);
+        var receipt = receipt(lab, command.receiptId(), true);
+        if (!receipt.getRawMaterialId().equals(command.materialId())) {
+            throw new ApplicationException(ApplicationError.notFound("RawMaterialBatch", command.receiptId()));
+        }
+        if (command.containerMonitorId() == null) throw new IllegalArgumentException("Container monitor is required");
+        if (!environment.hasUsage("RAW_MATERIAL_STORAGE")) {
+            throw conflict("Raw material lots are stored in containers of a raw material storage environment");
+        }
+        var container = equipment.findContainerMonitor(lab, command.containerMonitorId())
+            .orElseThrow(() -> conflict("The container monitor is not registered in the laboratory"));
+        if (!environmentId.equals(container.environmentId())) {
+            throw conflict("The container is not located in the environment of the raw material");
+        }
+        if (!container.isAvailable()) {
+            throw conflict("Container '%s' is %s and cannot receive lots".formatted(container.name(), container.status()));
+        }
+        if (receipt.storeIn(new ContainerAssignment(container.id(), environmentId, currentUser.userId(), clock.instant()))) {
+            repository.saveReceipt(receipt);
+            recorder.record(receipt, null, "STORAGE", BigDecimal.ZERO, receipt.getAvailableAmount(), receipt.getStatus().name(),
+                "Stored in container " + container.name(), null);
+        }
+        var stored = receipt.container().orElseThrow();
+        return Result.success(new RawMaterialBatchContainer(receipt.getId(), stored.containerMonitorId(), container.name(),
+            stored.environmentId(), stored.assignedBy(), stored.assignedAt()));
     }
 
     private ReceiptConsumption consumption(InventoryMovement movement) {

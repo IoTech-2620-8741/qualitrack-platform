@@ -147,6 +147,7 @@ package "inventory" {
     class "InventoryImportServiceImpl" as InvInventoryImportServiceImpl
     class "InventoryContextFacadeImpl" as InvInventoryContextFacadeImpl
     class "InventoryMovementRecorder" as InvInventoryMovementRecorder
+    class "InventoryExternalEquipmentService" as InvInventoryExternalEquipmentService
   }
   package "infrastructure" {
     class "InventoryRepositoryImpl" as InvInventoryRepositoryImpl
@@ -227,6 +228,7 @@ package "batch" {
     class RawMaterialUsageCommandServiceImpl
     class ExternalLaboratoryService
     class BatchExternalComplianceService
+    class BatchExternalEquipmentService
   }
 
   package "interfaces" {
@@ -238,6 +240,7 @@ package "batch" {
     class BatchReleasedIntegrationEvent
     class BatchRejectedIntegrationEvent
     class RawMaterialLinkedToBatchIntegrationEvent
+    class BatchStoredInContainerIntegrationEvent
   }
 }
 
@@ -521,6 +524,10 @@ ExternalLaboratoryService --> LaboratoryContextFacade
 BatchExternalComplianceService --> ComplianceContextFacade
 LaboratoryExternalComplianceService --> ComplianceContextFacade
 TrackingExternalEquipmentService --> EquipmentContextFacade
+InvInventoryExternalEquipmentService --> EquipmentContextFacade : container monitor
+BatchExternalEquipmentService --> EquipmentContextFacade : container monitor
+InvInventoryCommandServiceImpl --> InvInventoryExternalEquipmentService
+BatchCommandServiceImpl --> BatchExternalEquipmentService
 CaExternalBatchService --> BatchContextFacade
 CaExternalEquipmentService --> EquipmentRepository
 RaExternalLaboratoryService --> LaboratoryContextFacade
@@ -541,6 +548,7 @@ EquipmentRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
 MaintenanceRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
 BatchCreatedIntegrationEvent ..> BatchAuditEventHandler
 RawMaterialLinkedToBatchIntegrationEvent ..> BatchAuditEventHandler
+BatchStoredInContainerIntegrationEvent ..> BatchAuditEventHandler
 DeviationAlertCreatedIntegrationEvent ..> CaAuditEventHandler
 EnvironmentalProfileUpdatedIntegrationEvent ..> TrackingAuditEventHandler
 

@@ -352,9 +352,19 @@ package "equipment.interfaces.acl" {
     + findEquipment(laboratoryId, equipmentId): Optional<EquipmentReference>
     + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
+    + findContainerMonitor(laboratoryId, deviceId): Optional<ContainerReference>
   }
   class EquipmentReference <<record>>
   class DeviceReference <<record>>
+  class ContainerReference <<record>> {
+    + id: Long
+    + laboratoryId: Long
+    + environmentId: Long
+    + name: String
+    + status: String
+    + isAvailable(): boolean
+    + isLocated(): boolean
+  }
   class EquipmentTenantResourceLookup {
     + types(): equipmentId, deviceId
   }
@@ -366,6 +376,12 @@ package "equipment.application.acl" {
 
 EquipmentContextFacadeImpl ..|> EquipmentContextFacade
 EquipmentContextFacadeImpl --> EquipmentQueryService
+EquipmentContextFacade ..> ContainerReference
+note bottom of ContainerReference
+  Container monitor where Inventory stores raw material lots and
+  Product Batch stores batches (US43, US78); only OPERATIONAL
+  monitors located in an environment receive them.
+end note
 EquipmentTenantResourceLookup ..|> TenantResourceLookup
 EquipmentTenantResourceLookup --> EquipmentRepository
 

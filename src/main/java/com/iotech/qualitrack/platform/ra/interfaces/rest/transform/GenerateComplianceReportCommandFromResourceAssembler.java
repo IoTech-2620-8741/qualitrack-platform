@@ -26,6 +26,7 @@ public final class GenerateComplianceReportCommandFromResourceAssembler {
     ) {
         return new GenerateComplianceReportCommand(
                 laboratoryId,
+                resource.environmentId(),
                 resource.startDate(),
                 resource.endDate(),
                 resource.format(),

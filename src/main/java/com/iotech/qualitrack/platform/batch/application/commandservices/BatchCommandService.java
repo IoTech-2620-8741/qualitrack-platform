@@ -1,5 +1,7 @@
 package com.iotech.qualitrack.platform.batch.application.commandservices;
 
+import com.iotech.qualitrack.platform.batch.domain.model.commands.AssignBatchContainerCommand;
+import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchContainer;
 import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
 import com.iotech.qualitrack.platform.batch.domain.model.commands.CreateBatchCommand;
 import com.iotech.qualitrack.platform.batch.domain.model.commands.RejectBatchCommand;
@@ -36,4 +38,12 @@ public interface BatchCommandService {
      * batch is already released or rejected
      */
     Result<BatchRejection, ApplicationError> handle(RejectBatchCommand command);
+
+    /**
+     * Stores the batch in a monitored container of a product storage environment (US78, TS68).
+     *
+     * @return the container of the batch, not found when the batch is not registered for the product, a validation
+     * error without container, or a conflict when the container cannot receive the batch
+     */
+    Result<BatchContainer, ApplicationError> handle(AssignBatchContainerCommand command);
 }

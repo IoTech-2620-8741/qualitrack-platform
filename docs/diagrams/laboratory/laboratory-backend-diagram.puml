@@ -270,9 +270,22 @@ package "laboratory.interfaces.acl" {
     + isAccount(userId: Long): boolean
     + isAuditor(): boolean
   }
+  class EnvironmentReference <<record>> {
+    + id: Long
+    + laboratoryId: Long
+    + code: String
+    + name: String
+    + usage: String
+    + hasUsage(usage: String): boolean
+  }
 }
 
 LaboratoryContextFacade ..> StaffReference
+LaboratoryContextFacade ..> EnvironmentReference : findEnvironment
+note bottom of EnvironmentReference
+  Inventory stores lots only in RAW_MATERIAL_STORAGE environments and
+  Product Batch stores batches only in PRODUCT_STORAGE environments.
+end note
 note bottom of StaffReference
   Equipment (maintenance technician) and Product Batch (staff participation)
   reject auditors: they only consult the records.
@@ -282,6 +295,7 @@ LaboratoryContextFacadeImpl ..|> LaboratoryContextFacade
 LaboratoryContextFacadeImpl --> LaboratoryRepository
 LaboratoryContextFacadeImpl --> RawMaterialRepository
 LaboratoryContextFacadeImpl --> StaffRepository
+LaboratoryContextFacadeImpl --> EnvironmentQueryService
 
 package "laboratory.interfaces.events" {
   record LaboratoryRegisteredIntegrationEvent

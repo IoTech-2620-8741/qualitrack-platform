@@ -25,4 +25,13 @@ public class InventoryExternalLaboratoryService {
     public boolean existsEnvironment(Long laboratoryId, Long environmentId) {
         return laboratoryContextFacade.existsEnvironment(laboratoryId, environmentId);
     }
+
+    /**
+     * Finds an environment of the laboratory with its usage.
+     *
+     * @return the environment, or empty when it does not belong to the laboratory
+     */
+    public java.util.Optional<LaboratoryContextFacade.EnvironmentReference> findEnvironment(Long laboratoryId, Long environmentId) {
+        return laboratoryContextFacade.findEnvironment(laboratoryId, environmentId);
+    }
 }

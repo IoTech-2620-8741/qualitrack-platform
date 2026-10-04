@@ -354,6 +354,10 @@ DeviationTrendCalculatedEventHandler ..> DeviationTrendCalculatedEvent
 KpiDashboardCalculatedEventHandler ..> KpiDashboardCalculatedEvent
 
 BatchAuditEventHandler --> AuditLogCommandService
+note bottom of BatchAuditEventHandler
+  BatchStoredInContainerIntegrationEvent -> UPDATE BATCH audit log entry
+  (container where the product batch is stored, US78).
+end note
 CaAuditEventHandler --> AuditLogCommandService
 EquipmentAuditEventHandler --> AuditLogCommandService
 LaboratoryAuditEventHandler --> AuditLogCommandService

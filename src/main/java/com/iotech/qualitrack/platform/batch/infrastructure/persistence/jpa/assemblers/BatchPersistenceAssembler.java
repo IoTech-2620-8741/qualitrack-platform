@@ -1,6 +1,7 @@
 package com.iotech.qualitrack.platform.batch.infrastructure.persistence.jpa.assemblers;
 
 import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
+import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.ContainerAssignment;
 import com.iotech.qualitrack.platform.batch.infrastructure.persistence.jpa.entities.BatchPersistenceEntity;
 
 /**
@@ -26,7 +27,9 @@ public final class BatchPersistenceAssembler {
                 entity.getStatus(),
                 entity.getStartDate(),
                 entity.getEndDate(),
-                entity.getNotes()
+                entity.getNotes(),
+                entity.getContainerMonitorId() == null ? null : new ContainerAssignment(entity.getContainerMonitorId(),
+                        entity.getContainerEnvironmentId(), entity.getContainerAssignedBy(), entity.getContainerAssignedAt())
         );
     }
 
@@ -50,6 +53,12 @@ public final class BatchPersistenceAssembler {
         entity.setStartDate(batch.getStartDate());
         entity.setEndDate(batch.getEndDate());
         entity.setNotes(batch.getNotes());
+        batch.container().ifPresent(container -> {
+            entity.setContainerMonitorId(container.containerMonitorId());
+            entity.setContainerEnvironmentId(container.environmentId());
+            entity.setContainerAssignedBy(container.assignedBy());
+            entity.setContainerAssignedAt(container.assignedAt());
+        });
 
         return entity;
     }

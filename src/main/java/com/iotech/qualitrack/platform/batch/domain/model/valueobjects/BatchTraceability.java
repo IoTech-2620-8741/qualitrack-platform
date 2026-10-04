@@ -22,6 +22,7 @@ import java.util.Optional;
  * @param staff the staff who took part
  * @param release the release signature, when the batch was released
  * @param rejection the rejection record, when the batch was rejected
+ * @param container the monitored container where the batch is stored, when it has one
  */
 public record BatchTraceability(
         Batch batch,
@@ -30,7 +31,8 @@ public record BatchTraceability(
         List<EquipmentUsage> equipment,
         List<StaffParticipation> staff,
         Optional<DigitalSignature> release,
-        Optional<RejectionRecord> rejection
+        Optional<RejectionRecord> rejection,
+        Optional<BatchContainer> container
 ) {
     /**
      * A raw material usage together with the environment where the material is kept, if known.

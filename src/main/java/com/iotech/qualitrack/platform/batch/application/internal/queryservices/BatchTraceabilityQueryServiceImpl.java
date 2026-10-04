@@ -1,5 +1,7 @@
 package com.iotech.qualitrack.platform.batch.application.internal.queryservices;
 
+import com.iotech.qualitrack.platform.batch.application.internal.outboundservices.acl.BatchExternalEquipmentService;
+import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchContainer;
 import com.iotech.qualitrack.platform.batch.application.internal.outboundservices.acl.BatchExternalInventoryService;
 import com.iotech.qualitrack.platform.batch.application.queryservices.BatchTraceabilityQueryService;
 import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
@@ -25,10 +27,13 @@ public class BatchTraceabilityQueryServiceImpl implements BatchTraceabilityQuery
     private final BatchParticipationRepository participations;
     private final BatchEvidenceRepository evidence;
     private final BatchExternalInventoryService inventory;
+    private final BatchExternalEquipmentService equipment;
 
     public BatchTraceabilityQueryServiceImpl(BatchRepository batches, ProductRepository products,
                                              RawMaterialUsageRepository usages, BatchParticipationRepository participations,
-                                             BatchEvidenceRepository evidence, BatchExternalInventoryService inventory) {
+                                             BatchEvidenceRepository evidence, BatchExternalInventoryService inventory,
+                                             BatchExternalEquipmentService equipment) {
+        this.equipment = equipment;
         this.batches = batches;
         this.products = products;
         this.usages = usages;
@@ -48,7 +53,11 @@ public class BatchTraceabilityQueryServiceImpl implements BatchTraceabilityQuery
                         participations.findEquipmentUsagesByBatchId(batch.getId()),
                         participations.findStaffParticipationsByBatchId(batch.getId()),
                         evidence.findSignatureByBatchId(batch.getId()),
-                        evidence.findRejectionByBatchId(batch.getId()))));
+                        evidence.findRejectionByBatchId(batch.getId()),
+                        batch.container().map(container -> new BatchContainer(batch.getId(), container.containerMonitorId(),
+                                equipment.findContainerMonitor(batch.getLabId(), container.containerMonitorId())
+                                        .map(reference -> reference.name()).orElse(null),
+                                container.environmentId(), container.assignedBy(), container.assignedAt())))));
     }
 
     private java.util.List<TracedRawMaterialUsage> tracedUsages(Batch batch) {

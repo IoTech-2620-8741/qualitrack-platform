@@ -127,7 +127,10 @@ public class CaCommandServiceImpl implements CaCommandService {
 
             return Result.success(updatedAlert.getId());
 
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalStateException e) {
+            // The alert is already acknowledged or resolved (TS75, TS76: 409).
+            return Result.failure(ApplicationError.conflict("DeviationAlert", e.getMessage()));
+        } catch (IllegalArgumentException e) {
             return Result.failure(ApplicationError.validationError("DeviationAlert", e.getMessage()));
         } catch (Exception e) {
             return Result.failure(ApplicationError.unexpected("acknowledge-alert", e.getMessage()));
@@ -164,7 +167,10 @@ public class CaCommandServiceImpl implements CaCommandService {
 
             return Result.success(updatedAlert.getId());
 
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (IllegalStateException e) {
+            // The alert is already acknowledged or resolved (TS75, TS76: 409).
+            return Result.failure(ApplicationError.conflict("DeviationAlert", e.getMessage()));
+        } catch (IllegalArgumentException e) {
             return Result.failure(ApplicationError.validationError("DeviationAlert", e.getMessage()));
         } catch (Exception e) {
             return Result.failure(ApplicationError.unexpected("resolve-alert", e.getMessage()));

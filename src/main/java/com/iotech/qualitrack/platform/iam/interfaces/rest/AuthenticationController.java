@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -42,15 +43,16 @@ public class AuthenticationController {
     }
 
     @PostMapping("/sign-up")
-    @Operation(summary = "User sign-up", description = "Registers a new IAM user account.")
+    @Operation(summary = "User sign-up", description = "Registers a new IAM user account (TS03). The Location header points to the new user.")
     public ResponseEntity<?> signUp(@RequestBody SignUpResource resource) {
         var command = SignUpCommandFromResourceAssembler.toCommandFromResource(resource);
         var result = userCommandService.handle(command);
 
-        return ResponseEntityAssembler.toResponseEntityFromResult(
+        return ResponseEntityAssembler.toCreatedResponseEntityAtLocation(
                 result,
                 UserResourceFromEntityAssembler::toResourceFromEntity,
-                HttpStatus.CREATED
+                user -> ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/api/v1/users/{userId}").buildAndExpand(user.getId()).toUri()
         );
     }
 }

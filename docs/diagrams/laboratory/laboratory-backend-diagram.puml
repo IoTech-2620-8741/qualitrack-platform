@@ -198,7 +198,6 @@ RawMaterialCommandServiceImpl --> RawMaterialRepository
 RawMaterialCommandServiceImpl --> LaboratoryRepository
 StaffCommandServiceImpl --> StaffRepository
 StaffCommandServiceImpl --> LaboratoryRepository
-StaffCommandServiceImpl --> ExternalIamService
 EnvironmentCommandServiceImpl --> EnvironmentRepository
 EnvironmentCommandServiceImpl --> LaboratoryRepository
 
@@ -247,6 +246,8 @@ package "laboratory.application.internal.outboundservices.acl" {
     + disableAccount(userId: Long): void
   }
 }
+
+StaffCommandServiceImpl --> ExternalIamService
 
 ExternalIamService --> IamContextFacade
 

@@ -1,5 +1,6 @@
 package com.iotech.qualitrack.platform.equipment.interfaces.acl;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -44,6 +45,15 @@ public interface EquipmentContextFacade {
      * @return the container, or empty when the device is not a container monitor of the laboratory
      */
     Optional<ContainerReference> findContainerMonitor(Long laboratoryId, Long deviceId);
+
+    /**
+     * IoT devices (environmental devices and container monitors) of the laboratory, located or not, used to name
+     * the devices in indicators and reports (US93-US95).
+     *
+     * @param laboratoryId the laboratory that owns the devices
+     * @return the devices; empty when the laboratory has none
+     */
+    List<DeviceReference> findDevices(Long laboratoryId);
 
     /**
      * Equipment data shared with other bounded contexts.

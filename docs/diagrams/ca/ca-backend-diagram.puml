@@ -412,6 +412,16 @@ package "ca.interfaces.acl" {
   class ComplianceContextFacade {
     + recordRawMaterialLowStockEvent(rawMaterialId: Long, laboratoryId: Long, materialName: String, currentStock: Integer, minimumThreshold: Integer): void
     + canReleaseBatch(batchId: Long): boolean
+    + findEnvironmentAlerts(laboratoryId, environmentId, from, to): List<AlertReference>
+  }
+  class AlertReference <<record>> {
+    + id: Long
+    + deviceId: Long
+    + origin: String
+    + parameterName: String
+    + severity: String
+    + status: String
+    + deviationCount: Integer
   }
   class CaTenantResourceLookup {
     + types(): alertId
@@ -419,6 +429,12 @@ package "ca.interfaces.acl" {
 }
 
 ComplianceContextFacade --> ComplianceEventRepository
+ComplianceContextFacade --> DeviationAlertRepository
+ComplianceContextFacade ..> AlertReference
+note bottom of ComplianceContextFacade
+  findEnvironmentAlerts: incidents of an environment and its containers detected
+  in the period, read by the environmental report of Reporting (US95).
+end note
 CaTenantResourceLookup --> DeviationAlertRepository
 note bottom of CaTenantResourceLookup
   alertId -> laboratoryId of the alert

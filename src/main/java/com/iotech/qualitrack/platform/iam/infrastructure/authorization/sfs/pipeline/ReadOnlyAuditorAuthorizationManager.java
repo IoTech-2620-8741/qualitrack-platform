@@ -25,6 +25,7 @@ public class ReadOnlyAuditorAuthorizationManager implements AuthorizationManager
             "/api/v1/users/me/password-changes",
             "/api/v1/users/*/notification-preferences",
             "/api/v1/laboratories/*/compliance-reports",
+            "/api/v1/laboratories/*/inventory/reports",
             "/api/v1/laboratories/*/environments/*/equipments/*/log-reports",
             "/api/v1/batches/*/reports");
     private final AntPathMatcher paths = new AntPathMatcher();

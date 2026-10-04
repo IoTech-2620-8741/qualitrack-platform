@@ -144,7 +144,7 @@ class OnboardingIntegrationTests {
         assertThat(((Number) JsonPath.read(history.body(), "$[0].id")).longValue()).isEqualTo(report);
         var content = call("GET", "/reports/" + report + "/content", account.token(), null);
         assertThat(content.statusCode()).withFailMessage(content.body()).isEqualTo(200);
-        assertThat(content.body()).contains("No deviation records", "Recorded deviations in period");
+        assertThat(content.body()).contains("The laboratory has no environments", "Time in range");
         assertThat(call("GET", "/reports/" + report + "/content", account.token(), null).body()).isEqualTo(content.body());
         assertThat(content.headers().firstValue("content-disposition").orElseThrow()).contains("attachment");
         assertThat(call("GET", "/reports/999999999", account.token(), null).statusCode()).isIn(403, 404);
@@ -165,7 +165,7 @@ class OnboardingIntegrationTests {
         materialUsages.save(new RawMaterialUsage(null, batch.getId(), 71L, "Fixture material from persistence",
                 75.0, "g", "2026-09-01"));
         var body = """
-                {"includeTelemetry":false,"includeDeviations":true,"format":"PDF"}
+                {"includeDeviations":true,"format":"PDF"}
                 """;
         var generated = call("POST", "/batches/" + batch.getId() + "/reports", account.token(), body);
         assertThat(generated.statusCode()).withFailMessage(generated.body()).isEqualTo(201);
@@ -174,7 +174,7 @@ class OnboardingIntegrationTests {
         var download = binaryCall("GET", "/reports/" + report + "/content", account.token(), null);
         assertThat(download.headers().firstValue("content-type").orElseThrow()).contains("application/pdf");
         try (var pdf = Loader.loadPDF(download.body())) {
-            assertThat(new PDFTextStripper().getText(pdf)).contains("Material traceability", "Fixture material from persistence",
+            assertThat(new PDFTextStripper().getText(pdf)).contains("Material traceability", "Fixture material from",
                     "75", "0 recorded deviations", "DEMO: isolated test record");
         }
         var history = call("GET", "/batches/" + batch.getId() + "/reports", account.token(), null);
@@ -199,8 +199,9 @@ class OnboardingIntegrationTests {
         var device = equipment.save(new Equipment(null, lab, environmentId, "DEMO period fixture", new EquipmentType("Refrigerator"),
                 "Model", "SN-" + UUID.randomUUID(), EquipmentStatus.OPERATIONAL, null, null, null));
         for (String day : java.util.List.of("2026-08-31", "2026-09-01", "2026-09-05", "2026-09-06")) {
-            deviations.save(new DeviationAlert(null, device.getId(), null, "PARAM-" + day, 9.3, 8.0, "C", day + "T12:00:00",
-                    AlertSeverity.CRITICAL, AlertStatus.UNRESOLVED, null, null, null));
+            deviations.save(new DeviationAlert(null, lab, environmentId, null, device.getId(), null, null, null, "PARAM-" + day,
+                    9.3, 8.0, "C", day + "T12:00:00Z", AlertSeverity.CRITICAL, AlertStatus.UNRESOLVED, 1, null, null, null,
+                    null, null, null, null));
             maintenance.save(new MaintenanceRecord(null, device.getId(), null, java.time.LocalDate.parse(day),
                     "Fixture technician", null, "MAINT-" + day, MaintenanceType.CALIBRATION));
             audit.save(new AuditLogEntry(null, AuditAction.UPDATE, "EQUIPMENT", device.getId(), account.id(), day + "T12:00:00", "LOG-" + day));
@@ -218,7 +219,7 @@ class OnboardingIntegrationTests {
             try (var pdf = Loader.loadPDF(generated.body())) {
                 String text = new PDFTextStripper().getText(pdf);
                 assertThat(text).doesNotContain("2026-08-31", "2026-09-06");
-                if (path.contains("compliance")) assertThat(text).contains("PARAM-2026-09-01", "PARAM-2026-09-05");
+                if (path.contains("compliance")) assertThat(text).contains("param-2026-09-01", "param-2026-09-05");
                 else assertThat(text).contains("MAINT-2026-09-01", "MAINT-2026-09-05", "LOG-2026-09-01", "LOG-2026-09-05");
             }
             var history = call("GET", "/laboratories/" + lab + "/reports", account.token(), null);

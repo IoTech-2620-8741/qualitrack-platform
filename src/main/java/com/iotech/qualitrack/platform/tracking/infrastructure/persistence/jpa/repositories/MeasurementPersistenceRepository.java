@@ -24,7 +24,8 @@ public interface MeasurementPersistenceRepository extends JpaRepository<Measurem
     Optional<MeasurementPersistenceEntity> findFirstByEquipmentIdAndParameterNameAndMeasuredAtBeforeOrderByMeasuredAtDesc(
             Long equipmentId, String parameterName, Instant before);
 
-    List<MeasurementPersistenceEntity> findTop50ByEquipmentIdOrderByIdDesc(Long equipmentId);
+    List<MeasurementPersistenceEntity> findAllByLaboratoryIdAndEnvironmentIdAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(
+            Long laboratoryId, Long environmentId, Instant from, Instant to);
 
     @Query("select max(m.createdAt) from MeasurementPersistenceEntity m where m.equipmentId = :equipmentId")
     Date findLastCreatedAtByEquipmentId(@Param("equipmentId") Long equipmentId);

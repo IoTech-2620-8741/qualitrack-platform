@@ -4,11 +4,13 @@ import com.iotech.qualitrack.platform.laboratory.application.queryservices.Envir
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.LaboratoryQueryService;
 import com.iotech.qualitrack.platform.laboratory.application.queryservices.StaffQueryService;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentByIdQuery;
+import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentsByLaboratoryIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetLaboratoryByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffMemberByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -51,6 +53,16 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
                 .map(environment -> new EnvironmentReference(environment.getId(), environment.getLaboratoryId(),
                         environment.getCode(), environment.getName(),
                         environment.getUsage() == null ? null : environment.getUsage().name()));
+    }
+
+    @Override
+    public List<EnvironmentReference> findEnvironments(Long laboratoryId) {
+        if (laboratoryId == null || laboratoryId <= 0) return List.of();
+        return environmentQueryService.handle(new GetEnvironmentsByLaboratoryIdQuery(laboratoryId)).stream()
+                .map(environment -> new EnvironmentReference(environment.getId(), environment.getLaboratoryId(),
+                        environment.getCode(), environment.getName(),
+                        environment.getUsage() == null ? null : environment.getUsage().name()))
+                .toList();
     }
 
     @Override

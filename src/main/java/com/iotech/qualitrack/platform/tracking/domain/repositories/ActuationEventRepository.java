@@ -18,6 +18,11 @@ public interface ActuationEventRepository {
     List<ActuationEvent> findByDeviceAndPeriod(Long deviceId, Instant from, Instant to);
 
     /**
+     * Actions of every container monitor of an environment in a period, oldest first.
+     */
+    List<ActuationEvent> findByEnvironmentAndPeriod(Long laboratoryId, Long environmentId, Instant from, Instant to);
+
+    /**
      * Action already received for the same device and moment, so a re-sent action is not stored twice.
      */
     Optional<ActuationEvent> findByDeviceAndActionAndOccurredAt(Long deviceId, String action, Instant occurredAt);

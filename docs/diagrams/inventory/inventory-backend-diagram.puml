@@ -69,9 +69,23 @@ package "inventory.interfaces" as Inventoryinterfaces {
       +consume(request: ConsumptionRequest): Consumption
       +isRawMaterialInEnvironment(laboratoryId, environmentId, rawMaterialId): boolean
       +findRawMaterialEnvironment(laboratoryId, rawMaterialId): Optional<Long>
+      +findInventory(laboratoryId, environmentId): List<InventoryMaterial>
     }
     class "InventoryContextFacade.ConsumptionRequest" as ConsumptionRequest <<record>>
     class "InventoryContextFacade.Consumption" as Consumption <<record>>
+    class "InventoryContextFacade.InventoryMaterial" as InventoryMaterial <<record>> {
+      +usableStock: BigDecimal
+      +physicalStock: BigDecimal
+      +stockStatus: String
+      +lots: List<InventoryLot>
+    }
+    class "InventoryContextFacade.InventoryLot" as InventoryLot <<record>> {
+      +availableAmount: BigDecimal
+      +expiresOn: LocalDate
+      +status: String
+      +expiration: String
+      +containerMonitorId: Long
+    }
   }
   
   package "inventory.interfaces.events" {

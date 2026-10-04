@@ -1,5 +1,6 @@
 package com.iotech.qualitrack.platform.laboratory.interfaces.acl;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -34,6 +35,14 @@ public interface LaboratoryContextFacade {
      * @return the environment, or empty when it does not exist in the laboratory
      */
     Optional<EnvironmentReference> findEnvironment(Long laboratoryId, Long environmentId);
+
+    /**
+     * Environments of the laboratory with their usage, ordered by code (reports and indicators, US93-US97).
+     *
+     * @param laboratoryId the laboratory
+     * @return the environments; empty when the laboratory has none
+     */
+    List<EnvironmentReference> findEnvironments(Long laboratoryId);
 
     /**
      * Environment data shared with other bounded contexts.

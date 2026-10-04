@@ -26,7 +26,6 @@ public final class GenerateBatchReportCommandFromResourceAssembler {
     ) {
         return new GenerateBatchReportCommand(
                 batchId,
-                resource.includeTelemetry(),
                 resource.includeDeviations(),
                 resource.format(),
                 requestedBy

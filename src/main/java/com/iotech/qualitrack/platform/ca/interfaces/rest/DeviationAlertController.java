@@ -1,15 +1,18 @@
 package com.iotech.qualitrack.platform.ca.interfaces.rest;
 
 import com.iotech.qualitrack.platform.ca.application.commandservices.CaCommandService;
+import com.iotech.qualitrack.platform.ca.application.commandservices.NotificationCommandService;
 import com.iotech.qualitrack.platform.ca.application.queryservices.CaQueryService;
 import com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert;
 import com.iotech.qualitrack.platform.ca.domain.model.commands.AcknowledgeAlertCommand;
+import com.iotech.qualitrack.platform.ca.domain.model.commands.SendAlertEmailNotificationCommand;
 import com.iotech.qualitrack.platform.ca.domain.model.queries.GetAlertByIdQuery;
 import com.iotech.qualitrack.platform.ca.domain.model.queries.GetAlertDetailQuery;
 import com.iotech.qualitrack.platform.ca.domain.model.queries.GetAlertsQuery;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertSeverity;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertStatus;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.DeviationRegistration;
+import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.AlertEmailNotificationResource;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.CreateDeviationAlertResource;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.DeviationAlertDetailResource;
 import com.iotech.qualitrack.platform.ca.interfaces.rest.resources.DeviationAlertResource;
@@ -55,12 +58,14 @@ public class DeviationAlertController {
 
     private final CaCommandService caCommandService;
     private final CaQueryService caQueryService;
+    private final NotificationCommandService notificationCommandService;
     private final CurrentUser currentUser;
 
     public DeviationAlertController(CaCommandService caCommandService, CaQueryService caQueryService,
-                                    CurrentUser currentUser) {
+                                    NotificationCommandService notificationCommandService, CurrentUser currentUser) {
         this.caCommandService = caCommandService;
         this.caQueryService = caQueryService;
+        this.notificationCommandService = notificationCommandService;
         this.currentUser = currentUser;
     }
 
@@ -181,6 +186,29 @@ public class DeviationAlertController {
     public ResponseEntity<?> resolveAlert(@PathVariable Long alertId, @RequestBody ResolveAlertResource resource) {
         var command = ResolveAlertCommandFromResourceAssembler.toCommandFromResource(alertId, currentUser.userId(), resource);
         return toAlertResponse(caCommandService.handle(command));
+    }
+
+    @PostMapping("/deviation-alerts/{alertId}/email-notifications")
+    @Operation(summary = "E-mail a critical alert to the laboratory",
+            description = "Sends again the e-mail notice of an open critical alert to the people of the laboratory who "
+                    + "enabled e-mail notices, except the requester (US84, TS78). QualiTrack already sends it on its own "
+                    + "when an alert opens as critical or escalates to critical.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "E-mail notice sent",
+                    content = @Content(schema = @Schema(implementation = AlertEmailNotificationResource.class))),
+            @ApiResponse(responseCode = "403", description = "Alert not available to the account or read-only user"),
+            @ApiResponse(responseCode = "404", description = "Alert not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "409", description = "The alert is not critical or is already resolved",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "502", description = "The e-mail provider did not accept the notices",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> sendEmailNotification(@PathVariable Long alertId) {
+        var result = notificationCommandService.handle(new SendAlertEmailNotificationCommand(alertId, currentUser.userId()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                delivery -> new AlertEmailNotificationResource(delivery.alertId(), delivery.recipients(),
+                        delivery.delivered(), delivery.sentAt()), HttpStatus.CREATED);
     }
 
     private ResponseEntity<?> toAlertResponse(Result<Long, ApplicationError> commandResult) {

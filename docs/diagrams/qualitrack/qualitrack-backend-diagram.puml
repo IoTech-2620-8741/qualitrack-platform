@@ -194,6 +194,7 @@ package "equipment" {
   }
 
   package "interfaces" {
+    interface EquipmentContextFacade
     class EquipmentController
     class EquipmentBpmConfigController
     class EquipmentMaintenanceController
@@ -242,16 +243,16 @@ package "batch" {
 
 package "tracking" {
   package "domain" {
-    class EquipmentTelemetry
-    class EquipmentTelemetryStatus
+    class EnvironmentalProfile
     class Measurement
-    class TelemetryHistoryPoint
-    enum TelemetryStatus
-    enum TelemetryParameterType
-    interface EquipmentTelemetryRepository
-    interface EquipmentTelemetryStatusRepository
+    class ActuationEvent
+    class EnvironmentalThreshold
+    class ActuationRule
+    enum MonitoredMetric
+    enum EnvironmentalState
+    interface EnvironmentalProfileRepository
     interface MeasurementRepository
-    interface TelemetryHistoryPointRepository
+    interface ActuationEventRepository
   }
 
   package "application" {
@@ -260,17 +261,15 @@ package "tracking" {
     class TrackingCommandServiceImpl
     class TrackingQueryServiceImpl
     class TrackingExternalEquipmentService
-    class TrackingExternalComplianceService
-    class TrackingExternalAuditService
   }
 
   package "interfaces" {
-    class TrackingContextFacade
-    class TelemetryController
-    class EquipmentTelemetryStatusUpdatedIntegrationEvent
+    class EnvironmentTelemetryController
+    class ContainerMonitorTelemetryController
+    class DeviceTrackingController
     class MeasurementRecordedIntegrationEvent
-    class TelemetryHistoryPointRecordedIntegrationEvent
-    class TelemetryAnomalyDetectedIntegrationEvent
+    class EnvironmentalDeviationDetectedIntegrationEvent
+    class EnvironmentalProfileUpdatedIntegrationEvent
   }
 }
 
@@ -298,7 +297,7 @@ package "ca" {
     class BatchRejectedComplianceEventHandler
     class CalibrationExpiredEventHandler
     class RawMaterialLowStockComplianceEventHandler
-    class TelemetryAnomalyDetectedComplianceEventHandler
+    class EnvironmentalDeviationComplianceEventHandler
   }
 
   package "interfaces" {
@@ -355,7 +354,11 @@ package "ra" {
     class KpiDashboardController
     class DeviationTrendController
     class ReportController
-    class AuditLogController
+    class BatchReportController
+    class LaboratoryReportController
+    class EquipmentReportController
+    class BatchAuditLogController
+    class EquipmentAuditLogController
     class AuditReportGeneratedIntegrationEvent
     class AuditLogEntryRecordedIntegrationEvent
     class KpiDashboardCalculatedIntegrationEvent
@@ -392,6 +395,7 @@ package "subscription" {
   package "interfaces" {
     class SubscriptionContextFacade
     class SubscriptionController
+    class LaboratorySubscriptionController
     class StripeWebhookController
     class CheckoutSessionCreatedIntegrationEvent
     class SubscriptionActivatedIntegrationEvent
@@ -483,8 +487,11 @@ BatchController --> BatchQueryService
 BatchRawMaterialUsageController --> RawMaterialUsageQueryService
 LaboratoryBatchesController --> BatchQueryService
 
-TelemetryController --> TrackingCommandService
-TelemetryController --> TrackingQueryService
+EnvironmentTelemetryController --> TrackingCommandService
+EnvironmentTelemetryController --> TrackingQueryService
+ContainerMonitorTelemetryController --> TrackingCommandService
+ContainerMonitorTelemetryController --> TrackingQueryService
+DeviceTrackingController --> TrackingQueryService
 
 DeviationAlertController --> CaCommandService
 DeviationAlertController --> CaQueryService
@@ -492,16 +499,18 @@ ComplianceEventController --> CaQueryService
 NotificationPreferenceController --> CaCommandService
 NotificationPreferenceController --> CaQueryService
 
-KpiDashboardController --> RaCommandService
 KpiDashboardController --> RaQueryService
-DeviationTrendController --> RaCommandService
 DeviationTrendController --> RaQueryService
-ReportController --> RaCommandService
-AuditLogController --> AuditLogCommandService
-AuditLogController --> RaQueryService
+ReportController --> RaQueryService
+BatchReportController --> RaCommandService
+LaboratoryReportController --> RaCommandService
+EquipmentReportController --> RaCommandService
+BatchAuditLogController --> RaQueryService
+EquipmentAuditLogController --> RaQueryService
 
 SubscriptionController --> SubscriptionCommandService
 SubscriptionController --> SubscriptionQueryService
+LaboratorySubscriptionController --> SubscriptionQueryService
 StripeWebhookController --> SubscriptionCommandService
 StripeWebhookController --> SubscriptionQueryService
 StripeWebhookController --> ExternalStripeService
@@ -511,9 +520,7 @@ ExternalLabService --> LaboratoryContextFacade
 ExternalLaboratoryService --> LaboratoryContextFacade
 BatchExternalComplianceService --> ComplianceContextFacade
 LaboratoryExternalComplianceService --> ComplianceContextFacade
-TrackingExternalEquipmentService --> EquipmentRepository
-TrackingExternalComplianceService --> ComplianceContextFacade
-TrackingExternalAuditService --> RaContextFacade
+TrackingExternalEquipmentService --> EquipmentContextFacade
 CaExternalBatchService --> BatchContextFacade
 CaExternalEquipmentService --> EquipmentRepository
 RaExternalLaboratoryService --> LaboratoryContextFacade
@@ -523,7 +530,7 @@ RaExternalComplianceService --> ComplianceContextFacade
 
 RawMaterialLowStockIntegrationEvent ..> RawMaterialLowStockComplianceEventHandler
 CalibrationExpiredIntegrationEvent ..> CalibrationExpiredEventHandler
-TelemetryAnomalyDetectedIntegrationEvent ..> TelemetryAnomalyDetectedComplianceEventHandler
+EnvironmentalDeviationDetectedIntegrationEvent ..> EnvironmentalDeviationComplianceEventHandler
 BatchReleasedIntegrationEvent ..> BatchReleasedComplianceEventHandler
 BatchRejectedIntegrationEvent ..> BatchRejectedComplianceEventHandler
 
@@ -535,8 +542,7 @@ MaintenanceRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
 BatchCreatedIntegrationEvent ..> BatchAuditEventHandler
 RawMaterialLinkedToBatchIntegrationEvent ..> BatchAuditEventHandler
 DeviationAlertCreatedIntegrationEvent ..> CaAuditEventHandler
-MeasurementRecordedIntegrationEvent ..> TrackingAuditEventHandler
-TelemetryHistoryPointRecordedIntegrationEvent ..> TrackingAuditEventHandler
+EnvironmentalProfileUpdatedIntegrationEvent ..> TrackingAuditEventHandler
 
 SubscriptionActivatedIntegrationEvent ..> RaContextFacade
 SubscriptionPaymentRecordedIntegrationEvent ..> RaContextFacade

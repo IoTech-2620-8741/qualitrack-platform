@@ -13,6 +13,7 @@ package "shared" <<External>> {
   class ApplicationError
   class Result
   class ResponseEntityAssembler
+  interface CurrentUser
 }
 
 package "spring" <<External>> {
@@ -284,14 +285,18 @@ package "ca.application.internal.eventhandlers" {
   class DeviationAlertResolvedEventHandler
   class NotificationPreferenceUpdatedEventHandler
   class RawMaterialLowStockComplianceEventHandler
-  class TelemetryAnomalyDetectedComplianceEventHandler
+  class EnvironmentalDeviationComplianceEventHandler
 }
 
 BatchRejectedComplianceEventHandler --> ComplianceEventRepository
 BatchReleasedComplianceEventHandler --> ComplianceEventRepository
 RawMaterialLowStockComplianceEventHandler --> ComplianceEventRepository
 CalibrationExpiredEventHandler --> CaCommandService
-TelemetryAnomalyDetectedComplianceEventHandler --> CaCommandService
+EnvironmentalDeviationComplianceEventHandler --> CaCommandService
+note bottom of EnvironmentalDeviationComplianceEventHandler
+  Tracking EnvironmentalDeviationDetectedIntegrationEvent
+  -> WARNING / CRITICAL deviation alert of the device.
+end note
 
 DeviationAlertCreatedEventHandler ..> DeviationAlertCreatedEvent
 DeviationAlertAcknowledgedEventHandler ..> DeviationAlertAcknowledgedEvent
@@ -388,9 +393,7 @@ AlertStatusPersistenceConverter ..> AlertStatus
 ComplianceEventTypePersistenceConverter ..> ComplianceEventType
 
 package "ca.interfaces.rest.resources" {
-  class CreateDeviationAlertResource <<record>>
   class DeviationAlertResource <<record>>
-  class AcknowledgeAlertResource <<record>>
   class ResolveAlertResource <<record>>
   class ComplianceEventResource <<record>>
   class NotificationPreferenceResource <<record>>
@@ -398,22 +401,16 @@ package "ca.interfaces.rest.resources" {
 }
 
 package "ca.interfaces.rest.transform" {
-  class CreateDeviationAlertCommandFromResourceAssembler
   class DeviationAlertResourceFromEntityAssembler
-  class AcknowledgeAlertCommandFromResourceAssembler
   class ResolveAlertCommandFromResourceAssembler
   class ComplianceEventResourceFromEntityAssembler
   class NotificationPreferenceResourceFromEntityAssembler
   class UpdateNotificationPreferenceCommandFromResourceAssembler
 }
 
-CreateDeviationAlertCommandFromResourceAssembler ..> CreateDeviationAlertResource
-CreateDeviationAlertCommandFromResourceAssembler ..> CreateDeviationAlertCommand
 DeviationAlertResourceFromEntityAssembler ..> DeviationAlert
 DeviationAlertResourceFromEntityAssembler ..> DeviationAlertResource
 
-AcknowledgeAlertCommandFromResourceAssembler ..> AcknowledgeAlertResource
-AcknowledgeAlertCommandFromResourceAssembler ..> AcknowledgeAlertCommand
 ResolveAlertCommandFromResourceAssembler ..> ResolveAlertResource
 ResolveAlertCommandFromResourceAssembler ..> ResolveAlertCommand
 
@@ -433,13 +430,26 @@ package "ca.interfaces.rest" {
 DeviationAlertController --> CaCommandService
 DeviationAlertController --> CaQueryService
 DeviationAlertController ..> ResponseEntityAssembler
-DeviationAlertController ..> CreateDeviationAlertCommandFromResourceAssembler
 DeviationAlertController ..> DeviationAlertResourceFromEntityAssembler
-DeviationAlertController ..> AcknowledgeAlertCommandFromResourceAssembler
+DeviationAlertController ..> AcknowledgeAlertCommand
+DeviationAlertController ..> CurrentUser
 DeviationAlertController ..> ResolveAlertCommandFromResourceAssembler
 
 ComplianceEventController --> CaQueryService
 ComplianceEventController ..> ComplianceEventResourceFromEntityAssembler
+
+note bottom of DeviationAlertController
+  GET  /api/v1/deviation-alerts/{alertId}
+  GET  /api/v1/laboratories/{laboratoryId}/equipments/{equipmentId}/deviation-alerts?status&severity
+  GET  /api/v1/batches/{batchId}/deviation-alerts?status&severity
+  POST /api/v1/deviation-alerts/{alertId}/acknowledgements  (TS75, 201 / 409)
+  POST /api/v1/deviation-alerts/{alertId}/resolutions       (TS76, 201 / 409)
+  The authenticated user is the actor (CurrentUser).
+end note
+note bottom of ComplianceEventController
+  GET /api/v1/laboratories/{laboratoryId}/equipments/{equipmentId}/compliance-events
+  GET /api/v1/batches/{batchId}/compliance-events
+end note
 
 NotificationPreferenceController --> CaCommandService
 NotificationPreferenceController --> CaQueryService

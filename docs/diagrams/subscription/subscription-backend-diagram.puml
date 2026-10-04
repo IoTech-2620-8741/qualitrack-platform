@@ -120,6 +120,9 @@ package "subscription.domain.model.queries" {
   class GetSubscriptionByStripeCheckoutSessionIdQuery <<record>> {
     +stripeCheckoutSessionId: String
   }
+  class GetSubscriptionByIdQuery <<record>> {
+    +subscriptionId: Long
+  }
 }
 
 package "subscription.domain.model.aggregates" {
@@ -272,6 +275,7 @@ package "subscription.application.queryservices" {
     +handle(query: GetBillingSummaryByLaboratoryIdQuery): List<Subscription>
     +handle(query: GetPaymentsBySubscriptionIdQuery): List<SubscriptionPayment>
     +handle(query: GetSubscriptionByStripeCheckoutSessionIdQuery): Optional<Subscription>
+    +handle(query: GetSubscriptionByIdQuery): Optional<Subscription>
   }
 }
 
@@ -455,10 +459,6 @@ package "subscription.interfaces.rest.resources" {
     +checkoutUrl: String
   }
 
-  class CancelSubscriptionResource <<record>> {
-    +cancelledBy: Long
-  }
-
   class SubscriptionResource <<record>> {
     +id: Long
     +userId: Long
@@ -511,10 +511,6 @@ package "subscription.interfaces.rest.transform" {
     +toCommandFromResource(resource: CreateCheckoutSessionResource): CreateCheckoutSessionCommand
   }
 
-  class CancelSubscriptionCommandFromResourceAssembler {
-    +toCommandFromResource(subscriptionId: Long, resource: CancelSubscriptionResource): CancelSubscriptionCommand
-  }
-
   class SubscriptionResourceFromEntityAssembler {
     +toResourceFromEntity(entity: Subscription): SubscriptionResource
   }
@@ -529,13 +525,21 @@ package "subscription.interfaces.rest.transform" {
 }
 
 package "subscription.interfaces.rest" {
-  class SubscriptionController {
+  class SubscriptionPlanController {
     +getPlans(): ResponseEntity<List<SubscriptionPlanResource>>
+  }
+
+  class SubscriptionCheckoutSessionController {
     +createCheckoutSession(resource: CreateCheckoutSessionResource): ResponseEntity<?>
-    +getActiveSubscriptionByLaboratoryId(laboratoryId: Long): ResponseEntity<SubscriptionResource>
-    +getBillingSummaryByLaboratoryId(laboratoryId: Long): ResponseEntity<List<SubscriptionResource>>
+  }
+
+  class LaboratorySubscriptionController {
+    +getLaboratorySubscriptions(laboratoryId: Long, status: SubscriptionStatus): ResponseEntity<List<SubscriptionResource>>
+  }
+
+  class SubscriptionController {
     +getPaymentsBySubscriptionId(subscriptionId: Long): ResponseEntity<List<SubscriptionPaymentResource>>
-    +cancelSubscription(subscriptionId: Long, resource: CancelSubscriptionResource): ResponseEntity<?>
+    +requestCancellation(subscriptionId: Long): ResponseEntity<?>
   }
 
   class StripeWebhookController {
@@ -640,14 +644,25 @@ SubscriptionCancelledEventHandler ..> SubscriptionCancelledIntegrationEvent
 SubscriptionPaymentRecordedEventHandler ..> SubscriptionPaymentRecordedEvent
 SubscriptionPaymentRecordedEventHandler ..> SubscriptionPaymentRecordedIntegrationEvent
 
+SubscriptionPlanController --> SubscriptionQueryService
+SubscriptionPlanController ..> SubscriptionPlanResourceFromEntityAssembler
+SubscriptionCheckoutSessionController --> SubscriptionCommandService
+SubscriptionCheckoutSessionController ..> CreateCheckoutSessionCommandFromResourceAssembler
+SubscriptionCheckoutSessionController ..> ResponseEntityAssembler
+LaboratorySubscriptionController --> SubscriptionQueryService
+LaboratorySubscriptionController ..> SubscriptionResourceFromEntityAssembler
 SubscriptionController --> SubscriptionCommandService
 SubscriptionController --> SubscriptionQueryService
-SubscriptionController ..> CreateCheckoutSessionCommandFromResourceAssembler
-SubscriptionController ..> CancelSubscriptionCommandFromResourceAssembler
+SubscriptionController ..> CancelSubscriptionCommand
 SubscriptionController ..> SubscriptionResourceFromEntityAssembler
-SubscriptionController ..> SubscriptionPlanResourceFromEntityAssembler
 SubscriptionController ..> SubscriptionPaymentResourceFromEntityAssembler
 SubscriptionController ..> ResponseEntityAssembler
+note bottom of SubscriptionController
+  GET  /api/v1/laboratories/{laboratoryId}/subscriptions[?status=ACTIVE]  (TS10, always a list)
+  GET  /api/v1/subscriptions/{subscriptionId}/payments
+  POST /api/v1/subscriptions/{subscriptionId}/cancellation-requests       (TS11, 201 / 409)
+  The authenticated quality manager is the actor (CurrentUser).
+end note
 
 StripeWebhookController --> SubscriptionCommandService
 StripeWebhookController --> SubscriptionQueryService
@@ -659,8 +674,6 @@ StripeWebhookController ..> StripeSession
 
 CreateCheckoutSessionCommandFromResourceAssembler ..> CreateCheckoutSessionResource
 CreateCheckoutSessionCommandFromResourceAssembler ..> CreateCheckoutSessionCommand
-CancelSubscriptionCommandFromResourceAssembler ..> CancelSubscriptionResource
-CancelSubscriptionCommandFromResourceAssembler ..> CancelSubscriptionCommand
 SubscriptionResourceFromEntityAssembler ..> Subscription
 SubscriptionResourceFromEntityAssembler ..> SubscriptionResource
 SubscriptionPlanResourceFromEntityAssembler ..> SubscriptionPlan

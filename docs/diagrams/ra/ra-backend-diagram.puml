@@ -14,6 +14,7 @@ package "shared" <<External>> {
   class Result
   class ResponseEntityAssembler
   class ErrorResponseAssembler
+  interface CurrentUser
 }
 
 package "spring" <<External>> {
@@ -245,9 +246,9 @@ package "ra.application.commandservices" {
   interface RaCommandService {
     + handle(command: CalculateKpiDashboardCommand): Result<KpiDashboard, ApplicationError>
     + handle(command: CalculateDeviationTrendCommand): Result<DeviationTrend, ApplicationError>
-    + handle(command: GenerateBatchReportCommand): Result<byte[], ApplicationError>
-    + handle(command: GenerateComplianceReportCommand): Result<byte[], ApplicationError>
-    + handle(command: ExportEquipmentLogCommand): Result<byte[], ApplicationError>
+    + handle(command: GenerateBatchReportCommand): Result<AuditReport, ApplicationError>
+    + handle(command: GenerateComplianceReportCommand): Result<AuditReport, ApplicationError>
+    + handle(command: ExportEquipmentLogCommand): Result<AuditReport, ApplicationError>
   }
 
   interface AuditLogCommandService {
@@ -265,6 +266,10 @@ package "ra.application.queryservices" {
     + handle(query: GetAuditReportsByLaboratoryIdQuery): List<AuditReport>
     + handle(query: GetAuditReportsByBatchIdQuery): List<AuditReport>
     + handle(query: GetAuditReportsByEquipmentIdQuery): List<AuditReport>
+  }
+
+  interface ReportDocumentQueryService {
+    + handle(query: GetReportDocumentByIdQuery): Optional<ReportDocument>
   }
 }
 
@@ -353,6 +358,10 @@ CaAuditEventHandler --> AuditLogCommandService
 EquipmentAuditEventHandler --> AuditLogCommandService
 LaboratoryAuditEventHandler --> AuditLogCommandService
 TrackingAuditEventHandler --> AuditLogCommandService
+note bottom of TrackingAuditEventHandler
+  Tracking EnvironmentalProfileUpdatedIntegrationEvent
+  -> UPDATE ENVIRONMENTAL_PROFILE audit log entry.
+end note
 
 package "ra.application.acl" {
   class RaContextFacadeImpl
@@ -487,54 +496,59 @@ TrendDirectionPersistenceConverter ..> TrendDirection
 package "ra.interfaces.rest.resources" {
   class AuditLogEntryResource <<record>>
   class AuditReportResource <<record>>
-  class CalculateDeviationTrendResource <<record>>
-  class CalculateKpiDashboardResource <<record>>
   class DeviationTrendResource <<record>>
   class ExportEquipmentLogResource <<record>>
   class GenerateBatchReportResource <<record>>
   class GenerateComplianceReportResource <<record>>
   class KpiDashboardResource <<record>>
   class KpiMetricResource <<record>>
-  class RecordAuditLogEntryResource <<record>>
   class TrendDataPointResource <<record>>
 }
 
 package "ra.interfaces.rest.transform" {
   class AuditLogEntryResourceFromEntityAssembler
   class AuditReportResourceFromEntityAssembler
-  class CalculateDeviationTrendCommandFromResourceAssembler
-  class CalculateKpiDashboardCommandFromResourceAssembler
   class DeviationTrendResourceFromEntityAssembler
   class ExportEquipmentLogCommandFromResourceAssembler
   class GenerateBatchReportCommandFromResourceAssembler
   class GenerateComplianceReportCommandFromResourceAssembler
   class KpiDashboardResourceFromEntityAssembler
   class KpiMetricResourceFromEntityAssembler
-  class RecordAuditLogEntryCommandFromResourceAssembler
   class TrendDataPointResourceFromEntityAssembler
+  class ReportResponseAssembler {
+    + {static} toCreatedResponse(result): ResponseEntity
+    + {static} toUriFromEntity(report): URI
+  }
 }
 
 AuditLogEntryResourceFromEntityAssembler ..> AuditLogEntry
 AuditReportResourceFromEntityAssembler ..> AuditReport
-CalculateDeviationTrendCommandFromResourceAssembler ..> CalculateDeviationTrendCommand
-CalculateKpiDashboardCommandFromResourceAssembler ..> CalculateKpiDashboardCommand
 DeviationTrendResourceFromEntityAssembler ..> DeviationTrend
 ExportEquipmentLogCommandFromResourceAssembler ..> ExportEquipmentLogCommand
 GenerateBatchReportCommandFromResourceAssembler ..> GenerateBatchReportCommand
 GenerateComplianceReportCommandFromResourceAssembler ..> GenerateComplianceReportCommand
 KpiDashboardResourceFromEntityAssembler ..> KpiDashboard
 KpiMetricResourceFromEntityAssembler ..> KpiMetric
-RecordAuditLogEntryCommandFromResourceAssembler ..> RecordAuditLogEntryCommand
 TrendDataPointResourceFromEntityAssembler ..> TrendDataPoint
+ReportResponseAssembler ..> AuditReportResourceFromEntityAssembler
+ReportResponseAssembler ..> ResponseEntityAssembler
 
 package "ra.interfaces.rest" {
-  class AuditLogController
+  class BatchAuditLogController
+  class EquipmentAuditLogController
+  class StaffAuditLogController
   class DeviationTrendController
   class KpiDashboardController
+  class BatchReportController
+  class LaboratoryReportController
+  class EquipmentReportController
   class ReportController
-  class StaffAuditLogController
 }
 
+BatchAuditLogController --> RaQueryService
+BatchAuditLogController ..> AuditLogEntryResourceFromEntityAssembler
+EquipmentAuditLogController --> RaQueryService
+EquipmentAuditLogController ..> AuditLogEntryResourceFromEntityAssembler
 StaffAuditLogController --> RaQueryService
 StaffAuditLogController ..> AuditLogEntryResourceFromEntityAssembler
 note bottom of StaffAuditLogController
@@ -542,35 +556,54 @@ note bottom of StaffAuditLogController
   Operations registered with the account of the staff member, newest first
   (quality managers, administrators and auditors).
 end note
+note bottom of EquipmentAuditLogController
+  GET /api/v1/batches/{batchId}/audit-logs (TS80)
+  GET /api/v1/laboratories/{laboratoryId}/equipments/{equipmentId}/audit-logs
+  Entries are recorded by the platform; there is no POST.
+end note
 note bottom of InventoryAuditEventHandler
   RawMaterialSaved and InventoryMovementRecorded (RECEIPT, REVIEW) of Inventory;
   consumptions are audited as raw material usages of the batch.
 end note
 
-AuditLogController --> RaQueryService
-AuditLogController --> AuditLogCommandService
-AuditLogController ..> AuditLogEntryResourceFromEntityAssembler
-AuditLogController ..> RecordAuditLogEntryCommandFromResourceAssembler
-AuditLogController ..> ResponseEntityAssembler
-
-DeviationTrendController --> RaCommandService
 DeviationTrendController --> RaQueryService
-DeviationTrendController ..> CalculateDeviationTrendCommandFromResourceAssembler
 DeviationTrendController ..> DeviationTrendResourceFromEntityAssembler
-DeviationTrendController ..> ErrorResponseAssembler
+note bottom of DeviationTrendController
+  GET /api/v1/laboratories/{laboratoryId}/equipments/{equipmentId}/deviation-trends
+end note
 
-KpiDashboardController --> RaCommandService
 KpiDashboardController --> RaQueryService
-KpiDashboardController ..> CalculateKpiDashboardCommandFromResourceAssembler
 KpiDashboardController ..> KpiDashboardResourceFromEntityAssembler
 KpiDashboardController ..> ErrorResponseAssembler
+note bottom of KpiDashboardController
+  GET /api/v1/laboratories/{laboratoryId}/kpi-dashboards (TS81)
+end note
 
-ReportController --> RaCommandService
+BatchReportController --> RaCommandService
+BatchReportController --> RaQueryService
+BatchReportController ..> GenerateBatchReportCommandFromResourceAssembler
+BatchReportController ..> ReportResponseAssembler
+BatchReportController ..> CurrentUser
+LaboratoryReportController --> RaCommandService
+LaboratoryReportController --> RaQueryService
+LaboratoryReportController ..> GenerateComplianceReportCommandFromResourceAssembler
+LaboratoryReportController ..> ReportResponseAssembler
+LaboratoryReportController ..> CurrentUser
+EquipmentReportController --> RaCommandService
+EquipmentReportController ..> ExportEquipmentLogCommandFromResourceAssembler
+EquipmentReportController ..> ReportResponseAssembler
+EquipmentReportController ..> CurrentUser
 ReportController --> RaQueryService
-ReportController ..> GenerateBatchReportCommandFromResourceAssembler
-ReportController ..> GenerateComplianceReportCommandFromResourceAssembler
-ReportController ..> ExportEquipmentLogCommandFromResourceAssembler
+ReportController --> ReportDocumentQueryService
 ReportController ..> AuditReportResourceFromEntityAssembler
 ReportController ..> ErrorResponseAssembler
+note bottom of ReportController
+  POST /api/v1/batches/{batchId}/reports                          (TS84)
+  POST /api/v1/laboratories/{laboratoryId}/compliance-reports     (TS83)
+  POST .../environments/{environmentId}/equipments/{equipmentId}/log-reports (TS86)
+       201 + Location /api/v1/reports/{reportId}; the authenticated user requests it
+  GET  /api/v1/reports/{reportId} and /api/v1/reports/{reportId}/content (TS87)
+  GET  /api/v1/batches/{batchId}/reports, /api/v1/laboratories/{laboratoryId}/reports
+end note
 
 @enduml

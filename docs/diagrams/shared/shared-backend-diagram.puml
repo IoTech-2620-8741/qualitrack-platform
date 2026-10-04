@@ -96,10 +96,6 @@ package "shared" {
       +details: String
       +ErrorResource(code: String, message: String)
     }
-
-    record MessageResource {
-      +message: String
-    }
   }
 
   package "interfaces.rest.transform" {
@@ -123,6 +119,12 @@ package "shared" {
   package "interfaces.rest" {
     class GlobalExceptionHandler {
       -MESSAGES_BASENAME: String
+      +handleMalformedRequest(ex: Exception): ResponseEntity<?>
+      +handleApplicationException(ex: ApplicationException): ResponseEntity<?>
+      +handleAccessDenied(ex: AccessDeniedException): ResponseEntity<?>
+      +handleNoResourceFound(ex: NoResourceFoundException): ResponseEntity<?>
+      +handleMethodNotSupported(ex: HttpRequestMethodNotSupportedException): ResponseEntity<?>
+      +handleMediaTypeNotSupported(ex: HttpMediaTypeNotSupportedException): ResponseEntity<?>
       +handleMethodArgumentNotValid(ex: MethodArgumentNotValidException): ResponseEntity<?>
       +handleIllegalArgumentException(ex: IllegalArgumentException): ResponseEntity<?>
       +handleRuntimeException(ex: RuntimeException): ResponseEntity<?>
@@ -164,5 +166,10 @@ GlobalExceptionHandler ..> ErrorResponseAssembler
 GlobalExceptionHandler ..> MethodArgumentNotValidException
 GlobalExceptionHandler ..> LocaleContextHolder
 GlobalExceptionHandler ..> ResourceBundle
+note bottom of GlobalExceptionHandler
+  Errors answer the standard ErrorResource body: 400 invalid request, 403 ACCESS_DENIED,
+  404 RESOURCE_NOT_FOUND for unknown routes, 405 METHOD_NOT_ALLOWED with Allow,
+  415 UNSUPPORTED_MEDIA_TYPE, 409 conflicts and 500 unexpected errors.
+end note
 
 @enduml

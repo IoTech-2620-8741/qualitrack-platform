@@ -108,10 +108,10 @@ class StaffAccountIntegrationTests {
 
         for (var staff : List.of(operator, auditor)) {
             assertThat(call("GET", "/laboratories/" + lab.id() + "/subscriptions", staff.token(), null).statusCode()).isEqualTo(403);
-            assertThat(call("GET", "/laboratories/" + lab.id() + "/billing-summary", staff.token(), null).statusCode()).isEqualTo(403);
+            assertThat(call("POST", "/subscriptions/1/cancellation-requests", staff.token(), null).statusCode()).isEqualTo(403);
         }
-        assertThat(call("GET", "/laboratories/" + lab.id() + "/billing-summary", lab.manager().token(), null).statusCode())
-                .isNotEqualTo(403);
+        assertThat(call("GET", "/laboratories/" + lab.id() + "/subscriptions", lab.manager().token(), null).statusCode())
+                .isEqualTo(200);
 
         long press = located(lab, "Tablet press");
         var statusChanges = lab.environment() + "/equipments/" + press + "/status-changes";

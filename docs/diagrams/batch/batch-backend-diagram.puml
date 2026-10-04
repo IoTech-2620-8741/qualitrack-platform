@@ -328,7 +328,7 @@ package "batch.interfaces.rest" {
     GET .../environments/{environmentId}/raw-materials/{rawMaterialId}/usages
   }
   class RawMaterialHistoryController <<RestController>> {
-    GET /raw-materials/{legacyRawMaterialId}/usages
+    GET /laboratories/{laboratoryId}/raw-materials/{legacyRawMaterialId}/usages
   }
 }
 

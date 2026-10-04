@@ -2,6 +2,8 @@ package com.iotech.qualitrack.platform.equipment.application.acl;
 
 import com.iotech.qualitrack.platform.equipment.application.queryservices.EquipmentQueryService;
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByIdQuery;
+import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByLabIdQuery;
+import com.iotech.qualitrack.platform.equipment.domain.model.valueobjects.IotDeviceType;
 import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
 import org.springframework.stereotype.Service;
 
@@ -35,6 +37,20 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
         }
         return equipmentQueryService.handle(new GetEquipmentByIdQuery(laboratoryId, deviceId))
                 .filter(equipment -> equipment.isIotDevice() && equipment.isLocatedIn(laboratoryId, environmentId))
+                .map(device -> new DeviceReference(device.getId(), device.getLabId(), device.getEnvironmentId(),
+                        device.getName(), device.getDeviceType().name(),
+                        device.getSensorExternalId() == null ? null : device.getSensorExternalId().value()));
+    }
+
+    @Override
+    public Optional<DeviceReference> findEnvironmentalDevice(Long laboratoryId, Long environmentId) {
+        if (laboratoryId == null || laboratoryId <= 0 || environmentId == null || environmentId <= 0) {
+            return Optional.empty();
+        }
+        return equipmentQueryService.handle(new GetEquipmentByLabIdQuery(laboratoryId)).stream()
+                .filter(equipment -> equipment.getDeviceType() == IotDeviceType.ENVIRONMENTAL_DEVICE
+                        && equipment.isLocatedIn(laboratoryId, environmentId))
+                .findFirst()
                 .map(device -> new DeviceReference(device.getId(), device.getLabId(), device.getEnvironmentId(),
                         device.getName(), device.getDeviceType().name(),
                         device.getSensorExternalId() == null ? null : device.getSensorExternalId().value()));

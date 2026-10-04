@@ -355,7 +355,11 @@ package "ra" {
     class KpiDashboardController
     class DeviationTrendController
     class ReportController
-    class AuditLogController
+    class BatchReportController
+    class LaboratoryReportController
+    class EquipmentReportController
+    class BatchAuditLogController
+    class EquipmentAuditLogController
     class AuditReportGeneratedIntegrationEvent
     class AuditLogEntryRecordedIntegrationEvent
     class KpiDashboardCalculatedIntegrationEvent
@@ -392,6 +396,7 @@ package "subscription" {
   package "interfaces" {
     class SubscriptionContextFacade
     class SubscriptionController
+    class LaboratorySubscriptionController
     class StripeWebhookController
     class CheckoutSessionCreatedIntegrationEvent
     class SubscriptionActivatedIntegrationEvent
@@ -492,16 +497,18 @@ ComplianceEventController --> CaQueryService
 NotificationPreferenceController --> CaCommandService
 NotificationPreferenceController --> CaQueryService
 
-KpiDashboardController --> RaCommandService
 KpiDashboardController --> RaQueryService
-DeviationTrendController --> RaCommandService
 DeviationTrendController --> RaQueryService
-ReportController --> RaCommandService
-AuditLogController --> AuditLogCommandService
-AuditLogController --> RaQueryService
+ReportController --> RaQueryService
+BatchReportController --> RaCommandService
+LaboratoryReportController --> RaCommandService
+EquipmentReportController --> RaCommandService
+BatchAuditLogController --> RaQueryService
+EquipmentAuditLogController --> RaQueryService
 
 SubscriptionController --> SubscriptionCommandService
 SubscriptionController --> SubscriptionQueryService
+LaboratorySubscriptionController --> SubscriptionQueryService
 StripeWebhookController --> SubscriptionCommandService
 StripeWebhookController --> SubscriptionQueryService
 StripeWebhookController --> ExternalStripeService

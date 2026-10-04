@@ -12,7 +12,6 @@ package "shared" <<External>> {
   abstract class AuditableAbstractPersistenceEntity
   class ApplicationError
   class Result
-  class MessageResource
   class ResponseEntityAssembler {
     + toCreatedResponseEntityFromResult(result, assembler, identifier)
     + toCreatedResponseEntityAtLocation(result, assembler, location)
@@ -560,7 +559,6 @@ EquipmentMaintenanceController --> MaintenanceCommandService
 EquipmentMaintenanceController --> MaintenanceQueryService
 EquipmentBpmConfigController --> BpmConfigCommandService
 EquipmentBpmConfigController --> BpmConfigQueryService
-EquipmentBpmConfigController ..> MessageResource
 LaboratoryDevicesController ..> EquipmentLocationUriAssembler
 EnvironmentEquipmentController ..> EquipmentLocationUriAssembler
 EnvironmentDevicesController ..> EquipmentLocationUriAssembler
@@ -576,7 +574,9 @@ note bottom of LaboratoryEquipmentController
   .../environments/{environmentId}/equipments/{equipmentId}/maintenance-records (TS35, TS36)
   .../environments/{environmentId}/environmental-devices                      (TS38)
   .../environments/{environmentId}/container-monitors                         (TS40)
-  /api/v1/equipments/{equipmentId}/bpm-configs stays until Tracking thresholds (phase 5)
+  /api/v1/laboratories/{laboratoryId}/equipments/{equipmentId}/bpm-configs[/{parameterName}]
+      GET list / GET one (404) / PUT creates or replaces the range of the parameter;
+      process parameters of the equipment (Report); environmental thresholds live in Tracking
 end note
 
 @enduml

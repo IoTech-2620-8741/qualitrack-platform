@@ -524,7 +524,6 @@ UsersController --> UserQueryService
 UsersController --> UserCommandService
 UsersController ..> UserResourceFromEntityAssembler
 UsersController ..> AssignRoleCommand
-UsersController ..> DeactivateUserCommand
 UsersController ..> ResponseEntityAssembler
 
 RolesController --> RoleQueryService

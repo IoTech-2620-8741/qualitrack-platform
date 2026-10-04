@@ -72,8 +72,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<?> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        var supported = ex.getSupportedMediaTypes().isEmpty() ? "application/json"
+                : String.join(" or ", ex.getSupportedMediaTypes().stream().map(Object::toString).toList());
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
-                .body(new ErrorResource("UNSUPPORTED_MEDIA_TYPE", "The request body must be application/json"));
+                .body(new ErrorResource("UNSUPPORTED_MEDIA_TYPE", "The request body must be " + supported));
     }
 
     /**

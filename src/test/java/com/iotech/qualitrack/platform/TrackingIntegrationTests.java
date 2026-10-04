@@ -156,7 +156,7 @@ class TrackingIntegrationTests {
         call("POST", readings, token, reading("TEMPERATURE", 22.0, start.plusSeconds(300)));
         call("POST", readings, token, reading("TEMPERATURE", 26.0, start.plusSeconds(360)));
 
-        var alerts = call("GET", "/equipments/" + lab.containerMonitor() + "/deviation-alerts", token, null);
+        var alerts = call("GET", "/laboratories/" + lab.id() + "/equipments/" + lab.containerMonitor() + "/deviation-alerts", token, null);
         assertThat(alerts.statusCode()).withFailMessage(alerts.body()).isEqualTo(200);
         assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].severity"))
                 .containsExactlyInAnyOrder("WARNING", "CRITICAL", "WARNING");
@@ -217,7 +217,7 @@ class TrackingIntegrationTests {
         assertThat(listed.statusCode()).isEqualTo(200);
         assertThat(JsonPath.<List<Double>>read(listed.body(), "$[*].value")).containsExactly(1.0);
 
-        var alerts = call("GET", "/equipments/" + lab.spaceMonitor() + "/deviation-alerts", token, null);
+        var alerts = call("GET", "/laboratories/" + lab.id() + "/equipments/" + lab.spaceMonitor() + "/deviation-alerts", token, null);
         assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].severity")).containsExactly("CRITICAL");
 
         var bare = environment(lab, "QC-" + suffix());

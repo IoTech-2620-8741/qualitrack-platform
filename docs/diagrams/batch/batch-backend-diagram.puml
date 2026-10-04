@@ -40,6 +40,21 @@ package "batch.domain.model.valueobjects" {
   class BatchRelease <<record>>
   class BatchRejection <<record>>
   class BatchTraceability <<record>>
+  class ContainerAssignment <<record>> {
+    + containerMonitorId: Long
+    + environmentId: Long
+    + assignedBy: Long
+    + assignedAt: Instant
+    + isIn(containerMonitorId: Long): boolean
+  }
+  class BatchContainer <<record>> {
+    + batchId: Long
+    + containerMonitorId: Long
+    + containerName: String
+    + environmentId: Long
+    + assignedBy: Long
+    + assignedAt: Instant
+  }
 }
 
 package "batch.domain.model.aggregates" {
@@ -68,10 +83,13 @@ package "batch.domain.model.aggregates" {
     - startDate: String
     - endDate: String
     - notes: String
+    - containerAssignment: ContainerAssignment
     + belongsTo(laboratoryId, environmentId, productId): boolean
     + isOpen(): boolean
     + release(command: ReleaseBatchCommand): void
     + reject(command: RejectBatchCommand): void
+    + storeIn(assignment: ContainerAssignment): boolean
+    + container(): Optional<ContainerAssignment>
   }
 }
 
@@ -79,6 +97,7 @@ PharmaceuticalProduct --|> AbstractDomainAggregateRoot
 Batch --|> AbstractDomainAggregateRoot
 Batch --> BatchStatus
 Batch ..> PharmaceuticalProduct : productId
+Batch --> "0..1" ContainerAssignment : stored in
 
 package "batch.domain.model.entities" {
   class RawMaterialUsage {
@@ -126,6 +145,7 @@ BatchTraceability --> PharmaceuticalProduct
 BatchTraceability --> RawMaterialUsage
 BatchTraceability --> EquipmentUsage
 BatchTraceability --> StaffParticipation
+BatchTraceability --> "0..1" BatchContainer : container
 
 package "batch.domain.model.commands" {
   class CreateProductCommand <<record>>
@@ -135,6 +155,7 @@ package "batch.domain.model.commands" {
   class RegisterRawMaterialUsageCommand <<record>>
   class RegisterEquipmentUsageCommand <<record>>
   class RegisterStaffParticipationCommand <<record>>
+  class AssignBatchContainerCommand <<record>>
 }
 
 package "batch.domain.model.queries" {
@@ -147,6 +168,7 @@ package "batch.domain.model.queries" {
   class GetBatchTraceabilityQuery <<record>>
   class GetRawMaterialUsagesByInventoryMaterialQuery <<record>>
   class GetRawMaterialHistoryQuery <<record>>
+  class GetBatchContainerQuery <<record>>
 }
 
 package "batch.domain.model.events" {
@@ -156,6 +178,7 @@ package "batch.domain.model.events" {
   class BatchRejectedEvent <<record>>
   class RawMaterialLinkedToBatchEvent <<record>>
   class BatchParticipationRegisteredEvent <<record>>
+  class BatchStoredInContainerEvent <<record>>
 }
 
 package "batch.domain.repositories" {
@@ -168,14 +191,18 @@ package "batch.domain.repositories" {
 
 package "batch.application.commandservices" {
   interface ProductCommandService
-  interface BatchCommandService
+  interface BatchCommandService {
+    + handle(AssignBatchContainerCommand): Result<BatchContainer, ApplicationError>
+  }
   interface RawMaterialUsageCommandService
   interface BatchParticipationCommandService
 }
 
 package "batch.application.queryservices" {
   interface ProductQueryService
-  interface BatchQueryService
+  interface BatchQueryService {
+    + handle(GetBatchContainerQuery): Optional<BatchContainer>
+  }
   interface BatchTraceabilityQueryService
   interface RawMaterialUsageQueryService
 }
@@ -198,6 +225,9 @@ BatchCommandServiceImpl --> BatchRepository
 BatchCommandServiceImpl --> ProductRepository
 BatchCommandServiceImpl --> BatchEvidenceRepository
 BatchCommandServiceImpl --> CurrentUser
+BatchCommandServiceImpl --> BatchExternalEquipmentService
+BatchCommandServiceImpl --> ExternalLaboratoryService
+BatchCommandServiceImpl ..> BatchStoredInContainerEvent : publishes
 RawMaterialUsageCommandServiceImpl --> BatchRepository
 RawMaterialUsageCommandServiceImpl --> RawMaterialUsageRepository
 RawMaterialUsageCommandServiceImpl --> BatchExternalInventoryService
@@ -221,6 +251,8 @@ BatchTraceabilityQueryServiceImpl --> BatchParticipationRepository
 BatchTraceabilityQueryServiceImpl --> BatchEvidenceRepository
 BatchTraceabilityQueryServiceImpl --> RawMaterialUsageRepository
 BatchTraceabilityQueryServiceImpl --> BatchExternalInventoryService
+BatchTraceabilityQueryServiceImpl --> BatchExternalEquipmentService
+BatchQueryServiceImpl --> BatchExternalEquipmentService
 
 package "batch.application.internal.eventhandlers" {
   class ProductCreatedEventHandler
@@ -229,6 +261,7 @@ package "batch.application.internal.eventhandlers" {
   class BatchRejectedEventHandler
   class RawMaterialLinkedToBatchEventHandler
   class BatchParticipationRegisteredEventHandler
+  class BatchStoredInContainerEventHandler
   class ReceiptConsumedEventHandler
 }
 
@@ -241,9 +274,13 @@ note right of ReceiptConsumedEventHandler
 end note
 
 package "batch.application.internal.outboundservices.acl" {
-  class ExternalLaboratoryService
+  class ExternalLaboratoryService {
+    + findEnvironment(laboratoryId, environmentId): Optional<EnvironmentReference>
+  }
   class BatchExternalInventoryService
-  class BatchExternalEquipmentService
+  class BatchExternalEquipmentService {
+    + findContainerMonitor(laboratoryId, deviceId): Optional<ContainerReference>
+  }
   class BatchExternalComplianceService
 }
 
@@ -274,7 +311,11 @@ package "batch.interfaces.events" {
   class BatchRejectedIntegrationEvent <<record>>
   class RawMaterialLinkedToBatchIntegrationEvent <<record>>
   class BatchParticipationRegisteredIntegrationEvent <<record>>
+  class BatchStoredInContainerIntegrationEvent <<record>>
 }
+
+BatchStoredInContainerEventHandler ..> BatchStoredInContainerEvent
+BatchStoredInContainerEventHandler ..> BatchStoredInContainerIntegrationEvent : publishes
 
 package "batch.infrastructure.persistence.jpa" {
   class ProductPersistenceEntity
@@ -320,6 +361,8 @@ package "batch.interfaces.rest" {
     POST .../batches/{batchId}/equipment-usages
     POST .../batches/{batchId}/staff-participations
     GET  .../batches/{batchId}/traceability
+    GET  .../batches/{batchId}/container-assignment
+    PUT  .../batches/{batchId}/container-assignment
   }
   class LaboratoryBatchesController <<RestController>> {
     GET /laboratories/{laboratoryId}/batches
@@ -339,6 +382,12 @@ ProductBatchesController --> BatchQueryService
 BatchManufacturingController --> RawMaterialUsageCommandService
 BatchManufacturingController --> BatchParticipationCommandService
 BatchManufacturingController --> BatchTraceabilityQueryService
+BatchManufacturingController --> BatchCommandService
+BatchManufacturingController --> BatchQueryService
+note bottom of BatchManufacturingController
+  PUT container-assignment stores the batch in an OPERATIONAL container monitor
+  located in a PRODUCT_STORAGE environment of the laboratory (US78, TS68).
+end note
 LaboratoryBatchesController --> BatchQueryService
 EnvironmentRawMaterialUsagesController --> RawMaterialUsageQueryService
 RawMaterialHistoryController --> RawMaterialUsageQueryService

@@ -37,6 +37,10 @@ entity "batches" as batches {
   start_date : VARCHAR(30) NOT NULL
   end_date : VARCHAR(30)
   notes : VARCHAR(500)
+  container_monitor_id : BIGINT NULL
+  container_environment_id : BIGINT NULL
+  container_assigned_by : BIGINT NULL
+  container_assigned_at : DATETIME(6) NULL
   created_at : DATETIME(6) NOT NULL
   updated_at : DATETIME(6) NOT NULL
   --
@@ -129,6 +133,8 @@ package "Other contexts (reference)" {
   }
   entity "equipment" as equipment {
     * id : BIGINT PK
+    environment_id : BIGINT
+    device_type : VARCHAR
     status : VARCHAR
   }
   entity "staff_members" as staff_members {
@@ -138,6 +144,8 @@ package "Other contexts (reference)" {
 
 environments |o..o{ pharmaceutical_products : environment_id
 environments |o..o{ batches : environment_id
+equipment |o..o{ batches : container_monitor_id
+environments |o..o{ batches : container_environment_id
 inventory_receipts |o..o{ raw_material_usages : inventory_receipt_id
 equipment ||..o{ batch_equipment_usages : equipment_id
 staff_members ||..o{ batch_staff_participations : staff_id

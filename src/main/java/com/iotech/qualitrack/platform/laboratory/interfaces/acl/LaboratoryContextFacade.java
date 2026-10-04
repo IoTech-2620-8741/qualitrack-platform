@@ -27,6 +27,35 @@ public interface LaboratoryContextFacade {
     boolean existsEnvironment(Long laboratoryId, Long environmentId);
 
     /**
+     * Finds an environment of the laboratory with its usage.
+     *
+     * @param laboratoryId the laboratory that must own the environment
+     * @param environmentId the environment identifier
+     * @return the environment, or empty when it does not exist in the laboratory
+     */
+    Optional<EnvironmentReference> findEnvironment(Long laboratoryId, Long environmentId);
+
+    /**
+     * Environment data shared with other bounded contexts.
+     *
+     * @param id the environment identifier
+     * @param laboratoryId the owning laboratory
+     * @param code the environment code, unique in the laboratory
+     * @param name the environment name
+     * @param usage the usage name (LABORATORY, PRODUCTION, RAW_MATERIAL_STORAGE, PRODUCT_STORAGE or OTHER), or null
+     *              when no usage is assigned
+     */
+    record EnvironmentReference(Long id, Long laboratoryId, String code, String name, String usage) {
+        /**
+         * @param expected the usage name to compare
+         * @return true when the environment has that usage
+         */
+        public boolean hasUsage(String expected) {
+            return expected != null && expected.equals(usage);
+        }
+    }
+
+    /**
      * Finds a staff member registered in the laboratory.
      *
      * @param laboratoryId the laboratory that must own the staff member

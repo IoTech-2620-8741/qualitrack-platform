@@ -1,5 +1,7 @@
 package com.iotech.qualitrack.platform.inventory.application.internal.queryservices;
 
+import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
+import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalEquipmentService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialBatchesQuery;
@@ -15,6 +17,7 @@ import com.iotech.qualitrack.platform.inventory.domain.model.queries.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
 import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
 import com.iotech.qualitrack.platform.shared.application.result.*;
 import org.springframework.stereotype.Service;
@@ -32,8 +35,11 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
     private final LegacyInventoryFacade legacy;
     private final InventoryExternalLaboratoryService laboratories;
     private final NearExpiryPeriod nearExpiryPeriod;
+    private final InventoryExternalEquipmentService equipment;
     public InventoryQueryServiceImpl(InventoryRepository repository, Clock inventoryClock, LegacyInventoryFacade legacy,
-            InventoryExternalLaboratoryService laboratories, NearExpiryPeriod inventoryNearExpiryPeriod) {
+            InventoryExternalLaboratoryService laboratories, NearExpiryPeriod inventoryNearExpiryPeriod,
+            InventoryExternalEquipmentService equipment) {
+        this.equipment = equipment;
         this.repository = repository;
         this.laboratories = laboratories;
         this.nearExpiryPeriod = inventoryNearExpiryPeriod;
@@ -78,6 +84,20 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
                     && receipt.getAvailableAmount().signum() > 0
                     && receipt.getStatus() != RawMaterialBatchStatus.REJECTED))
             .toList();
+    }
+
+    /**
+     * @throws ApplicationException not found when the environment, the material or the lot do not exist
+     */
+    public Optional<RawMaterialBatchContainer> handle(GetRawMaterialBatchContainerQuery query) {
+        requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
+        var receipt = repository.receipt(query.laboratoryId(), query.rawMaterialBatchId(), false)
+            .filter(lot -> lot.getRawMaterialId().equals(query.rawMaterialId()))
+            .orElseThrow(() -> new ApplicationException(ApplicationError.notFound("RawMaterialBatch", query.rawMaterialBatchId())));
+        return receipt.container().map(container -> new RawMaterialBatchContainer(receipt.getId(), container.containerMonitorId(),
+            equipment.findContainerMonitor(query.laboratoryId(), container.containerMonitorId())
+                .map(EquipmentContextFacade.ContainerReference::name).orElse(null),
+            container.environmentId(), container.assignedBy(), container.assignedAt()));
     }
 
     private MaterialStockSummary summary(RawMaterial material) {

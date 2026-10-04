@@ -16,6 +16,7 @@ public final class ReceiptResourceFromEntityAssembler {
         return new ReceiptResource(receipt.getId(), receipt.getLaboratoryId(), receipt.getRawMaterialId(),
             receipt.getSupplier(), receipt.getBatchNumber(), receipt.getUnit(), receipt.getInitialAmount(),
             receipt.getAvailableAmount(), receipt.getReceivedOn(), receipt.getExpiresOn(), receipt.getStatus().name(),
-            receipt.isUsableOn(today), availability, receipt.expirationStatus(today, nearExpiry.days()).name());
+            receipt.isUsableOn(today), availability, receipt.expirationStatus(today, nearExpiry.days()).name(),
+            receipt.container().map(container -> container.containerMonitorId()).orElse(null));
     }
 }

@@ -10,6 +10,7 @@ import java.util.Optional;import com.iotech.qualitrack.platform.inventory.domain
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
 import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
 import java.util.List;
 import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LegacyInventoryFacade;
 
@@ -21,4 +22,6 @@ public interface InventoryQueryService {
     Optional<RawMaterialBatch> handle(GetRawMaterialBatchByIdQuery query);
     List<InventoryMovement> handle(GetRawMaterialMovementsQuery query);
     List<RawMaterialBatch> handle(GetEnvironmentRawMaterialBatchesQuery query);
+    /** Container where the lot is stored; empty when it has no container (US44, TS30). */
+    Optional<RawMaterialBatchContainer> handle(GetRawMaterialBatchContainerQuery query);
 }

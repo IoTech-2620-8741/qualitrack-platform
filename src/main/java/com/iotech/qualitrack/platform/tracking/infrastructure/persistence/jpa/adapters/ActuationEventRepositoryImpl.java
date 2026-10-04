@@ -33,6 +33,13 @@ public class ActuationEventRepositoryImpl implements ActuationEventRepository {
     }
 
     @Override
+    public List<ActuationEvent> findByEnvironmentAndPeriod(Long laboratoryId, Long environmentId, Instant from, Instant to) {
+        return persistenceRepository
+                .findAllByLaboratoryIdAndEnvironmentIdAndOccurredAtBetweenOrderByOccurredAtAscIdAsc(laboratoryId, environmentId, from, to)
+                .stream().map(ActuationEventPersistenceAssembler::toDomainFromPersistence).toList();
+    }
+
+    @Override
     public Optional<ActuationEvent> findByDeviceAndActionAndOccurredAt(Long deviceId, String action, Instant occurredAt) {
         return ActuationAction.parse(action)
                 .flatMap(value -> persistenceRepository.findFirstByDeviceIdAndActionAndOccurredAt(deviceId, value, occurredAt))

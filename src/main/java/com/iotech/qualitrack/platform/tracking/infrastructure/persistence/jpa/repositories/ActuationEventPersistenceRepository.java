@@ -16,6 +16,9 @@ public interface ActuationEventPersistenceRepository extends JpaRepository<Actua
     List<ActuationEventPersistenceEntity> findAllByDeviceIdAndOccurredAtBetweenOrderByOccurredAtAscIdAsc(
             Long deviceId, Instant from, Instant to);
 
+    List<ActuationEventPersistenceEntity> findAllByLaboratoryIdAndEnvironmentIdAndOccurredAtBetweenOrderByOccurredAtAscIdAsc(
+            Long laboratoryId, Long environmentId, Instant from, Instant to);
+
     Optional<ActuationEventPersistenceEntity> findFirstByDeviceIdAndActionAndOccurredAt(
             Long deviceId, ActuationAction action, Instant occurredAt);
 

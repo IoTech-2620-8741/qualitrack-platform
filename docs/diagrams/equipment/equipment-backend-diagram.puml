@@ -287,7 +287,6 @@ MaintenanceCommandServiceImpl ..|> MaintenanceCommandService
 
 EquipmentCommandServiceImpl --> EquipmentRepository
 EquipmentCommandServiceImpl --> EquipmentStatusChangeRepository
-EquipmentCommandServiceImpl --> ExternalLabService
 EquipmentCommandServiceImpl --> CurrentUser
 EquipmentCommandServiceImpl --> Clock : equipmentClock
 EquipmentCommandServiceImpl --> ApplicationEventPublisher
@@ -345,6 +344,8 @@ package "equipment.application.internal.outboundservices.acl" {
   }
 }
 
+EquipmentCommandServiceImpl --> ExternalLabService
+
 ExternalLabService --> LaboratoryContextFacade
 
 package "equipment.interfaces.acl" {
@@ -353,6 +354,7 @@ package "equipment.interfaces.acl" {
     + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
     + findContainerMonitor(laboratoryId, deviceId): Optional<ContainerReference>
+    + findDevices(laboratoryId): List<DeviceReference>
   }
   class EquipmentReference <<record>>
   class DeviceReference <<record>>

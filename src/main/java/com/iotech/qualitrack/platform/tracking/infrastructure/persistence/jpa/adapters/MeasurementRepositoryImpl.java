@@ -48,8 +48,10 @@ public class MeasurementRepositoryImpl implements MeasurementRepository {
     }
 
     @Override
-    public List<Measurement> findLatestByEquipmentId(Long equipmentId) {
-        return persistenceRepository.findTop50ByEquipmentIdOrderByIdDesc(equipmentId).stream()
+    public List<Measurement> findByEnvironmentAndPeriod(Long laboratoryId, Long environmentId, Instant from, Instant to) {
+        return persistenceRepository
+                .findAllByLaboratoryIdAndEnvironmentIdAndMeasuredAtBetweenOrderByMeasuredAtAscIdAsc(laboratoryId, environmentId, from, to)
+                .stream()
                 .map(MeasurementPersistenceAssembler::toDomainFromPersistence)
                 .toList();
     }

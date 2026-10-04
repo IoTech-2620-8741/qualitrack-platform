@@ -249,8 +249,6 @@ UserCommandServiceImpl --> UserRepository
 UserCommandServiceImpl --> RoleRepository
 UserCommandServiceImpl --> HashingService
 UserCommandServiceImpl --> TokenService
-UserCommandServiceImpl --> TemporaryPasswordGenerator
-UserCommandServiceImpl --> CredentialsNotifier
 
 package "iam.application.internal.outboundservices.credentials" {
   interface TemporaryPasswordGenerator {
@@ -260,6 +258,9 @@ package "iam.application.internal.outboundservices.credentials" {
     + send(credentials: StaffCredentials): boolean
   }
 }
+
+UserCommandServiceImpl --> TemporaryPasswordGenerator
+UserCommandServiceImpl --> CredentialsNotifier
 
 package "iam.infrastructure.credentials" {
   class SecureRandomTemporaryPasswordGenerator

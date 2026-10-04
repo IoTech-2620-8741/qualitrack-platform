@@ -220,20 +220,14 @@ RawMaterialUsageCommandServiceImpl ..|> RawMaterialUsageCommandService
 BatchParticipationCommandServiceImpl ..|> BatchParticipationCommandService
 
 ProductCommandServiceImpl --> ProductRepository
-ProductCommandServiceImpl --> ExternalLaboratoryService
 BatchCommandServiceImpl --> BatchRepository
 BatchCommandServiceImpl --> ProductRepository
 BatchCommandServiceImpl --> BatchEvidenceRepository
 BatchCommandServiceImpl --> CurrentUser
-BatchCommandServiceImpl --> BatchExternalEquipmentService
-BatchCommandServiceImpl --> ExternalLaboratoryService
 BatchCommandServiceImpl ..> BatchStoredInContainerEvent : publishes
 RawMaterialUsageCommandServiceImpl --> BatchRepository
 RawMaterialUsageCommandServiceImpl --> RawMaterialUsageRepository
-RawMaterialUsageCommandServiceImpl --> BatchExternalInventoryService
 BatchParticipationCommandServiceImpl --> BatchParticipationRepository
-BatchParticipationCommandServiceImpl --> BatchExternalEquipmentService
-BatchParticipationCommandServiceImpl --> ExternalLaboratoryService
 BatchParticipationCommandServiceImpl --> CurrentUser
 
 package "batch.application.internal.queryservices" {
@@ -250,9 +244,6 @@ RawMaterialUsageQueryServiceImpl ..|> RawMaterialUsageQueryService
 BatchTraceabilityQueryServiceImpl --> BatchParticipationRepository
 BatchTraceabilityQueryServiceImpl --> BatchEvidenceRepository
 BatchTraceabilityQueryServiceImpl --> RawMaterialUsageRepository
-BatchTraceabilityQueryServiceImpl --> BatchExternalInventoryService
-BatchTraceabilityQueryServiceImpl --> BatchExternalEquipmentService
-BatchQueryServiceImpl --> BatchExternalEquipmentService
 
 package "batch.application.internal.eventhandlers" {
   class ProductCreatedEventHandler
@@ -284,6 +275,16 @@ package "batch.application.internal.outboundservices.acl" {
   class BatchExternalComplianceService
 }
 
+ProductCommandServiceImpl --> ExternalLaboratoryService
+BatchCommandServiceImpl --> BatchExternalEquipmentService
+BatchCommandServiceImpl --> ExternalLaboratoryService
+RawMaterialUsageCommandServiceImpl --> BatchExternalInventoryService
+BatchParticipationCommandServiceImpl --> BatchExternalEquipmentService
+BatchParticipationCommandServiceImpl --> ExternalLaboratoryService
+BatchTraceabilityQueryServiceImpl --> BatchExternalInventoryService
+BatchTraceabilityQueryServiceImpl --> BatchExternalEquipmentService
+BatchQueryServiceImpl --> BatchExternalEquipmentService
+
 ExternalLaboratoryService --> LaboratoryContextFacade
 BatchExternalInventoryService --> InventoryContextFacade
 BatchExternalEquipmentService --> EquipmentContextFacade
@@ -293,11 +294,33 @@ package "batch.application.acl" {
 }
 
 package "batch.interfaces.acl" {
-  interface BatchContextFacade
+  interface BatchContextFacade {
+    + requireConsumable(batchId, laboratoryId): void
+    + existsBatchById(batchId): boolean
+    + belongsToLaboratory(batchId, laboratoryId): boolean
+    + isBatchReleased(batchId): boolean
+    + isBatchRejected(batchId): boolean
+    + findTraceability(batchId): Optional<TraceabilityReference>
+  }
+  class TraceabilityReference <<record>> {
+    + batchId: Long
+    + productCode: String
+    + materials: List<MaterialUse>
+    + equipment: List<EquipmentUse>
+    + staff: List<StaffUse>
+    + container: ContainerUse
+    + release: ReleaseSignature
+    + rejection: RejectionNote
+  }
   class BatchTenantResourceLookup
 }
 
 BatchContextFacadeImpl ..|> BatchContextFacade
+BatchContextFacade ..> TraceabilityReference
+note bottom of BatchContextFacade
+  findTraceability: materials with their lots and stock, equipment, staff,
+  container and quality decision, read by the batch report of Reporting (US96).
+end note
 BatchTenantResourceLookup ..|> TenantResourceLookup
 note bottom of BatchTenantResourceLookup
   Resolves the laboratory of batchId and productId

@@ -7,6 +7,7 @@ import com.iotech.qualitrack.platform.equipment.domain.model.valueobjects.IotDev
 import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -54,6 +55,17 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
                 .map(device -> new DeviceReference(device.getId(), device.getLabId(), device.getEnvironmentId(),
                         device.getName(), device.getDeviceType().name(),
                         device.getSensorExternalId() == null ? null : device.getSensorExternalId().value()));
+    }
+
+    @Override
+    public List<DeviceReference> findDevices(Long laboratoryId) {
+        if (laboratoryId == null || laboratoryId <= 0) return List.of();
+        return equipmentQueryService.handle(new GetEquipmentByLabIdQuery(laboratoryId)).stream()
+                .filter(equipment -> equipment.isIotDevice() && laboratoryId.equals(equipment.getLabId()))
+                .map(device -> new DeviceReference(device.getId(), device.getLabId(), device.getEnvironmentId(),
+                        device.getName(), device.getDeviceType().name(),
+                        device.getSensorExternalId() == null ? null : device.getSensorExternalId().value()))
+                .toList();
     }
 
     @Override

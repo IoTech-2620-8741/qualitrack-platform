@@ -30,9 +30,9 @@ public interface MeasurementRepository {
     Optional<Measurement> findPreviousReading(Long deviceId, String metric, Instant before);
 
     /**
-     * Latest readings of a device, newest first, used by Reporting &amp; Audit.
+     * Readings of every device of an environment in a period, oldest first, used by Reporting &amp; Audit.
      */
-    List<Measurement> findLatestByEquipmentId(Long equipmentId);
+    List<Measurement> findByEnvironmentAndPeriod(Long laboratoryId, Long environmentId, Instant from, Instant to);
 
     Optional<Instant> findLastReceivedAt(Long deviceId);
 }

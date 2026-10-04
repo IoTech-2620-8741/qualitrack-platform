@@ -233,7 +233,7 @@ class ComplianceAlertsIntegrationTests {
     private Account manager() throws Exception {
         var username = "compliance-" + UUID.randomUUID();
         var registration = call("POST", "/authentication/sign-up", null, """
-                {"username":"%s","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":null}
+                {"username":"%1$s","email":"%1$s@qualitrack.test","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":null}
                 """.formatted(username));
         assertThat(registration.statusCode()).withFailMessage(registration.body()).isEqualTo(201);
         var response = call("POST", "/authentication/sign-in", null, """

@@ -75,9 +75,33 @@ class StripeWebhookTests {
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("configured frontend");
     }
 
+    @Test void stripeRenewalDecisionIsSynchronized() {
+        var subscription = new Subscription(73L, 27L, null,
+                com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.PlanCode.BASIC,
+                com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.BillingCycle.MONTHLY,
+                com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.SubscriptionStatus.ACTIVE,
+                "cus_test", "sub_test", "cs_test", OffsetDateTime.now().toString(),
+                OffsetDateTime.now().plusMonths(1).toString(), null, null, false);
+        when(subscriptions.findByStripeSubscriptionId("sub_test")).thenReturn(Optional.of(subscription));
+        when(subscriptions.findActiveByUserId(27L)).thenReturn(Optional.of(subscription));
+        when(stripe.retrieveSubscriptionDetails("sub_test")).thenReturn(details("active", true));
+        service.synchronize("sub_test");
+        assertThat(subscription.isCancelAtPeriodEnd()).isTrue();
+        assertThat(subscription.grantsAccess()).isTrue();
+        when(stripe.retrieveSubscriptionDetails("sub_test")).thenReturn(details("canceled", true));
+        service.synchronize("sub_test");
+        assertThat(subscription.getStatus())
+                .isEqualTo(com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.SubscriptionStatus.CANCELLED);
+        assertThat(subscription.grantsAccess()).isFalse();
+    }
+
     private StripeSubscriptionDetails details(String status) {
+        return details(status, false);
+    }
+
+    private StripeSubscriptionDetails details(String status, boolean cancelAtPeriodEnd) {
         return new StripeSubscriptionDetails("cus_test", "sub_test", OffsetDateTime.now().toString(),
-                OffsetDateTime.now().plusMonths(1).toString(), status);
+                OffsetDateTime.now().plusMonths(1).toString(), status, cancelAtPeriodEnd);
     }
 
     private Session session() {

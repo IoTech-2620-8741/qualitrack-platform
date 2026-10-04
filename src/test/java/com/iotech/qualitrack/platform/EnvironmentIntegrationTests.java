@@ -139,7 +139,7 @@ class EnvironmentIntegrationTests {
     private Account account(String role) throws Exception {
         var username = "environment-" + UUID.randomUUID();
         var registration = call("POST", "/authentication/sign-up", null, """
-                {"username":"%s","password":"TestPassword123!","roles":["%s"],"laboratoryId":null}
+                {"username":"%1$s","email":"%1$s@qualitrack.test","password":"TestPassword123!","roles":["%2$s"],"laboratoryId":null}
                 """.formatted(username, role));
         assertThat(registration.statusCode()).withFailMessage(registration.body()).isEqualTo(201);
         var response = call("POST", "/authentication/sign-in", null, """

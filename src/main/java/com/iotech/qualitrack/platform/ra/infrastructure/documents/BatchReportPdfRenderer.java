@@ -33,7 +33,7 @@ final class BatchReportPdfRenderer extends AbstractReportPdfRenderer {
                         material.stockBefore() == null ? "Not recorded"
                                 : value(material.stockBefore()) + " -> " + value(material.stockAfter()) + " " + value(material.unit()),
                         date(material.usedOn()))).toList();
-                table(List.of("Material", "Supplier lot", "Quantity", "Lot stock", "Used on"), rows,
+                table(List.of("Material", "Lot", "Quantity", "Lot stock", "Used on"), rows,
                         new float[]{0.36f, 0.13f, 0.14f, 0.21f, 0.16f});
             }
             section("03", "Equipment and staff");

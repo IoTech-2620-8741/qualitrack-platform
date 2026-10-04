@@ -135,16 +135,19 @@ class OnboardingIntegrationTests {
         var created = call("POST", "/laboratories", account.token(), laboratory());
         long lab = ((Number) JsonPath.read(created.body(), "$.id")).longValue();
         var response = call("POST", "/laboratories/" + lab + "/compliance-reports", account.token(), """
-                {"startDate":"2026-08-01","endDate":"2026-09-01","format":"CSV","requestedBy":%d}
-                """.formatted(account.id()));
-        assertThat(response.statusCode()).withFailMessage(response.body()).isEqualTo(200);
-        assertThat(response.body()).contains("No deviation records", "Recorded deviations in period");
+                {"startDate":"2026-08-01","endDate":"2026-09-01","format":"CSV"}
+                """);
+        assertThat(response.statusCode()).withFailMessage(response.body()).isEqualTo(201);
+        long report = ((Number) JsonPath.read(response.body(), "$.id")).longValue();
+        assertThat(response.headers().firstValue("location").orElseThrow()).endsWith("/api/v1/reports/" + report);
         var history = call("GET", "/laboratories/" + lab + "/reports", account.token(), null);
-        long report = ((Number) JsonPath.read(history.body(), "$[0].id")).longValue();
+        assertThat(((Number) JsonPath.read(history.body(), "$[0].id")).longValue()).isEqualTo(report);
         var content = call("GET", "/reports/" + report + "/content", account.token(), null);
         assertThat(content.statusCode()).withFailMessage(content.body()).isEqualTo(200);
-        assertThat(content.body()).isEqualTo(response.body());
+        assertThat(content.body()).contains("No deviation records", "Recorded deviations in period");
+        assertThat(call("GET", "/reports/" + report + "/content", account.token(), null).body()).isEqualTo(content.body());
         assertThat(content.headers().firstValue("content-disposition").orElseThrow()).contains("attachment");
+        assertThat(call("GET", "/reports/999999999", account.token(), null).statusCode()).isIn(403, 404);
         var other = account();
         activateFixture(other, OffsetDateTime.now().plusDays(5));
         call("POST", "/laboratories", other.token(), laboratory());
@@ -162,28 +165,24 @@ class OnboardingIntegrationTests {
         materialUsages.save(new RawMaterialUsage(null, batch.getId(), 71L, "Fixture material from persistence",
                 75.0, "g", "2026-09-01"));
         var body = """
-                {"includeTelemetry":false,"includeDeviations":true,"format":"PDF","requestedBy":%d}
-                """.formatted(account.id());
-        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/batches/" + batch.getId() + "/reports"))
-                .header("Content-Type", "application/json").header("Authorization", "Bearer " + account.token())
-                .POST(HttpRequest.BodyPublishers.ofString(body)).build();
-        var generated = http.send(request, HttpResponse.BodyHandlers.ofByteArray());
-        assertThat(generated.statusCode()).isEqualTo(200);
-        assertThat(generated.headers().firstValue("content-type").orElseThrow()).contains("application/pdf");
-        try (var pdf = Loader.loadPDF(generated.body())) {
+                {"includeTelemetry":false,"includeDeviations":true,"format":"PDF"}
+                """;
+        var generated = call("POST", "/batches/" + batch.getId() + "/reports", account.token(), body);
+        assertThat(generated.statusCode()).withFailMessage(generated.body()).isEqualTo(201);
+        long report = ((Number) JsonPath.read(generated.body(), "$.id")).longValue();
+        assertThat(generated.headers().firstValue("location").orElseThrow()).endsWith("/api/v1/reports/" + report);
+        var download = binaryCall("GET", "/reports/" + report + "/content", account.token(), null);
+        assertThat(download.headers().firstValue("content-type").orElseThrow()).contains("application/pdf");
+        try (var pdf = Loader.loadPDF(download.body())) {
             assertThat(new PDFTextStripper().getText(pdf)).contains("Material traceability", "Fixture material from persistence",
                     "75", "0 recorded deviations", "DEMO: isolated test record");
         }
-        var history = call("GET", "/laboratories/" + lab + "/reports", account.token(), null);
-        long report = ((Number) JsonPath.read(history.body(), "$[0].id")).longValue();
-        var download = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/reports/" + report + "/content"))
-                .header("Authorization", "Bearer " + account.token()).GET().build();
-        assertThat(http.send(download, HttpResponse.BodyHandlers.ofByteArray()).body()).isEqualTo(generated.body());
+        var history = call("GET", "/batches/" + batch.getId() + "/reports", account.token(), null);
+        assertThat(((Number) JsonPath.read(history.body(), "$[0].id")).longValue()).isEqualTo(report);
         var other = account();
         activateFixture(other, OffsetDateTime.now().plusDays(5));
         call("POST", "/laboratories", other.token(), laboratory());
-        assertThat(call("POST", "/batches/" + batch.getId() + "/reports", other.token(),
-                body.replace(account.id().toString(), other.id().toString())).statusCode()).isEqualTo(403);
+        assertThat(call("POST", "/batches/" + batch.getId() + "/reports", other.token(), body).statusCode()).isEqualTo(403);
         assertThat(call("POST", "/batches/999999999/reports", account.token(), body).statusCode()).isIn(403, 404);
     }
 
@@ -193,7 +192,11 @@ class OnboardingIntegrationTests {
         activateFixture(account, OffsetDateTime.now().plusDays(5));
         var created = call("POST", "/laboratories", account.token(), laboratory());
         long lab = ((Number) JsonPath.read(created.body(), "$.id")).longValue();
-        var device = equipment.save(new Equipment(null, lab, null, "DEMO period fixture", new EquipmentType("Refrigerator"),
+        var environmentCreated = call("POST", "/laboratories/" + lab + "/environments", account.token(),
+                "{\"code\":\"PERIOD-1\",\"name\":\"Period fixture zone\"}");
+        assertThat(environmentCreated.statusCode()).withFailMessage(environmentCreated.body()).isEqualTo(201);
+        long environmentId = ((Number) JsonPath.read(environmentCreated.body(), "$.id")).longValue();
+        var device = equipment.save(new Equipment(null, lab, environmentId, "DEMO period fixture", new EquipmentType("Refrigerator"),
                 "Model", "SN-" + UUID.randomUUID(), EquipmentStatus.OPERATIONAL, null, null, null));
         for (String day : java.util.List.of("2026-08-31", "2026-09-01", "2026-09-05", "2026-09-06")) {
             deviations.save(new DeviationAlert(null, device.getId(), null, "PARAM-" + day, 9.3, 8.0, "C", day + "T12:00:00",
@@ -203,11 +206,14 @@ class OnboardingIntegrationTests {
             audit.save(new AuditLogEntry(null, AuditAction.UPDATE, "EQUIPMENT", device.getId(), account.id(), day + "T12:00:00", "LOG-" + day));
         }
         String body = """
-                {"startDate":"2026-09-01","endDate":"2026-09-05","format":"PDF","requestedBy":%d}
-                """.formatted(account.id());
-        for (String path : java.util.List.of("/laboratories/" + lab + "/compliance-reports", "/equipments/" + device.getId() + "/log-reports")) {
-            var generated = binaryCall("POST", path, account.token(), body);
-            assertThat(generated.statusCode()).isEqualTo(200);
+                {"startDate":"2026-09-01","endDate":"2026-09-05","format":"PDF"}
+                """;
+        String logReports = "/laboratories/" + lab + "/environments/" + environmentId + "/equipments/" + device.getId() + "/log-reports";
+        for (String path : java.util.List.of("/laboratories/" + lab + "/compliance-reports", logReports)) {
+            var report = call("POST", path, account.token(), body);
+            assertThat(report.statusCode()).withFailMessage(report.body()).isEqualTo(201);
+            long createdId = ((Number) JsonPath.read(report.body(), "$.id")).longValue();
+            var generated = binaryCall("GET", "/reports/" + createdId + "/content", account.token(), null);
             assertThat(generated.headers().firstValue("content-type").orElseThrow()).contains("application/pdf");
             try (var pdf = Loader.loadPDF(generated.body())) {
                 String text = new PDFTextStripper().getText(pdf);
@@ -217,20 +223,24 @@ class OnboardingIntegrationTests {
             }
             var history = call("GET", "/laboratories/" + lab + "/reports", account.token(), null);
             var ids = JsonPath.<java.util.List<Number>>read(history.body(), "$[*].id");
-            long reportId = ids.stream().mapToLong(Number::longValue).max().orElseThrow();
-            assertThat(binaryCall("GET", "/reports/" + reportId + "/content", account.token(), null).body()).isEqualTo(generated.body());
+            assertThat(ids.stream().mapToLong(Number::longValue).max().orElseThrow()).isEqualTo(createdId);
             var csv = call("POST", path, account.token(), body.replace("PDF", "CSV"));
-            assertThat(csv.statusCode()).isEqualTo(200);
-            assertThat(csv.body()).contains("2026-09-01", "2026-09-05").doesNotContain("2026-08-31", "2026-09-06");
+            assertThat(csv.statusCode()).isEqualTo(201);
+            var csvContent = call("GET", "/reports/" + JsonPath.read(csv.body(), "$.id") + "/content", account.token(), null);
+            assertThat(csvContent.body()).contains("2026-09-01", "2026-09-05").doesNotContain("2026-08-31", "2026-09-06");
             assertThat(call("POST", path, account.token(), body.replace("2026-09-01", "2026-09-07")).statusCode()).isEqualTo(400);
             assertThat(call("POST", path, null, body).statusCode()).isEqualTo(401);
         }
         var other = account();
         activateFixture(other, OffsetDateTime.now().plusDays(5));
         call("POST", "/laboratories", other.token(), laboratory());
-        String otherBody = body.replace("\"requestedBy\":" + account.id(), "\"requestedBy\":" + other.id());
-        assertThat(call("POST", "/laboratories/" + lab + "/compliance-reports", other.token(), otherBody).statusCode()).isEqualTo(403);
-        assertThat(call("POST", "/equipments/" + device.getId() + "/log-reports", other.token(), otherBody).statusCode()).isEqualTo(403);
+        assertThat(call("POST", "/laboratories/" + lab + "/compliance-reports", other.token(), body).statusCode()).isEqualTo(403);
+        assertThat(call("POST", logReports, other.token(), body).statusCode()).isEqualTo(403);
+        var otherEnvironment = call("POST", "/laboratories/" + lab + "/environments", account.token(),
+                "{\"code\":\"PERIOD-2\",\"name\":\"Other zone\"}");
+        long otherEnvironmentId = ((Number) JsonPath.read(otherEnvironment.body(), "$.id")).longValue();
+        assertThat(call("POST", logReports.replace("/environments/" + environmentId + "/", "/environments/" + otherEnvironmentId + "/"),
+                account.token(), body).statusCode()).isEqualTo(404);
     }
 
     private HttpResponse<byte[]> binaryCall(String method, String path, String token, String body) throws Exception {

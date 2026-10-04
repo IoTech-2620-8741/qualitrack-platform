@@ -1,6 +1,11 @@
 package com.iotech.qualitrack.platform.batch.interfaces.rest;
 
+import com.iotech.qualitrack.platform.batch.application.commandservices.BatchCommandService;
 import com.iotech.qualitrack.platform.batch.application.commandservices.BatchParticipationCommandService;
+import com.iotech.qualitrack.platform.batch.application.queryservices.BatchQueryService;
+import com.iotech.qualitrack.platform.batch.domain.model.commands.AssignBatchContainerCommand;
+import com.iotech.qualitrack.platform.batch.domain.model.queries.GetBatchContainerQuery;
+import com.iotech.qualitrack.platform.batch.interfaces.rest.transform.BatchContainerResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.batch.application.commandservices.RawMaterialUsageCommandService;
 import com.iotech.qualitrack.platform.batch.application.queryservices.BatchTraceabilityQueryService;
 import com.iotech.qualitrack.platform.batch.domain.model.queries.GetBatchTraceabilityQuery;
@@ -29,8 +34,8 @@ import org.springframework.web.bind.annotation.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * REST controller for the resources that take part in the manufacturing of a product batch (TS65-TS67)
- * and its traceability (TS70).
+ * REST controller for the resources that take part in the manufacturing of a product batch (TS65-TS67), the
+ * container where it is stored (TS68, TS69) and its traceability (TS70).
  *
  * <p>Tenant isolation of every path identifier is enforced by the IAM tenant interceptor and the batch
  * must belong to the product of the environment in the path. Authorized laboratory staff register the
@@ -45,10 +50,15 @@ public class BatchManufacturingController {
     private final RawMaterialUsageCommandService rawMaterialUsageCommandService;
     private final BatchParticipationCommandService participationCommandService;
     private final BatchTraceabilityQueryService traceabilityQueryService;
+    private final BatchCommandService batchCommandService;
+    private final BatchQueryService batchQueryService;
 
     public BatchManufacturingController(RawMaterialUsageCommandService rawMaterialUsageCommandService,
                                         BatchParticipationCommandService participationCommandService,
-                                        BatchTraceabilityQueryService traceabilityQueryService) {
+                                        BatchTraceabilityQueryService traceabilityQueryService,
+                                        BatchCommandService batchCommandService, BatchQueryService batchQueryService) {
+        this.batchCommandService = batchCommandService;
+        this.batchQueryService = batchQueryService;
         this.rawMaterialUsageCommandService = rawMaterialUsageCommandService;
         this.participationCommandService = participationCommandService;
         this.traceabilityQueryService = traceabilityQueryService;
@@ -112,6 +122,45 @@ public class BatchManufacturingController {
         var command = new RegisterStaffParticipationCommand(laboratoryId, environmentId, productId, batchId, resource.staffId());
         return ResponseEntityAssembler.toResponseEntityFromResult(participationCommandService.handle(command),
                 BatchParticipationResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/container-assignment")
+    @Operation(summary = "Get the container of a product batch",
+            description = "Monitored container and environment where the batch is stored (US79, TS69).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Container of the batch",
+                    content = @Content(schema = @Schema(implementation = BatchContainerResource.class))),
+            @ApiResponse(responseCode = "403", description = "Batch not available to the account"),
+            @ApiResponse(responseCode = "404", description = "Batch not registered for the product, or the batch has no container",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> getContainerAssignment(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                                    @PathVariable Long productId, @PathVariable Long batchId) {
+        return batchQueryService.handle(new GetBatchContainerQuery(laboratoryId, environmentId, productId, batchId))
+                .<ResponseEntity<?>>map(container -> ResponseEntity.ok(BatchContainerResourceFromEntityAssembler.toResourceFromEntity(container)))
+                .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.notFound("ContainerAssignment", batchId)));
+    }
+
+    @PutMapping(value = "/container-assignment", consumes = APPLICATION_JSON_VALUE)
+    @Operation(summary = "Store a product batch in a container",
+            description = "Stores the batch in an operational container monitor located in a product storage environment of "
+                    + "the laboratory, replacing the previous container (US78, TS68).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Batch stored in the container",
+                    content = @Content(schema = @Schema(implementation = BatchContainerResource.class))),
+            @ApiResponse(responseCode = "400", description = "Missing container monitor", content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "403", description = "Batch not available to the account"),
+            @ApiResponse(responseCode = "404", description = "Batch not registered for the product", content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "409", description = "Container not registered, not in a product storage environment or not operational",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> assignContainer(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
+                                             @PathVariable Long productId, @PathVariable Long batchId,
+                                             @RequestBody AssignBatchContainerResource resource) {
+        var command = new AssignBatchContainerCommand(laboratoryId, environmentId, productId, batchId,
+                resource == null ? null : resource.containerMonitorId());
+        return ResponseEntityAssembler.toResponseEntityFromResult(batchCommandService.handle(command),
+                BatchContainerResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 
     @GetMapping("/traceability")

@@ -1,5 +1,11 @@
 package com.iotech.qualitrack.platform.batch.application.internal.queryservices;
 
+import com.iotech.qualitrack.platform.batch.application.internal.outboundservices.acl.BatchExternalEquipmentService;
+import com.iotech.qualitrack.platform.batch.domain.model.queries.GetBatchContainerQuery;
+import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchContainer;
+import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
 import com.iotech.qualitrack.platform.batch.application.queryservices.BatchQueryService;
 import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
 import com.iotech.qualitrack.platform.batch.domain.model.queries.GetBatchByIdQuery;
@@ -21,10 +27,24 @@ public class BatchQueryServiceImpl implements BatchQueryService {
 
     private final BatchRepository batchRepository;
     private final ProductRepository productRepository;
+    private final BatchExternalEquipmentService equipment;
 
-    public BatchQueryServiceImpl(BatchRepository batchRepository, ProductRepository productRepository) {
+    public BatchQueryServiceImpl(BatchRepository batchRepository, ProductRepository productRepository,
+                                 BatchExternalEquipmentService equipment) {
         this.batchRepository = batchRepository;
         this.productRepository = productRepository;
+        this.equipment = equipment;
+    }
+
+    @Override
+    public Optional<BatchContainer> handle(GetBatchContainerQuery query) {
+        var batch = batchRepository.findById(query.batchId())
+                .filter(value -> value.belongsTo(query.laboratoryId(), query.environmentId(), query.productId()))
+                .orElseThrow(() -> new ApplicationException(ApplicationError.notFound("Batch", query.batchId())));
+        return batch.container().map(container -> new BatchContainer(batch.getId(), container.containerMonitorId(),
+                equipment.findContainerMonitor(query.laboratoryId(), container.containerMonitorId())
+                        .map(EquipmentContextFacade.ContainerReference::name).orElse(null),
+                container.environmentId(), container.assignedBy(), container.assignedAt()));
     }
 
     @Override

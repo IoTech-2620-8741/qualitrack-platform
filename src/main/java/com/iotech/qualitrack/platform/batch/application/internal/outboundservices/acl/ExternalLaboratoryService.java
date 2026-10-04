@@ -32,6 +32,15 @@ public class ExternalLaboratoryService {
     }
 
     /**
+     * Finds an environment of the laboratory with its usage.
+     *
+     * @return the environment, or empty when it does not belong to the laboratory
+     */
+    public java.util.Optional<LaboratoryContextFacade.EnvironmentReference> findEnvironment(Long laboratoryId, Long environmentId) {
+        return laboratoryContextFacade.findEnvironment(laboratoryId, environmentId);
+    }
+
+    /**
      * Finds a staff member registered in the laboratory.
      *
      * @return the staff member, or empty when it is not registered in the laboratory

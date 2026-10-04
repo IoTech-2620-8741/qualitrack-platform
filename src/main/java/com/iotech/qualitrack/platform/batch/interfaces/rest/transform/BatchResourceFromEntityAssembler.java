@@ -27,7 +27,8 @@ public class BatchResourceFromEntityAssembler {
                 entity.getStatus().name(),
                 entity.getStartDate(),
                 entity.getEndDate(),
-                entity.getNotes()
+                entity.getNotes(),
+                entity.container().map(container -> container.containerMonitorId()).orElse(null)
         );
     }
 }

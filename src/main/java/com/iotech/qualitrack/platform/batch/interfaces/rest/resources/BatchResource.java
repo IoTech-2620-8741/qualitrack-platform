@@ -45,6 +45,9 @@ public record BatchResource(
         String endDate,
 
         @Schema(description = "Manufacturing or quality notes", example = "Standard production run", nullable = true)
-        String notes
+        String notes,
+
+        @Schema(description = "Container monitor of the container where the batch is stored", example = "12", nullable = true)
+        Long containerMonitorId
 ) {
 }

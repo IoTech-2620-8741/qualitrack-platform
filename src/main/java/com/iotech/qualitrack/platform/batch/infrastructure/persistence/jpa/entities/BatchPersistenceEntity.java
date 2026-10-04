@@ -56,4 +56,19 @@ public class BatchPersistenceEntity extends AuditableAbstractPersistenceEntity {
 
     @Column(length = 500)
     private String notes;
+
+    /**
+     * Container monitor of the monitored container where the batch is stored (US78).
+     */
+    @Column(name = "container_monitor_id")
+    private Long containerMonitorId;
+
+    @Column(name = "container_environment_id")
+    private Long containerEnvironmentId;
+
+    @Column(name = "container_assigned_by")
+    private Long containerAssignedBy;
+
+    @Column(name = "container_assigned_at")
+    private java.time.Instant containerAssignedAt;
 }

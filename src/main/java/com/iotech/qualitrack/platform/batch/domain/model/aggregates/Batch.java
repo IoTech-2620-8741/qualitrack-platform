@@ -4,6 +4,7 @@ import com.iotech.qualitrack.platform.batch.domain.model.commands.CreateBatchCom
 import com.iotech.qualitrack.platform.batch.domain.model.commands.ReleaseBatchCommand;
 import com.iotech.qualitrack.platform.batch.domain.model.commands.RejectBatchCommand;
 import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchStatus;
+import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.ContainerAssignment;
 import com.iotech.qualitrack.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import lombok.Getter;
 
@@ -67,6 +68,10 @@ public class Batch extends AbstractDomainAggregateRoot<Batch> {
      * Manufacturing notes, the release notes or the rejection reason.
      */
     private String notes;
+    /**
+     * Monitored container where the batch is stored; null while it has no container (US78, US79).
+     */
+    private ContainerAssignment containerAssignment;
 
     /**
      * Default constructor required by the persistence assemblers.
@@ -80,6 +85,16 @@ public class Batch extends AbstractDomainAggregateRoot<Batch> {
      */
     public Batch(Long id, Long labId, Long environmentId, Long productId, String productName, String batchNumber,
                  Double quantity, String unit, BatchStatus status, String startDate, String endDate, String notes) {
+        this(id, labId, environmentId, productId, productName, batchNumber, quantity, unit, status, startDate, endDate, notes,
+                null);
+    }
+
+    /**
+     * Reconstructs a Batch from persistence data together with the container where it is stored.
+     */
+    public Batch(Long id, Long labId, Long environmentId, Long productId, String productName, String batchNumber,
+                 Double quantity, String unit, BatchStatus status, String startDate, String endDate, String notes,
+                 ContainerAssignment containerAssignment) {
         this.id = id;
         this.labId = labId;
         this.environmentId = environmentId;
@@ -92,6 +107,7 @@ public class Batch extends AbstractDomainAggregateRoot<Batch> {
         this.startDate = startDate;
         this.endDate = endDate;
         this.notes = notes;
+        this.containerAssignment = containerAssignment;
     }
 
     /**
@@ -138,6 +154,27 @@ public class Batch extends AbstractDomainAggregateRoot<Batch> {
      */
     public boolean isOpen() {
         return status == BatchStatus.PENDING || status == BatchStatus.IN_PROGRESS;
+    }
+
+    /**
+     * Stores the batch in a monitored container, replacing the previous one (US78). A released or rejected batch can
+     * still be stored.
+     *
+     * @param assignment the container, its environment and who stored the batch
+     * @return false when the batch was already stored in that container
+     */
+    public boolean storeIn(ContainerAssignment assignment) {
+        Objects.requireNonNull(assignment, "Container assignment is required");
+        if (containerAssignment != null && containerAssignment.isIn(assignment.containerMonitorId())) return false;
+        containerAssignment = assignment;
+        return true;
+    }
+
+    /**
+     * @return the container where the batch is stored, if any (US79)
+     */
+    public java.util.Optional<ContainerAssignment> container() {
+        return java.util.Optional.ofNullable(containerAssignment);
     }
 
     /**

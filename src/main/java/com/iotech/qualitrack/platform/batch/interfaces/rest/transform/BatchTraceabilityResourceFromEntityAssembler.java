@@ -28,6 +28,7 @@ public final class BatchTraceabilityResourceFromEntityAssembler {
                 traceability.release().map(signature -> new ReleaseEvidenceResource(signature.getSignedByUserId(),
                         signature.getSignatureHash(), signature.getSignedAt())).orElse(null),
                 traceability.rejection().map(record -> new RejectionEvidenceResource(record.getRejectionDate(),
-                        record.getReason())).orElse(null));
+                        record.getReason())).orElse(null),
+                traceability.container().map(BatchContainerResourceFromEntityAssembler::toResourceFromEntity).orElse(null));
     }
 }

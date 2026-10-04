@@ -16,7 +16,8 @@ public record BatchTraceabilityResource(
         @Schema(description = "Equipment used in the batch") List<EquipmentUsageResource> equipment,
         @Schema(description = "Staff who took part in the batch") List<StaffParticipationResource> staff,
         @Schema(description = "Release signature, when the batch was released", nullable = true) ReleaseEvidenceResource release,
-        @Schema(description = "Rejection record, when the batch was rejected", nullable = true) RejectionEvidenceResource rejection
+        @Schema(description = "Rejection record, when the batch was rejected", nullable = true) RejectionEvidenceResource rejection,
+        @Schema(description = "Monitored container where the batch is stored, when it has one", nullable = true) BatchContainerResource container
 ) {
     @Schema(name = "TraceabilityProduct")
     public record ProductSummaryResource(Long id, String code, String name) { }

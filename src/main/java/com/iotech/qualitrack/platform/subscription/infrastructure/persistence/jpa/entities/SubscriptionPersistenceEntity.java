@@ -63,4 +63,7 @@ public class SubscriptionPersistenceEntity extends AuditableAbstractPersistenceE
 
     @Column(name = "cancelled_by")
     private Long cancelledBy;
+
+    @Column(name = "cancel_at_period_end", nullable = false)
+    private boolean cancelAtPeriodEnd;
 }

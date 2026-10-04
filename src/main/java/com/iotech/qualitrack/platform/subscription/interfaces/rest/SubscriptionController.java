@@ -60,15 +60,16 @@ public class SubscriptionController {
     }
 
     @PostMapping("/{subscriptionId}/cancellation-requests")
-    @Operation(summary = "Cancel a subscription",
-            description = "Registers the cancellation requested by the authenticated quality manager (TS11).")
+    @Operation(summary = "Cancel the renewal of a subscription",
+            description = "Registers the cancellation of the renewal requested by the authenticated quality manager (US23, "
+                    + "TS11). The subscription keeps its access until currentPeriodEnd and is not charged again.")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Subscription cancelled",
+            @ApiResponse(responseCode = "201", description = "Renewal cancelled; cancelAtPeriodEnd is true",
                     content = @Content(schema = @Schema(implementation = SubscriptionResource.class))),
             @ApiResponse(responseCode = "403", description = "Subscription not available to the account"),
             @ApiResponse(responseCode = "404", description = "Subscription not found",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
-            @ApiResponse(responseCode = "409", description = "The subscription is not active",
+            @ApiResponse(responseCode = "409", description = "The subscription is not active or its renewal is already cancelled",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
     public ResponseEntity<?> requestCancellation(@PathVariable Long subscriptionId) {

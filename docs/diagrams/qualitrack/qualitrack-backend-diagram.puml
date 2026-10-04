@@ -264,6 +264,7 @@ package "tracking" {
     class TrackingCommandServiceImpl
     class TrackingQueryServiceImpl
     class TrackingExternalEquipmentService
+    class TrackingContextFacadeImpl
   }
 
   package "interfaces" {
@@ -272,7 +273,9 @@ package "tracking" {
     class DeviceTrackingController
     class MeasurementRecordedIntegrationEvent
     class EnvironmentalDeviationDetectedIntegrationEvent
+    class EnvironmentalConditionNormalizedIntegrationEvent
     class EnvironmentalProfileUpdatedIntegrationEvent
+    interface TrackingContextFacade
   }
 }
 
@@ -294,13 +297,14 @@ package "ca" {
     interface CaQueryService
     class CaCommandServiceImpl
     class CaQueryServiceImpl
-    class CaExternalBatchService
     class CaExternalEquipmentService
+    class CaExternalTrackingService
     class BatchReleasedComplianceEventHandler
     class BatchRejectedComplianceEventHandler
     class CalibrationExpiredEventHandler
     class RawMaterialLowStockComplianceEventHandler
     class EnvironmentalDeviationComplianceEventHandler
+    class EnvironmentalConditionNormalizedComplianceEventHandler
   }
 
   package "interfaces" {
@@ -528,8 +532,9 @@ InvInventoryExternalEquipmentService --> EquipmentContextFacade : container moni
 BatchExternalEquipmentService --> EquipmentContextFacade : container monitor
 InvInventoryCommandServiceImpl --> InvInventoryExternalEquipmentService
 BatchCommandServiceImpl --> BatchExternalEquipmentService
-CaExternalBatchService --> BatchContextFacade
-CaExternalEquipmentService --> EquipmentRepository
+CaExternalEquipmentService --> EquipmentContextFacade : device and origin
+CaExternalTrackingService --> TrackingContextFacade : related actions
+TrackingContextFacadeImpl ..|> TrackingContextFacade
 RaExternalLaboratoryService --> LaboratoryContextFacade
 RaExternalEquipmentService --> EquipmentRepository
 RaExternalBatchService --> BatchContextFacade
@@ -538,6 +543,7 @@ RaExternalComplianceService --> ComplianceContextFacade
 RawMaterialLowStockIntegrationEvent ..> RawMaterialLowStockComplianceEventHandler
 CalibrationExpiredIntegrationEvent ..> CalibrationExpiredEventHandler
 EnvironmentalDeviationDetectedIntegrationEvent ..> EnvironmentalDeviationComplianceEventHandler
+EnvironmentalConditionNormalizedIntegrationEvent ..> EnvironmentalConditionNormalizedComplianceEventHandler
 BatchReleasedIntegrationEvent ..> BatchReleasedComplianceEventHandler
 BatchRejectedIntegrationEvent ..> BatchRejectedComplianceEventHandler
 

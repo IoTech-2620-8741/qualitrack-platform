@@ -73,8 +73,8 @@ public class RaExternalComplianceService {
     public long countUnresolvedDeviationAlertsByEquipmentId(Long equipmentId) {
         if (equipmentId == null || equipmentId <= 0) return 0;
 
-        return deviationAlertRepository
-                .findAllByEquipmentIdAndStatus(equipmentId, AlertStatus.UNRESOLVED)
-                .size();
+        return deviationAlertRepository.findAllByEquipmentId(equipmentId).stream()
+                .filter(alert -> alert.getStatus() == AlertStatus.UNRESOLVED)
+                .count();
     }
 }

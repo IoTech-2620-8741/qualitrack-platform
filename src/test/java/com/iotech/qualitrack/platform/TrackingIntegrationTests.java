@@ -132,7 +132,7 @@ class TrackingIntegrationTests {
     }
 
     @Test
-    void readingsAreEvaluatedAndOnlyAWorseConditionCreatesAnAlert() throws Exception {
+    void readingsAreEvaluatedAndTheDeviationsOfAnIncidentShareOneAlert() throws Exception {
         var lab = laboratory();
         var token = lab.manager().token();
         assertThat(call("PUT", lab.container() + "/environmental-profile/thresholds", token, containerThresholds()).statusCode())
@@ -156,11 +156,15 @@ class TrackingIntegrationTests {
         call("POST", readings, token, reading("TEMPERATURE", 22.0, start.plusSeconds(300)));
         call("POST", readings, token, reading("TEMPERATURE", 26.0, start.plusSeconds(360)));
 
-        var alerts = call("GET", "/laboratories/" + lab.id() + "/equipments/" + lab.containerMonitor() + "/deviation-alerts", token, null);
+        // WARNING, CRITICAL, back to normal and WARNING again are one incident while the alert is open.
+        var alerts = call("GET", lab.environmentPath() + "/deviation-alerts?deviceId=" + lab.containerMonitor(), token, null);
         assertThat(alerts.statusCode()).withFailMessage(alerts.body()).isEqualTo(200);
-        assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].severity"))
-                .containsExactlyInAnyOrder("WARNING", "CRITICAL", "WARNING");
-        assertThat(JsonPath.<List<Double>>read(alerts.body(), "$[?(@.severity == 'CRITICAL')].thresholdValue")).containsExactly(30.0);
+        assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].severity")).containsExactly("CRITICAL");
+        assertThat(JsonPath.<List<Integer>>read(alerts.body(), "$[*].deviationCount")).containsExactly(3);
+        assertThat(JsonPath.<List<Double>>read(alerts.body(), "$[*].thresholdValue")).containsExactly(30.0);
+        assertThat(JsonPath.<List<Double>>read(alerts.body(), "$[*].recordedValue")).containsExactly(33.0);
+        assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].origin")).containsExactly("CONTAINER");
+        assertThat(JsonPath.<List<Object>>read(alerts.body(), "$[*].normalizedAt")).containsExactly((Object) null);
         assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].unit")).containsOnly("°C");
 
         var rfid = call("POST", readings, token, """
@@ -217,8 +221,9 @@ class TrackingIntegrationTests {
         assertThat(listed.statusCode()).isEqualTo(200);
         assertThat(JsonPath.<List<Double>>read(listed.body(), "$[*].value")).containsExactly(1.0);
 
-        var alerts = call("GET", "/laboratories/" + lab.id() + "/equipments/" + lab.spaceMonitor() + "/deviation-alerts", token, null);
+        var alerts = call("GET", lab.environmentPath() + "/deviation-alerts?deviceId=" + lab.spaceMonitor(), token, null);
         assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].severity")).containsExactly("CRITICAL");
+        assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].origin")).containsExactly("ENVIRONMENT");
 
         var bare = environment(lab, "QC-" + suffix());
         var bareReadings = "/laboratories/" + lab.id() + "/environments/" + bare + "/telemetry-measurements";

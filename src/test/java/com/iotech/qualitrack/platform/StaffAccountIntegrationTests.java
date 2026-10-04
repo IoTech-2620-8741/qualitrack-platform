@@ -95,7 +95,7 @@ class StaffAccountIntegrationTests {
 
         for (var role : List.of("ROLE_LAB_OPERATOR", "ROLE_AUDITOR")) {
             assertThat(call("POST", "/authentication/sign-up", null, """
-                    {"username":"self-%s","password":"TestPassword123!","roles":["%s"],"laboratoryId":null}
+                    {"username":"self-%1$s","email":"self-%1$s@qualitrack.test","password":"TestPassword123!","roles":["%2$s"],"laboratoryId":null}
                     """.formatted(UUID.randomUUID(), role)).statusCode()).isEqualTo(400);
         }
     }
@@ -237,7 +237,7 @@ class StaffAccountIntegrationTests {
     private Account manager() throws Exception {
         var username = "manager-" + UUID.randomUUID();
         var registration = call("POST", "/authentication/sign-up", null, """
-                {"username":"%s","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":null}
+                {"username":"%1$s","email":"%1$s@qualitrack.test","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":null}
                 """.formatted(username));
         assertThat(registration.statusCode()).withFailMessage(registration.body()).isEqualTo(201);
         var response = signIn(username, "TestPassword123!");

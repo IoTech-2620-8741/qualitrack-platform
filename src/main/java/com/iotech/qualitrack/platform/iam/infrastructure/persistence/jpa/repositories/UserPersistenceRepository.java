@@ -19,4 +19,8 @@ public interface UserPersistenceRepository extends JpaRepository<UserPersistence
     Optional<UserPersistenceEntity> findByUsername(String username);
 
     boolean existsByUsername(String username);
+
+    Optional<UserPersistenceEntity> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 }

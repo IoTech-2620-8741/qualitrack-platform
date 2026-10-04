@@ -13,6 +13,7 @@ package "shared" <<External>> {
   class ApplicationError
   class Result
   class ResponseEntityAssembler
+  interface EmailSender
 }
 
 package "spring" <<External>> {
@@ -34,6 +35,21 @@ package "iam.domain.model.valueobjects" {
 
   class PasswordHash <<record>> {
     + value: String
+  }
+
+  class EmailAddress <<record>> {
+    + value: String
+    + {static} looksLikeEmail(value: String): boolean
+  }
+
+  class PasswordPolicy {
+    + {static} validate(newPassword: String): void
+  }
+
+  enum PasswordRecoveryStatus {
+    PENDING
+    COMPLETED
+    REVOKED
   }
 
   enum Roles {
@@ -64,25 +80,51 @@ package "iam.domain.model.aggregates" {
   class User {
     - id: Long
     - username: Username
+    - email: EmailAddress
     - password: PasswordHash
     - roles: Set<Role>
     - laboratoryId: Long
     - status: UserStatus
     - passwordChangeRequired: boolean
-    + {static} staffAccount(username, temporaryPasswordHash, role, laboratoryId): User
+    + {static} staffAccount(email, temporaryPasswordHash, role, laboratoryId): User
     + changePassword(newPasswordHash: String): void
     + addRole(role: Role): void
     + addRoles(roles: Collection<Role>): void
     + deactivate(): void
     + isActive(): boolean
     + getUsernameValue(): String
+    + getEmailValue(): String
     + getPasswordValue(): String
+  }
+
+  class PasswordRecovery {
+    - id: Long
+    - userId: Long
+    - codeHash: String
+    - requestedAt: Instant
+    - expiresAt: Instant
+    - failedAttempts: int
+    - status: PasswordRecoveryStatus
+    - completedAt: Instant
+    + {static} CODE_VALIDITY: Duration = 15 min
+    + {static} MAX_FAILED_ATTEMPTS: int = 5
+    + {static} RESEND_INTERVAL: Duration = 1 min
+    + {static} start(userId, codeHash, now): PasswordRecovery
+    + isUsable(now): boolean
+    + blocksNewCode(now): boolean
+    + registerFailedAttempt(): void
+    + complete(now): void
+    + revoke(): void
   }
 }
 
 User --|> AbstractDomainAggregateRoot
 User *-- Username
 User *-- PasswordHash
+User *-- EmailAddress
+PasswordRecovery --|> AbstractDomainAggregateRoot
+PasswordRecovery --> PasswordRecoveryStatus
+PasswordRecovery ..> User : userId
 User *-- Role
 User --> UserStatus
 Role --> Roles
@@ -95,6 +137,7 @@ package "iam.domain.model.commands" {
 
   class SignUpCommand <<record>> {
     + username: String
+    + email: String
     + password: String
     + roles: List<String>
     + laboratoryId: Long
@@ -123,7 +166,20 @@ package "iam.domain.model.commands" {
     + currentPassword: String
     + newPassword: String
   }
+
+  class RequestPasswordRecoveryCommand <<record>> {
+    + account: String
+  }
+
+  class ResetPasswordCommand <<record>> {
+    + account: String
+    + code: String
+    + newPassword: String
+  }
 }
+
+ChangePasswordCommand ..> PasswordPolicy
+ResetPasswordCommand ..> PasswordPolicy
 
 package "iam.domain.model.queries" {
   class GetUserByIdQuery <<record>> {
@@ -151,6 +207,13 @@ package "iam.domain.repositories" {
     + save(user: User): User
     + existsById(id: Long): boolean
     + existsByUsername(username: String): boolean
+    + findByEmail(email: String): Optional<User>
+    + existsByEmail(email: String): boolean
+  }
+
+  interface PasswordRecoveryRepository {
+    + save(recovery: PasswordRecovery): PasswordRecovery
+    + findLatestByUserId(userId: Long): Optional<PasswordRecovery>
   }
 
   interface RoleRepository {
@@ -163,6 +226,7 @@ package "iam.domain.repositories" {
 }
 
 UserRepository --> User
+PasswordRecoveryRepository --> PasswordRecovery
 RoleRepository --> Role
 
 package "iam.domain.exceptions" {
@@ -214,6 +278,11 @@ package "iam.application.commandservices" {
   interface RoleCommandService {
     + handle(command: SeedRolesCommand): Result<Integer, ApplicationError>
   }
+
+  interface PasswordRecoveryCommandService {
+    + handle(command: RequestPasswordRecoveryCommand): Result<Duration, ApplicationError>
+    + handle(command: ResetPasswordCommand): Result<User, ApplicationError>
+  }
 }
 
 UserCommandService ..> Result
@@ -242,6 +311,7 @@ RoleQueryService --> Role
 package "iam.application.internal.commandservices" {
   class UserCommandServiceImpl
   class RoleCommandServiceImpl
+  class PasswordRecoveryCommandServiceImpl
 }
 
 UserCommandServiceImpl ..|> UserCommandService
@@ -257,25 +327,60 @@ package "iam.application.internal.outboundservices.credentials" {
   interface CredentialsNotifier {
     + send(credentials: StaffCredentials): boolean
   }
+  interface RecoveryCodeGenerator {
+    + generate(): String
+  }
+}
+
+package "iam.application.internal.outboundservices.notifications" {
+  interface PasswordRecoveryNotifier {
+    + send(recoveryCode: RecoveryCode): boolean
+  }
 }
 
 UserCommandServiceImpl --> TemporaryPasswordGenerator
 UserCommandServiceImpl --> CredentialsNotifier
+PasswordRecoveryCommandServiceImpl ..|> PasswordRecoveryCommandService
+PasswordRecoveryCommandServiceImpl --> UserRepository
+PasswordRecoveryCommandServiceImpl --> PasswordRecoveryRepository
+PasswordRecoveryCommandServiceImpl --> HashingService
+PasswordRecoveryCommandServiceImpl --> RecoveryCodeGenerator
+PasswordRecoveryCommandServiceImpl --> PasswordRecoveryNotifier
+note bottom of PasswordRecoveryCommandServiceImpl
+  Request Password Reset -> Send Verification Code -> Verify Recovery Code
+  -> Reset Password (US16, US17). The account is found by username or e-mail;
+  unknown, inactive or e-mail-less accounts get the same answer and no code.
+  The code is kept as a BCrypt hash; a new request revokes the previous code.
+end note
+
+package "iam.infrastructure.configuration" {
+  class IamConfiguration {
+    + iamClock(): Clock
+  }
+}
+
+PasswordRecoveryCommandServiceImpl ..> IamConfiguration : iamClock
 
 package "iam.infrastructure.credentials" {
   class SecureRandomTemporaryPasswordGenerator
+  class SecureRandomRecoveryCodeGenerator
 }
 
-package "iam.infrastructure.notifications.smtp" {
-  class SmtpCredentialsNotifier
+package "iam.infrastructure.notifications.email" {
+  class EmailCredentialsNotifier
+  class EmailPasswordRecoveryNotifier
 }
 
 SecureRandomTemporaryPasswordGenerator ..|> TemporaryPasswordGenerator
-SmtpCredentialsNotifier ..|> CredentialsNotifier
-note right of SmtpCredentialsNotifier
-  Uses the JavaMailSender configured with spring.mail.*.
-  Without SMTP it returns false and the temporary password
-  is returned once to the quality manager.
+SecureRandomRecoveryCodeGenerator ..|> RecoveryCodeGenerator
+EmailCredentialsNotifier ..|> CredentialsNotifier
+EmailPasswordRecoveryNotifier ..|> PasswordRecoveryNotifier
+EmailCredentialsNotifier --> EmailSender
+EmailPasswordRecoveryNotifier --> EmailSender
+note right of EmailCredentialsNotifier
+  E-mails through the shared EmailSender (Resend with RESEND_API_KEY,
+  otherwise SMTP). Without a provider it returns false and the temporary
+  password is returned once to the quality manager.
 end note
 
 RoleCommandServiceImpl ..|> RoleCommandService
@@ -413,6 +518,7 @@ WebSecurityConfiguration --> ReadOnlyAuditorAuthorizationManager
 package "iam.infrastructure.persistence.jpa.entities" {
   class UserPersistenceEntity {
     - username: String
+    - email: String
     - password: String
     - laboratoryId: Long
     - status: UserStatus
@@ -423,7 +529,19 @@ package "iam.infrastructure.persistence.jpa.entities" {
   class RolePersistenceEntity {
     - name: Roles
   }
+  class PasswordRecoveryPersistenceEntity {
+    - userId: Long
+    - codeHash: String
+    - requestedAt: Instant
+    - expiresAt: Instant
+    - failedAttempts: int
+    - status: PasswordRecoveryStatus
+    - completedAt: Instant
+  }
 }
+
+PasswordRecoveryPersistenceEntity --|> AuditableAbstractPersistenceEntity
+PasswordRecoveryPersistenceEntity --> PasswordRecoveryStatus
 
 UserPersistenceEntity --|> AuditableAbstractPersistenceEntity
 RolePersistenceEntity --|> AuditableAbstractPersistenceEntity
@@ -435,6 +553,11 @@ package "iam.infrastructure.persistence.jpa.repositories" {
   interface UserPersistenceRepository {
     + findByUsername(username: String): Optional<UserPersistenceEntity>
     + existsByUsername(username: String): boolean
+    + findByEmail(email: String): Optional<UserPersistenceEntity>
+    + existsByEmail(email: String): boolean
+  }
+  interface PasswordRecoveryPersistenceRepository {
+    + findFirstByUserIdOrderByRequestedAtDescIdDesc(userId: Long): Optional<PasswordRecoveryPersistenceEntity>
   }
 
   interface RolePersistenceRepository {
@@ -445,13 +568,19 @@ package "iam.infrastructure.persistence.jpa.repositories" {
 
 UserPersistenceRepository --|> JpaRepository
 RolePersistenceRepository --|> JpaRepository
+PasswordRecoveryPersistenceRepository --|> JpaRepository
+PasswordRecoveryPersistenceRepository --> PasswordRecoveryPersistenceEntity
 UserPersistenceRepository --> UserPersistenceEntity
 RolePersistenceRepository --> RolePersistenceEntity
 
 package "iam.infrastructure.persistence.jpa.assemblers" {
   class UserPersistenceAssembler
   class RolePersistenceAssembler
+  class PasswordRecoveryPersistenceAssembler
 }
+
+PasswordRecoveryPersistenceAssembler ..> PasswordRecovery
+PasswordRecoveryPersistenceAssembler ..> PasswordRecoveryPersistenceEntity
 
 UserPersistenceAssembler ..> User
 UserPersistenceAssembler ..> UserPersistenceEntity
@@ -461,7 +590,12 @@ RolePersistenceAssembler ..> RolePersistenceEntity
 package "iam.infrastructure.persistence.jpa.adapters" {
   class UserRepositoryImpl
   class RoleRepositoryImpl
+  class PasswordRecoveryRepositoryImpl
 }
+
+PasswordRecoveryRepositoryImpl ..|> PasswordRecoveryRepository
+PasswordRecoveryRepositoryImpl --> PasswordRecoveryPersistenceRepository
+PasswordRecoveryRepositoryImpl --> PasswordRecoveryPersistenceAssembler
 
 UserRepositoryImpl ..|> UserRepository
 UserRepositoryImpl --> UserPersistenceRepository
@@ -487,6 +621,20 @@ package "iam.interfaces.rest.resources" {
   class AuthenticatedUserResource <<record>>
   class UserResource <<record>>
   class RoleResource <<record>>
+  class PasswordRecoveryRequestResource <<record>> {
+    + account: String
+  }
+  class PasswordRecoveryAcceptedResource <<record>> {
+    + codeValidityMinutes: long
+  }
+  class PasswordResetResource <<record>> {
+    + account: String
+    + code: String
+    + newPassword: String
+  }
+  class PasswordResetCompletedResource <<record>> {
+    + username: String
+  }
 }
 
 package "iam.interfaces.rest.transform" {
@@ -510,9 +658,22 @@ RoleResourceFromEntityAssembler ..> RoleResource
 
 package "iam.interfaces.rest" {
   class AuthenticationController
+  class PasswordRecoveryController
   class UsersController
   class RolesController
 }
+
+PasswordRecoveryController --> PasswordRecoveryCommandService
+PasswordRecoveryController ..> PasswordRecoveryRequestResource
+PasswordRecoveryController ..> PasswordRecoveryAcceptedResource
+PasswordRecoveryController ..> PasswordResetResource
+PasswordRecoveryController ..> PasswordResetCompletedResource
+PasswordRecoveryController ..> ResponseEntityAssembler
+note bottom of PasswordRecoveryController
+  POST /api/v1/authentication/password-recovery-requests  202 (TS05; 400 without account)
+  POST /api/v1/authentication/password-resets             200 (TS06; 400 invalid code or password)
+  Public: the person cannot sign in.
+end note
 
 AuthenticationController --> UserCommandService
 AuthenticationController ..> SignInCommandFromResourceAssembler

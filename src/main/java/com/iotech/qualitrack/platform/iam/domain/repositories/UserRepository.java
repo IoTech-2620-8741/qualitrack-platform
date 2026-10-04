@@ -25,4 +25,11 @@ public interface UserRepository {
     boolean existsById(Long id);
 
     boolean existsByUsername(String username);
+
+    /**
+     * @param email normalized e-mail (lower case)
+     */
+    Optional<User> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 }

@@ -13,6 +13,8 @@ import com.iotech.qualitrack.platform.iam.domain.model.commands.DeactivateUserCo
 import com.iotech.qualitrack.platform.iam.domain.model.commands.SignInCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.SignUpCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.entities.Role;
+import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.EmailAddress;
+import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.PasswordPolicy;
 import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.Roles;
 import com.iotech.qualitrack.platform.iam.domain.repositories.RoleRepository;
 import com.iotech.qualitrack.platform.iam.domain.repositories.UserRepository;
@@ -94,6 +96,20 @@ public class UserCommandServiceImpl implements UserCommandService {
                     "Username '%s' is already registered".formatted(command.username())
             ));
         }
+        EmailAddress email;
+        try {
+            email = new EmailAddress(command.email());
+        } catch (IllegalArgumentException e) {
+            return Result.failure(ApplicationError.validationError("email", e.getMessage()));
+        }
+        try {
+            PasswordPolicy.validate(command.password());
+        } catch (IllegalArgumentException e) {
+            return Result.failure(ApplicationError.validationError("password", e.getMessage()));
+        }
+        if (userRepository.existsByEmail(email.value())) {
+            return Result.failure(ApplicationError.conflict("User", "The e-mail is already registered"));
+        }
 
         try {
             var roles = new ArrayList<Role>();
@@ -109,6 +125,7 @@ public class UserCommandServiceImpl implements UserCommandService {
 
             var user = new User(
                     command.username(),
+                    email.value(),
                     encodedPassword,
                     roles,
                     command.laboratoryId()
@@ -179,9 +196,10 @@ public class UserCommandServiceImpl implements UserCommandService {
     @Override
     @Transactional
     public Result<StaffAccount, ApplicationError> handle(CreateStaffAccountCommand command) {
-        if (userRepository.existsByUsername(command.email())) {
+        if (userRepository.existsByUsername(command.email())
+                || (EmailAddress.looksLikeEmail(command.email()) && userRepository.existsByEmail(new EmailAddress(command.email()).value()))) {
             return Result.failure(ApplicationError.conflict("User",
-                    "An account with username '%s' already exists".formatted(command.email())));
+                    "An account with username or e-mail '%s' already exists".formatted(command.email())));
         }
         var role = roleRepository.findByName(command.role()).orElseGet(() -> roleRepository.save(new Role(command.role())));
         var temporaryPassword = passwordGenerator.generate();

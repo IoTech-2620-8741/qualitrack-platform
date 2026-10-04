@@ -90,7 +90,7 @@ class OnboardingIntegrationTests {
     @Test
     void accountCannotRegisterInAnotherLaboratoryOrSelfAssignAdministrator() throws Exception {
         var request = """
-                {"username":"fixture-%s","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":1}
+                {"username":"fixture-%1$s","email":"fixture-%1$s@qualitrack.test","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":1}
                 """.formatted(UUID.randomUUID());
         assertThat(call("POST", "/authentication/sign-up", null, request).statusCode()).isEqualTo(400);
         request = request.replace("\"laboratoryId\":1", "\"laboratoryId\":null").replace("ROLE_QA_MANAGER", "ROLE_ADMIN");
@@ -399,7 +399,7 @@ class OnboardingIntegrationTests {
     private Account account() throws Exception {
         var username = "fixture-" + UUID.randomUUID();
         var registration = call("POST", "/authentication/sign-up", null, """
-                {"username":"%s","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":null}
+                {"username":"%1$s","email":"%1$s@qualitrack.test","password":"TestPassword123!","roles":["ROLE_QA_MANAGER"],"laboratoryId":null}
                 """.formatted(username));
         assertThat(registration.statusCode()).withFailMessage(registration.body()).isEqualTo(201);
         assertThat(registration.body()).doesNotContain("\"token\"");

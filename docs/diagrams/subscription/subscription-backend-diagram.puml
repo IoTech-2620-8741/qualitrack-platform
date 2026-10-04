@@ -140,9 +140,12 @@ package "subscription.domain.model.aggregates" {
     -currentPeriodEnd: String
     -cancelledAt: String
     -cancelledBy: Long
+    -cancelAtPeriodEnd: boolean
     +activate(command: ActivateSubscriptionCommand): Subscription
-    +cancel(cancelledBy: Long, cancelledAt: String): void
+    +cancelRenewal(cancelledBy: Long, cancelledAt: String): void
+    +synchronizeRenewal(cancelAtPeriodEnd: boolean, at: String): void
     +isActive(): boolean
+    +grantsAccess(): boolean
   }
 }
 
@@ -310,7 +313,7 @@ package "subscription.application.internal.outboundservices.acl" {
     -stripeSecretKey: String
     +createCheckoutSession(command: CreateCheckoutSessionCommand, stripePriceId: String): StripeCheckoutSessionResult
     +retrieveSubscriptionDetails(stripeSubscriptionId: String): StripeSubscriptionDetails
-    +cancelSubscription(stripeSubscriptionId: String): void
+    +cancelRenewal(stripeSubscriptionId: String): void
   }
 
   class StripeCheckoutSessionResult <<record>> {
@@ -323,6 +326,8 @@ package "subscription.application.internal.outboundservices.acl" {
     +stripeSubscriptionId: String
     +currentPeriodStart: String
     +currentPeriodEnd: String
+    +status: String
+    +cancelAtPeriodEnd: boolean
   }
 }
 
@@ -347,6 +352,7 @@ package "subscription.infrastructure.persistence.jpa.entities" {
     -currentPeriodEnd: String
     -cancelledAt: String
     -cancelledBy: Long
+    -cancelAtPeriodEnd: boolean
   }
 
   class SubscriptionPlanPersistenceEntity <<entity>> {
@@ -661,7 +667,9 @@ note bottom of SubscriptionController
   GET  /api/v1/laboratories/{laboratoryId}/subscriptions[?status=ACTIVE]  (TS10, always a list)
   GET  /api/v1/subscriptions/{subscriptionId}/payments
   POST /api/v1/subscriptions/{subscriptionId}/cancellation-requests       (TS11, 201 / 409)
-  The authenticated quality manager is the actor (CurrentUser).
+  The authenticated quality manager is the actor (CurrentUser). It cancels the renewal
+  (Stripe cancel_at_period_end): the subscription stays ACTIVE with access until
+  currentPeriodEnd and Stripe ends it then (US23); 409 when not active or already cancelled.
 end note
 
 StripeWebhookController --> SubscriptionCommandService

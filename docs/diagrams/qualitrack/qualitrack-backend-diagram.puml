@@ -33,10 +33,13 @@ package "iam" {
     class Role
     class Username
     class PasswordHash
+    class EmailAddress
+    class PasswordRecovery
     enum Roles
     enum UserStatus
     interface UserRepository
     interface RoleRepository
+    interface PasswordRecoveryRepository
   }
 
   package "application" {
@@ -48,6 +51,8 @@ package "iam" {
     class UserQueryServiceImpl
     class RoleCommandServiceImpl
     class RoleQueryServiceImpl
+    interface PasswordRecoveryCommandService
+    class PasswordRecoveryCommandServiceImpl
     interface HashingService
     interface TokenService
   }
@@ -69,6 +74,7 @@ package "iam" {
   package "interfaces" {
     class IamContextFacade
     class AuthenticationController
+    class PasswordRecoveryController
     class UsersController
     class RolesController
     class SignInResource
@@ -470,6 +476,9 @@ SubscriptionPayment o-- Money
 
 AuthenticationController --> UserCommandService
 AuthenticationController --> TokenService
+PasswordRecoveryController --> PasswordRecoveryCommandService
+PasswordRecoveryCommandServiceImpl ..|> PasswordRecoveryCommandService
+PasswordRecoveryCommandServiceImpl --> PasswordRecoveryRepository
 WebSecurityConfiguration --> BearerAuthorizationRequestFilter
 BearerAuthorizationRequestFilter --> TokenService
 UserDetailsServiceImpl --> UserRepository

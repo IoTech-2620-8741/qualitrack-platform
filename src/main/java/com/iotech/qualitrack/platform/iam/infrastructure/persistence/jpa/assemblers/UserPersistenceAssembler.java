@@ -20,6 +20,7 @@ public class UserPersistenceAssembler {
         return new User(
                 entity.getId(),
                 entity.getUsername(),
+                entity.getEmail(),
                 entity.getPassword(),
                 roles,
                 entity.getLaboratoryId(),
@@ -34,6 +35,7 @@ public class UserPersistenceAssembler {
         var entity = new UserPersistenceEntity();
         entity.setId(user.getId());
         entity.setUsername(user.getUsernameValue());
+        entity.setEmail(user.getEmailValue());
         entity.setPassword(user.getPasswordValue());
         entity.setLaboratoryId(user.getLaboratoryId());
         entity.setStatus(user.getStatus());

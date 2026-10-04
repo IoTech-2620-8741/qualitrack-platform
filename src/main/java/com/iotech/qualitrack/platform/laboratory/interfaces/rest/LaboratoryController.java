@@ -59,10 +59,11 @@ public class LaboratoryController {
                         .<Result<Laboratory, ApplicationError>>map(Result::success)
                         .orElseGet(() -> Result.failure(ApplicationError.notFound("Laboratory", laboratoryId))));
 
-        return ResponseEntityAssembler.toResponseEntityFromResult(
+        return ResponseEntityAssembler.toCreatedResponseEntityAtLocation(
                 result,
                 LaboratoryResourceFromEntityAssembler::toResourceFromEntity,
-                HttpStatus.CREATED
+                laboratory -> org.springframework.web.servlet.support.ServletUriComponentsBuilder.fromCurrentContextPath()
+                        .path("/api/v1/laboratories/{laboratoryId}").buildAndExpand(laboratory.getId()).toUri()
         );
     }
 
@@ -70,14 +71,16 @@ public class LaboratoryController {
     @Operation(summary = "Get laboratory by ID", description = "Retrieves a specific laboratory by its numeric identifier.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Laboratory found", content = @Content(schema = @Schema(implementation = LaboratoryResource.class))),
-            @ApiResponse(responseCode = "404", description = "Laboratory not found")
+            @ApiResponse(responseCode = "404", description = "Laboratory not found",
+                    content = @Content(schema = @Schema(implementation = com.iotech.qualitrack.platform.shared.interfaces.rest.resources.ErrorResource.class)))
     })
-    public ResponseEntity<LaboratoryResource> getLaboratoryById(
+    public ResponseEntity<?> getLaboratoryById(
             @PathVariable @Parameter(description = "Laboratory numeric identifier", example = "1", required = true) Long laboratoryId
     ) {
-        var laboratory = laboratoryQueryService.handle(new GetLaboratoryByIdQuery(laboratoryId));
-        if (laboratory.isEmpty()) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(LaboratoryResourceFromEntityAssembler.toResourceFromEntity(laboratory.get()));
+        return laboratoryQueryService.handle(new GetLaboratoryByIdQuery(laboratoryId))
+                .<ResponseEntity<?>>map(laboratory -> ResponseEntity.ok(LaboratoryResourceFromEntityAssembler.toResourceFromEntity(laboratory)))
+                .orElseGet(() -> com.iotech.qualitrack.platform.shared.interfaces.rest.transform.ErrorResponseAssembler
+                        .toErrorResponseFromApplicationError(ApplicationError.notFound("Laboratory", laboratoryId)));
     }
 
     @PutMapping("/{laboratoryId}")

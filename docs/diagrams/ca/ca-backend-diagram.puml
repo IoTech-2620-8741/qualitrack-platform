@@ -285,14 +285,18 @@ package "ca.application.internal.eventhandlers" {
   class DeviationAlertResolvedEventHandler
   class NotificationPreferenceUpdatedEventHandler
   class RawMaterialLowStockComplianceEventHandler
-  class TelemetryAnomalyDetectedComplianceEventHandler
+  class EnvironmentalDeviationComplianceEventHandler
 }
 
 BatchRejectedComplianceEventHandler --> ComplianceEventRepository
 BatchReleasedComplianceEventHandler --> ComplianceEventRepository
 RawMaterialLowStockComplianceEventHandler --> ComplianceEventRepository
 CalibrationExpiredEventHandler --> CaCommandService
-TelemetryAnomalyDetectedComplianceEventHandler --> CaCommandService
+EnvironmentalDeviationComplianceEventHandler --> CaCommandService
+note bottom of EnvironmentalDeviationComplianceEventHandler
+  Tracking EnvironmentalDeviationDetectedIntegrationEvent
+  -> WARNING / CRITICAL deviation alert of the device.
+end note
 
 DeviationAlertCreatedEventHandler ..> DeviationAlertCreatedEvent
 DeviationAlertAcknowledgedEventHandler ..> DeviationAlertAcknowledgedEvent

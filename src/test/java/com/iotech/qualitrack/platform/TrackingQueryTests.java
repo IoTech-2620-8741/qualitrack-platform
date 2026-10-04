@@ -1,39 +1,48 @@
 package com.iotech.qualitrack.platform;
 
+import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade.DeviceReference;
 import com.iotech.qualitrack.platform.tracking.application.internal.outboundservices.acl.TrackingExternalEquipmentService;
 import com.iotech.qualitrack.platform.tracking.application.internal.queryservices.TrackingQueryServiceImpl;
-import com.iotech.qualitrack.platform.tracking.domain.model.entities.Measurement;
-import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetLatestMeasurementsQuery;
+import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetDeviceConnectionQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.DeviceConnection;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.DeviceConnectionStatus;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.ExpectedCommunicationPeriod;
-import com.iotech.qualitrack.platform.tracking.domain.repositories.*;
+import com.iotech.qualitrack.platform.tracking.domain.repositories.ActuationEventRepository;
+import com.iotech.qualitrack.platform.tracking.domain.repositories.EnvironmentalProfileRepository;
+import com.iotech.qualitrack.platform.tracking.domain.repositories.MeasurementRepository;
 import org.junit.jupiter.api.Test;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import static org.mockito.Mockito.*;
+import java.time.ZoneOffset;
+import java.util.Optional;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class TrackingQueryTests {
-    @Test void latestReadingsRetainDistinctParametersUnitsAndEquipment() {
-        var repository = mock(MeasurementRepository.class);
-        var service = new TrackingQueryServiceImpl(repository, mock(EquipmentTelemetryStatusRepository.class),
-                mock(TelemetryHistoryPointRepository.class), mock(TrackingExternalEquipmentService.class),
-                new ExpectedCommunicationPeriod(Duration.ofMinutes(5)), Clock.systemUTC());
-        var temperature = Measurement.record(23L, "Temperature", 22.0, "C", "2026-09-01T12:00:00Z");
-        var humidity = Measurement.record(23L, "Humidity", 60.0, "%", "2026-09-01T12:00:00Z");
-        var differentUnit = Measurement.record(23L, "Temperature", 71.6, "F", "2026-09-01T12:00:00Z");
-        var otherEquipment = Measurement.record(24L, "Temperature", 21.0, "C", "2026-09-01T12:00:00Z");
-        var older = Measurement.record(23L, "Temperature", 20.0, "C", "2026-09-01T11:00:00Z");
-        when(repository.findLatest()).thenReturn(List.of(temperature, humidity, differentUnit, otherEquipment, older));
-        assertThat(service.handle(new GetLatestMeasurementsQuery(null)))
-                .containsExactly(temperature, humidity, differentUnit, otherEquipment);
-        when(repository.findLatestByEquipmentId(23L)).thenReturn(List.of(temperature, older));
-        assertThat(service.handle(new GetLatestMeasurementsQuery(23L))).containsExactly(temperature);
-        verify(repository).findLatestByEquipmentId(23L);
+
+    @Test
+    void anActionOfTheDeviceAlsoCountsAsCommunication() {
+        var now = Instant.parse("2026-10-03T15:00:00Z");
+        var measurements = mock(MeasurementRepository.class);
+        var actions = mock(ActuationEventRepository.class);
+        var equipment = mock(TrackingExternalEquipmentService.class);
+        var service = new TrackingQueryServiceImpl(mock(EnvironmentalProfileRepository.class), measurements, actions,
+                equipment, new ExpectedCommunicationPeriod(Duration.ofMinutes(5)), Clock.fixed(now, ZoneOffset.UTC));
+        when(equipment.findDevice(1L, 2L, 7L)).thenReturn(Optional.of(
+                new DeviceReference(7L, 1L, 2L, "Cold cabinet monitor", "CONTAINER_MONITOR", "CNT-1")));
+        when(measurements.findLastReceivedAt(7L)).thenReturn(Optional.of(now.minusSeconds(900)));
+        when(actions.findLastReceivedAt(7L)).thenReturn(Optional.of(now.minusSeconds(60)));
+
+        var connection = service.handle(new GetDeviceConnectionQuery(1L, 2L, 7L)).orElseThrow();
+
+        assertThat(connection.status()).isEqualTo(DeviceConnectionStatus.CONNECTED);
+        assertThat(connection.lastCommunicationAt()).isEqualTo(now.minusSeconds(60));
+        assertThat(service.handle(new GetDeviceConnectionQuery(1L, 2L, 8L))).isEmpty();
     }
 
     @Test

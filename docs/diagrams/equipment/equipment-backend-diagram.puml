@@ -351,6 +351,7 @@ package "equipment.interfaces.acl" {
   interface EquipmentContextFacade {
     + findEquipment(laboratoryId, equipmentId): Optional<EquipmentReference>
     + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
+    + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
   }
   class EquipmentReference <<record>>
   class DeviceReference <<record>>

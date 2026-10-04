@@ -358,6 +358,10 @@ CaAuditEventHandler --> AuditLogCommandService
 EquipmentAuditEventHandler --> AuditLogCommandService
 LaboratoryAuditEventHandler --> AuditLogCommandService
 TrackingAuditEventHandler --> AuditLogCommandService
+note bottom of TrackingAuditEventHandler
+  Tracking EnvironmentalProfileUpdatedIntegrationEvent
+  -> UPDATE ENVIRONMENTAL_PROFILE audit log entry.
+end note
 
 package "ra.application.acl" {
   class RaContextFacadeImpl

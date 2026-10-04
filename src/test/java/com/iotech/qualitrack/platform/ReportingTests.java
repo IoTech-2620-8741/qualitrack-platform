@@ -56,12 +56,17 @@ class ReportingTests {
         when(configs.findAllByEquipmentId(23L)).thenReturn(List.of(
                 new BpmParameterConfig(9L, 23L, new CriticalVariable("Temperature"), 18.0, 24.0, "C")));
         when(measurements.findLatestByEquipmentId(23L)).thenReturn(List.of(
-                Measurement.record(23L, "Temperature", 25.5, "C", "2026-08-02T10:00:00"),
-                Measurement.record(23L, "Temperature", 20.0, "C", "2026-08-01T10:00:00"),
-                Measurement.record(23L, "Temperature", 72.0, "F", "2026-08-01T11:00:00")));
+                reading(23L, "Temperature", 25.5, "C", "2026-08-02T10:00:00"),
+                reading(23L, "Temperature", 20.0, "C", "2026-08-01T10:00:00"),
+                reading(23L, "Temperature", 72.0, "F", "2026-08-01T11:00:00")));
         var trend = data.trend(23L, "Temperature");
         assertThat(trend.getDataPoints()).extracting(point -> point.getRecordedValue()).containsExactly(20.0, 25.5);
         assertThat(trend.getDataPoints()).allMatch(point -> point.getUpperThreshold() == 24.0 && point.getLowerThreshold() == 18.0);
+    }
+
+    private static Measurement reading(Long deviceId, String parameter, double value, String unit, String timestamp) {
+        return new Measurement(null, null, null, deviceId, parameter, value, null, unit, timestamp, null, null, null,
+                null, null);
     }
 
     @Test void noConfigurationDoesNotCreateFakeTrendPoints() {

@@ -51,23 +51,21 @@ class RestApiIntegrationTests {
         var alert = alerts.save(new DeviationAlert(null, equipmentId, null, "TEMPERATURE", 9.3, 8.0, "C",
                 "2026-09-01T12:00:00", AlertSeverity.CRITICAL, AlertStatus.UNRESOLVED, null, null, null));
 
-        var listed = call("GET", plant.equipment(equipmentId) + "/deviation-alerts?status=UNRESOLVED", token, null);
-        assertThat(listed.statusCode()).isEqualTo(200);
-        assertThat(listed.body()).contains("\"id\":" + alert.getId());
-        var invalidFilter = call("GET", plant.equipment(equipmentId) + "/deviation-alerts?status=OPENED", token, null);
-        assertThat(invalidFilter.statusCode()).isEqualTo(400);
-        assertThat(invalidFilter.body()).contains("\"code\"");
+        // Alerts are listed per environment (TS74); the equipment route was replaced.
+        assertThat(call("GET", plant.equipment(equipmentId) + "/deviation-alerts", token, null).statusCode()).isEqualTo(404);
 
         var acknowledged = call("POST", "/deviation-alerts/" + alert.getId() + "/acknowledgements", token, null);
         assertThat(acknowledged.statusCode()).withFailMessage(acknowledged.body()).isEqualTo(201);
-        assertThat(acknowledged.body()).contains("\"status\":\"ACKNOWLEDGED\"", "\"acknowledgedBy\":" + plant.manager().id());
+        assertThat(acknowledged.body()).contains("\"status\":\"ACKNOWLEDGED\"", "\"acknowledgedBy\":" + plant.manager().id(),
+                "\"acknowledgedAt\":\"");
         assertThat(call("POST", "/deviation-alerts/" + alert.getId() + "/acknowledgements", token, null).statusCode()).isEqualTo(409);
 
         assertThat(call("POST", "/deviation-alerts/" + alert.getId() + "/resolutions", token, "{}").statusCode()).isEqualTo(400);
         var resolved = call("POST", "/deviation-alerts/" + alert.getId() + "/resolutions", token,
                 "{\"resolutionNotes\":\"Equipment recalibrated\"}");
         assertThat(resolved.statusCode()).withFailMessage(resolved.body()).isEqualTo(201);
-        assertThat(resolved.body()).contains("\"status\":\"RESOLVED\"", "\"resolvedBy\":" + plant.manager().id());
+        assertThat(resolved.body()).contains("\"status\":\"RESOLVED\"", "\"resolvedBy\":" + plant.manager().id(),
+                "\"resolvedAt\":\"");
         assertThat(call("POST", "/deviation-alerts/" + alert.getId() + "/resolutions", token,
                 "{\"resolutionNotes\":\"Again\"}").statusCode()).isEqualTo(409);
 

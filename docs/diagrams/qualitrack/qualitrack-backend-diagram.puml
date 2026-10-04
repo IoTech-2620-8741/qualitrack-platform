@@ -334,8 +334,6 @@ package "ra" {
     enum TrendDirection
     interface AuditReportRepository
     interface AuditLogRepository
-    interface KpiDashboardRepository
-    interface DeviationTrendRepository
   }
 
   package "application" {
@@ -349,6 +347,8 @@ package "ra" {
     class RaExternalEquipmentService
     class RaExternalBatchService
     class RaExternalComplianceService
+    class RaExternalTrackingService
+    class RaExternalInventoryService
     class LaboratoryAuditEventHandler
     class EquipmentAuditEventHandler
     class BatchAuditEventHandler
@@ -368,8 +368,6 @@ package "ra" {
     class EquipmentAuditLogController
     class AuditReportGeneratedIntegrationEvent
     class AuditLogEntryRecordedIntegrationEvent
-    class KpiDashboardCalculatedIntegrationEvent
-    class DeviationTrendCalculatedIntegrationEvent
   }
 }
 
@@ -536,9 +534,11 @@ CaExternalEquipmentService --> EquipmentContextFacade : device and origin
 CaExternalTrackingService --> TrackingContextFacade : related actions
 TrackingContextFacadeImpl ..|> TrackingContextFacade
 RaExternalLaboratoryService --> LaboratoryContextFacade
-RaExternalEquipmentService --> EquipmentRepository
-RaExternalBatchService --> BatchContextFacade
-RaExternalComplianceService --> ComplianceContextFacade
+RaExternalEquipmentService --> EquipmentContextFacade : device names
+RaExternalBatchService --> BatchContextFacade : traceability
+RaExternalComplianceService --> ComplianceContextFacade : environment alerts
+RaExternalTrackingService --> TrackingContextFacade : readings and actions
+RaExternalInventoryService --> InvInventoryContextFacade : materials and lots
 
 RawMaterialLowStockIntegrationEvent ..> RawMaterialLowStockComplianceEventHandler
 CalibrationExpiredIntegrationEvent ..> CalibrationExpiredEventHandler

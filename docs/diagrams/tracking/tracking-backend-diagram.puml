@@ -351,7 +351,7 @@ package "tracking.domain.repositories" {
     + findByDeviceAndPeriod(deviceId, metric, from, to): List<Measurement>
     + findByDeviceAndMetricAndMeasuredAt(deviceId, metric, measuredAt): Optional<Measurement>
     + findPreviousReading(deviceId, metric, before): Optional<Measurement>
-    + findLatestByEquipmentId(equipmentId: Long): List<Measurement>
+    + findByEnvironmentAndPeriod(laboratoryId, environmentId, from, to): List<Measurement>
     + findLastReceivedAt(deviceId: Long): Optional<Instant>
   }
 
@@ -359,6 +359,7 @@ package "tracking.domain.repositories" {
     + save(event: ActuationEvent): ActuationEvent
     + findByDeviceAndPeriod(deviceId, from, to): List<ActuationEvent>
     + findByDeviceAndActionAndOccurredAt(deviceId, action, occurredAt): Optional<ActuationEvent>
+    + findByEnvironmentAndPeriod(laboratoryId, environmentId, from, to): List<ActuationEvent>
     + findLastReceivedAt(deviceId: Long): Optional<Instant>
   }
 }
@@ -409,7 +410,6 @@ TrackingCommandServiceImpl ..|> TrackingCommandService
 TrackingCommandServiceImpl --> EnvironmentalProfileRepository
 TrackingCommandServiceImpl --> MeasurementRepository
 TrackingCommandServiceImpl --> ActuationEventRepository
-TrackingCommandServiceImpl --> TrackingExternalEquipmentService
 TrackingCommandServiceImpl --> ApplicationEventPublisher
 TrackingCommandServiceImpl --> Clock
 TrackingCommandServiceImpl ..> MeasurementRecordedEvent
@@ -432,7 +432,6 @@ TrackingQueryServiceImpl ..|> TrackingQueryService
 TrackingQueryServiceImpl --> EnvironmentalProfileRepository
 TrackingQueryServiceImpl --> MeasurementRepository
 TrackingQueryServiceImpl --> ActuationEventRepository
-TrackingQueryServiceImpl --> TrackingExternalEquipmentService
 TrackingQueryServiceImpl --> ExpectedCommunicationPeriod
 TrackingQueryServiceImpl ..> DeviceConnection
 note right of TrackingQueryServiceImpl
@@ -448,6 +447,9 @@ package "tracking.application.internal.outboundservices.acl" {
     + findContainerMonitor(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
   }
 }
+
+TrackingCommandServiceImpl --> TrackingExternalEquipmentService
+TrackingQueryServiceImpl --> TrackingExternalEquipmentService
 
 TrackingExternalEquipmentService --> EquipmentContextFacade
 
@@ -477,8 +479,19 @@ package "tracking.interfaces.events" {
 package "tracking.interfaces.acl" {
   interface TrackingContextFacade {
     + findActuations(laboratoryId, deviceId, metric, from, to): List<ActuationReference>
+    + findEnvironmentActuations(laboratoryId, environmentId, from, to): List<ActuationReference>
+    + findMeasurements(laboratoryId, environmentId, from, to): List<MeasurementReference>
   }
   class ActuationReference <<record>>
+  class MeasurementReference <<record>> {
+    + id: Long
+    + deviceId: Long
+    + metric: String
+    + value: Double
+    + unit: String
+    + state: String
+    + measuredAt: Instant
+  }
 }
 
 package "tracking.application.acl" {
@@ -487,7 +500,13 @@ package "tracking.application.acl" {
 
 TrackingContextFacadeImpl ..|> TrackingContextFacade
 TrackingContextFacadeImpl --> ActuationEventRepository
+TrackingContextFacadeImpl --> MeasurementRepository
 TrackingContextFacade ..> ActuationReference
+TrackingContextFacade ..> MeasurementReference
+note bottom of TrackingContextFacade
+  Readings and actions of an environment in a period, read by Reporting
+  for the indicators and the environmental report (US93-US95).
+end note
 
 MeasurementRecordedEventHandler ..> MeasurementRecordedIntegrationEvent
 EnvironmentalDeviationDetectedEventHandler ..> EnvironmentalDeviationDetectedIntegrationEvent

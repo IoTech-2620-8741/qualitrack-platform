@@ -15,15 +15,15 @@ import java.util.function.Supplier;
 
 /**
  * Requires authentication and keeps auditors read-only: a user whose only role is ROLE_AUDITOR can consult
- * records but cannot register or change them. Auditors can still change their own password, set their
- * notification preferences and generate reports, which only produce evidence from existing records.
+ * records but cannot register or change them. Auditors can still manage their own account, profile, notification
+ * preferences and notifications, and generate reports, which only produce evidence from existing records.
  */
 public class ReadOnlyAuditorAuthorizationManager implements AuthorizationManager<RequestAuthorizationContext> {
     private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
     private static final Set<String> WRITING_ROLES = Set.of("ROLE_ADMIN", "ROLE_QA_MANAGER", "ROLE_LAB_OPERATOR");
     private static final List<String> AUDITOR_WRITES = List.of(
-            "/api/v1/users/me/password-changes",
-            "/api/v1/users/*/notification-preferences",
+            // The account, profile, notification preferences and notifications of the auditor.
+            "/api/v1/users/me/**",
             "/api/v1/laboratories/*/compliance-reports",
             "/api/v1/laboratories/*/inventory/reports",
             "/api/v1/laboratories/*/environments/*/equipments/*/log-reports",

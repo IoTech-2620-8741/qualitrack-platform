@@ -12,7 +12,9 @@ import com.iotech.qualitrack.platform.iam.domain.model.commands.CreateStaffAccou
 import com.iotech.qualitrack.platform.iam.domain.model.commands.DeactivateUserCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.SignInCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.SignUpCommand;
+import com.iotech.qualitrack.platform.iam.domain.model.commands.UpdateAccountCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.entities.Role;
+import com.iotech.qualitrack.platform.iam.domain.model.events.UserAccountUpdatedEvent;
 import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.EmailAddress;
 import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.PasswordPolicy;
 import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.Roles;
@@ -20,10 +22,13 @@ import com.iotech.qualitrack.platform.iam.domain.repositories.RoleRepository;
 import com.iotech.qualitrack.platform.iam.domain.repositories.UserRepository;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Application command service implementation for IAM users.
@@ -37,6 +42,7 @@ public class UserCommandServiceImpl implements UserCommandService {
     private final TokenService tokenService;
     private final TemporaryPasswordGenerator passwordGenerator;
     private final CredentialsNotifier credentialsNotifier;
+    private final ApplicationEventPublisher eventPublisher;
 
     public UserCommandServiceImpl(
             UserRepository userRepository,
@@ -44,7 +50,8 @@ public class UserCommandServiceImpl implements UserCommandService {
             HashingService hashingService,
             TokenService tokenService,
             TemporaryPasswordGenerator passwordGenerator,
-            CredentialsNotifier credentialsNotifier
+            CredentialsNotifier credentialsNotifier,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.passwordGenerator = passwordGenerator;
         this.credentialsNotifier = credentialsNotifier;
@@ -52,6 +59,7 @@ public class UserCommandServiceImpl implements UserCommandService {
         this.roleRepository = roleRepository;
         this.hashingService = hashingService;
         this.tokenService = tokenService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -228,5 +236,40 @@ public class UserCommandServiceImpl implements UserCommandService {
         }
         user.changePassword(hashingService.encode(command.newPassword()));
         return Result.success(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
+    public Result<AuthenticatedUser, ApplicationError> handle(UpdateAccountCommand command) {
+        var found = userRepository.findById(command.userId()).filter(User::isActive);
+        if (found.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("User", command.userId()));
+        }
+        var user = found.get();
+        if (!hashingService.matches(command.currentPassword(), user.getPasswordValue())) {
+            return Result.failure(ApplicationError.validationError("currentPassword", "The current password is not correct"));
+        }
+        var username = command.username().value();
+        var email = command.email().value();
+        // Recovery accepts the username or the e-mail, so neither may match another account in either field.
+        if (belongsToAnotherAccount(userRepository.findByUsername(username), user)
+                || (EmailAddress.looksLikeEmail(username)
+                    && belongsToAnotherAccount(userRepository.findByEmail(username.toLowerCase(Locale.ROOT)), user))) {
+            return Result.failure(ApplicationError.conflict("User", "The username '%s' is already in use".formatted(username)));
+        }
+        if (belongsToAnotherAccount(userRepository.findByEmail(email), user)
+                || belongsToAnotherAccount(userRepository.findByUsername(email), user)) {
+            return Result.failure(ApplicationError.conflict("User", "The e-mail '%s' is already in use".formatted(email)));
+        }
+        if (user.updateAccount(command.username(), command.email())) {
+            user = userRepository.save(user);
+            eventPublisher.publishEvent(new UserAccountUpdatedEvent(user.getId(), user.getLaboratoryId(),
+                    user.getUsernameValue(), user.getEmailValue()));
+        }
+        return Result.success(new AuthenticatedUser(user, tokenService.generateToken(user)));
+    }
+
+    private static boolean belongsToAnotherAccount(Optional<User> account, User user) {
+        return account.filter(other -> !other.getId().equals(user.getId())).isPresent();
     }
 }

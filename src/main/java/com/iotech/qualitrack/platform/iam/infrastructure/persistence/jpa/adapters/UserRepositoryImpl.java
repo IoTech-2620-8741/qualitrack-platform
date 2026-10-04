@@ -47,6 +47,13 @@ public class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public List<User> findByLaboratoryId(Long laboratoryId) {
+        return userPersistenceRepository.findByLaboratoryId(laboratoryId).stream()
+                .map(UserPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
     public User save(User user) {
         var entity = UserPersistenceAssembler.toPersistenceFromDomain(user);
         var savedEntity = userPersistenceRepository.save(entity);

@@ -2,6 +2,7 @@ package com.iotech.qualitrack.platform.iam.interfaces.acl;
 
 import com.iotech.qualitrack.platform.iam.application.commandservices.UserCommandService;
 import com.iotech.qualitrack.platform.iam.application.queryservices.UserQueryService;
+import com.iotech.qualitrack.platform.iam.domain.model.aggregates.User;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.CreateStaffAccountCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.DeactivateUserCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.Roles;
@@ -12,6 +13,7 @@ import com.iotech.qualitrack.platform.shared.application.result.Result;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * ACL facade exposed by the IAM bounded context.
@@ -152,5 +154,43 @@ public class IamContextFacade {
      */
     public boolean userHasRole(Long userId, String roleName) {
         return getRoleNamesByUserId(userId).contains(roleName);
+    }
+
+    /**
+     * @param userId the account
+     * @return username, e-mail, roles and laboratory of the account
+     */
+    public Optional<AccountReference> findAccount(Long userId) {
+        return userRepository.findById(userId).map(IamContextFacade::toReference);
+    }
+
+    /**
+     * @param laboratoryId the laboratory
+     * @return the accounts of the laboratory that can still sign in
+     */
+    public List<AccountReference> findActiveAccounts(Long laboratoryId) {
+        return userRepository.findByLaboratoryId(laboratoryId).stream()
+                .filter(User::isActive)
+                .map(IamContextFacade::toReference)
+                .toList();
+    }
+
+    private static AccountReference toReference(User user) {
+        return new AccountReference(user.getId(), user.getLaboratoryId(), user.getUsernameValue(), user.getEmailValue(),
+                user.getRoles().stream().map(role -> role.getName().name()).toList(), user.isActive());
+    }
+
+    /**
+     * Sign-in account seen from other contexts.
+     *
+     * @param userId the account identifier
+     * @param laboratoryId laboratory of the account, or null before the onboarding
+     * @param username username used to sign in
+     * @param email e-mail of the account, or null for accounts registered before it was required
+     * @param roles role names, for example ROLE_QA_MANAGER
+     * @param active whether the account can sign in
+     */
+    public record AccountReference(Long userId, Long laboratoryId, String username, String email, List<String> roles,
+                                   boolean active) {
     }
 }

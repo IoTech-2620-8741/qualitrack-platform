@@ -507,6 +507,8 @@ BatchAuditEventHandler --> AuditLogCommandService
 note bottom of BatchAuditEventHandler
   BatchStoredInContainerIntegrationEvent -> UPDATE BATCH audit log entry
   (container where the product batch is stored, US78).
+  BatchStartedIntegrationEvent -> UPDATE BATCH audit log entry
+  (first raw material consumption, US75).
 end note
 CaAuditEventHandler --> AuditLogCommandService
 note bottom of CaAuditEventHandler

@@ -173,15 +173,21 @@ class ProductBatchIntegrationTests {
         var usages = batches + "/" + batchId + "/raw-material-usages";
         var operator = operatorOf(plant);
         var body = usage(lot.id(), "30", "kg", "op-" + UUID.randomUUID());
+        assertThat(call("GET", batches + "/" + batchId, token, null).body()).contains("\"status\":\"PENDING\"");
 
         var created = call("POST", usages, operator.token(), body);
         assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(201);
         assertThat(created.body()).contains("\"inventoryReceiptId\":" + lot.id()).contains("\"rawMaterialId\":" + lot.material());
         assertThat(((Number) JsonPath.read(created.body(), "$.stockAfter")).doubleValue()).isEqualTo(70);
+        assertThat(call("GET", batches + "/" + batchId, token, null).body()).contains("\"status\":\"IN_PROGRESS\"");
         var retried = call("POST", usages, operator.token(), body);
         assertThat(retried.statusCode()).isEqualTo(201);
         assertThat(id(retried)).isEqualTo(id(created));
         assertThat(usableStock(plant, lot)).isEqualTo(70);
+        assertThat(call("POST", usages, operator.token(), usage(lot.id(), "5", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(201);
+        var auditLogs = call("GET", "/batches/" + batchId + "/audit-logs", token, null).body();
+        assertThat(auditLogs.split("BatchStartedIntegrationEvent", -1)).hasSize(2);
+        assertThat(usableStock(plant, lot)).isEqualTo(65);
 
         assertThat(call("POST", usages, operator.token(), usage(lot.id(), "500", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(409);
         assertThat(call("POST", usages, operator.token(), usage(lot.id(), "1", "L", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(400);
@@ -189,9 +195,10 @@ class ProductBatchIntegrationTests {
         var foreignLot = releasedLot(otherPlant, "10");
         assertThat(call("POST", usages, operator.token(), usage(foreignLot.id(), "1", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(404);
 
-        call("POST", batches + "/" + batchId + "/releases", token, "{\"releaseDate\":\"2026-10-05\",\"notes\":\"Approved\"}");
+        assertThat(call("POST", batches + "/" + batchId + "/releases", token, "{\"releaseDate\":\"2026-10-05\",\"notes\":\"Approved\"}")
+                .statusCode()).isEqualTo(201);
         assertThat(call("POST", usages, operator.token(), usage(lot.id(), "1", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(409);
-        assertThat(usableStock(plant, lot)).isEqualTo(70);
+        assertThat(usableStock(plant, lot)).isEqualTo(65);
     }
 
     @Test

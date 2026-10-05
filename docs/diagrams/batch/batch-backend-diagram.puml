@@ -86,6 +86,8 @@ package "batch.domain.model.aggregates" {
     - containerAssignment: ContainerAssignment
     + belongsTo(laboratoryId, environmentId, productId): boolean
     + isOpen(): boolean
+    + start(): void
+    + registerRawMaterialConsumption(): boolean
     + release(command: ReleaseBatchCommand): void
     + reject(command: RejectBatchCommand): void
     + storeIn(assignment: ContainerAssignment): boolean
@@ -174,6 +176,9 @@ package "batch.domain.model.queries" {
 package "batch.domain.model.events" {
   class ProductCreatedEvent <<record>>
   class BatchCreatedEvent <<record>>
+  class BatchStartedEvent <<record>> {
+    + startedAt: Instant
+  }
   class BatchReleasedEvent <<record>> {
     + releasedBy: Long
   }
@@ -252,6 +257,7 @@ BatchTraceabilityQueryServiceImpl --> RawMaterialUsageRepository
 package "batch.application.internal.eventhandlers" {
   class ProductCreatedEventHandler
   class BatchCreatedEventHandler
+  class BatchStartedEventHandler
   class BatchReleasedEventHandler
   class BatchRejectedEventHandler
   class RawMaterialLinkedToBatchEventHandler
@@ -262,10 +268,15 @@ package "batch.application.internal.eventhandlers" {
 
 ReceiptConsumedEventHandler ..> ReceiptConsumedIntegrationEvent
 ReceiptConsumedEventHandler --> RawMaterialUsageRepository
+ReceiptConsumedEventHandler --> BatchRepository
+ReceiptConsumedEventHandler ..> BatchStartedEvent
+BatchStartedEventHandler ..> BatchStartedEvent
 note right of ReceiptConsumedEventHandler
   Inventory publishes the confirmed consumption
   in the same transaction; the usage keeps the
   lot, the stock change and the operation id.
+  The first consumption starts a pending batch
+  (PENDING -> IN_PROGRESS, US75).
 end note
 
 package "batch.application.internal.outboundservices.acl" {
@@ -334,6 +345,9 @@ end note
 package "batch.interfaces.events" {
   class ProductCreatedIntegrationEvent <<record>>
   class BatchCreatedIntegrationEvent <<record>>
+  class BatchStartedIntegrationEvent <<record>> {
+    + startedAt: Instant
+  }
   class BatchReleasedIntegrationEvent <<record>> {
     + releasedBy: Long
   }
@@ -347,6 +361,7 @@ package "batch.interfaces.events" {
 
 BatchStoredInContainerEventHandler ..> BatchStoredInContainerEvent
 BatchStoredInContainerEventHandler ..> BatchStoredInContainerIntegrationEvent : publishes
+BatchStartedEventHandler ..> BatchStartedIntegrationEvent : publishes
 
 package "batch.infrastructure.persistence.jpa" {
   class ProductPersistenceEntity

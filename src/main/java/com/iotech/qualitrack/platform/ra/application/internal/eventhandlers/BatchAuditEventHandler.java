@@ -5,6 +5,7 @@ import com.iotech.qualitrack.platform.batch.interfaces.events.BatchParticipation
 import com.iotech.qualitrack.platform.batch.interfaces.events.BatchStoredInContainerIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.BatchRejectedIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.BatchReleasedIntegrationEvent;
+import com.iotech.qualitrack.platform.batch.interfaces.events.BatchStartedIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.ProductCreatedIntegrationEvent;
 import com.iotech.qualitrack.platform.batch.interfaces.events.RawMaterialLinkedToBatchIntegrationEvent;
 import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.AuditAction;
@@ -36,6 +37,19 @@ public class BatchAuditEventHandler {
 
         raContextFacade.recordAuditLog(
                 AuditAction.REGISTER,
+                "BATCH",
+                event.batchId(),
+                currentUser.userId(),
+                event.toString()
+        );
+    }
+
+    @EventListener(BatchStartedIntegrationEvent.class)
+    public void on(BatchStartedIntegrationEvent event) {
+        log.info("RA received batch started event: {}", event);
+
+        raContextFacade.recordAuditLog(
+                AuditAction.UPDATE,
                 "BATCH",
                 event.batchId(),
                 currentUser.userId(),

@@ -63,9 +63,17 @@ package "subscription.domain.model.valueobjects" {
     +currency: String
     +zero(currency: String): Money
   }
+
+  class SubscriptionPlanCatalog <<record>> {
+    +plans: List<SubscriptionPlan>
+  }
 }
 
 package "subscription.domain.model.commands" {
+  class SeedSubscriptionPlansCommand <<record>> {
+    +catalog: SubscriptionPlanCatalog
+  }
+
   class CreateCheckoutSessionCommand <<record>> {
     +userId: Long
     +laboratoryId: Long
@@ -161,6 +169,7 @@ package "subscription.domain.model.entities" {
     -maxUsers: Integer
     -maxEquipment: Integer
     -active: Boolean
+    +offer(code: PlanCode, name: String, description: String, price: Money, billingCycle: BillingCycle, stripePriceId: String, maxUsers: Integer, maxEquipment: Integer): SubscriptionPlan
     +isSelectable(): boolean
   }
 
@@ -268,6 +277,10 @@ package "subscription.application.commandservices" {
     +handle(command: CancelSubscriptionCommand): Result<Long, ApplicationError>
     +handle(command: RecordStripePaymentCommand): Result<Long, ApplicationError>
   }
+
+  interface SubscriptionPlanCommandService {
+    +handle(command: SeedSubscriptionPlansCommand): Result<Integer, ApplicationError>
+  }
 }
 
 package "subscription.application.queryservices" {
@@ -284,6 +297,7 @@ package "subscription.application.queryservices" {
 
 package "subscription.application.internal.commandservices" {
   class SubscriptionCommandServiceImpl
+  class SubscriptionPlanCommandServiceImpl
 }
 
 package "subscription.application.internal.queryservices" {
@@ -305,6 +319,16 @@ package "subscription.application.internal.eventhandlers" {
 
   class SubscriptionPaymentRecordedEventHandler {
     +on(event: SubscriptionPaymentRecordedEvent): void
+  }
+
+  class SubscriptionPlanSeedEventHandler {
+    +onApplicationReady(): void
+  }
+}
+
+package "subscription.infrastructure.configuration" {
+  class SubscriptionConfiguration <<configuration>> {
+    +subscriptionPlanCatalog(basicMonthly: String, basicYearly: String, enterpriseMonthly: String, enterpriseYearly: String): SubscriptionPlanCatalog
   }
 }
 
@@ -595,6 +619,20 @@ SubscriptionCommandServiceImpl ..> SubscriptionCancelledEvent
 SubscriptionCommandServiceImpl ..> SubscriptionPaymentRecordedEvent
 
 SubscriptionQueryServiceImpl ..|> SubscriptionQueryService
+SubscriptionPlanCatalog o-- SubscriptionPlan
+SeedSubscriptionPlansCommand --> SubscriptionPlanCatalog
+SubscriptionPlanCommandServiceImpl ..|> SubscriptionPlanCommandService
+SubscriptionPlanCommandServiceImpl --> SubscriptionPlanRepository
+SubscriptionPlanCommandServiceImpl ..> SeedSubscriptionPlansCommand
+SubscriptionPlanSeedEventHandler --> SubscriptionPlanCommandService
+SubscriptionPlanSeedEventHandler --> SubscriptionPlanCatalog
+SubscriptionConfiguration ..> SubscriptionPlanCatalog : creates
+note right of SubscriptionPlanSeedEventHandler
+  On ApplicationReadyEvent: creates the Standard Lab and Enterprise plans
+  (monthly and yearly) the database does not have yet. Stored plans are
+  never changed; a plan whose Stripe price another plan uses is skipped.
+  Stripe prices: subscription.plans.stripe-prices.* (STRIPE_PRICE_* variables).
+end note
 SubscriptionQueryServiceImpl --> SubscriptionRepository
 SubscriptionQueryServiceImpl --> SubscriptionPlanRepository
 SubscriptionQueryServiceImpl --> SubscriptionPaymentRepository

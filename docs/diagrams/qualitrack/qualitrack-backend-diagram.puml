@@ -433,6 +433,7 @@ package "subscription" {
     class SubscriptionPlan
     class SubscriptionPayment
     class Money
+    class SubscriptionPlanCatalog
     enum PlanCode
     enum BillingCycle
     enum SubscriptionStatus
@@ -446,8 +447,11 @@ package "subscription" {
   package "application" {
     interface SubscriptionCommandService
     interface SubscriptionQueryService
+    interface SubscriptionPlanCommandService
     class SubscriptionCommandServiceImpl
     class SubscriptionQueryServiceImpl
+    class SubscriptionPlanCommandServiceImpl
+    class SubscriptionPlanSeedEventHandler
     class ExternalStripeService
     class StripeCheckoutSessionResult
     class StripeSubscriptionDetails
@@ -504,6 +508,11 @@ AuditLogCommandServiceImpl ..|> AuditLogCommandService
 
 SubscriptionCommandServiceImpl ..|> SubscriptionCommandService
 SubscriptionQueryServiceImpl ..|> SubscriptionQueryService
+SubscriptionPlanCommandServiceImpl ..|> SubscriptionPlanCommandService
+SubscriptionPlanCommandServiceImpl --> SubscriptionPlanRepository
+SubscriptionPlanSeedEventHandler --> SubscriptionPlanCommandService
+SubscriptionPlanSeedEventHandler --> SubscriptionPlanCatalog
+SubscriptionPlanCatalog o-- SubscriptionPlan
 
 UserCommandServiceImpl ..|> UserCommandService
 UserQueryServiceImpl ..|> UserQueryService

@@ -188,6 +188,18 @@ public class Batch extends AbstractDomainAggregateRoot<Batch> {
     }
 
     /**
+     * Records that the fabrication consumed raw material (US75): the first consumption starts a pending batch and
+     * the following ones keep it in progress.
+     *
+     * @return true when this consumption started the batch
+     */
+    public boolean registerRawMaterialConsumption() {
+        if (this.status != BatchStatus.PENDING) return false;
+        start();
+        return true;
+    }
+
+    /**
      * Releases the batch after successful quality control validation.
      *
      * @param command The command containing release information.

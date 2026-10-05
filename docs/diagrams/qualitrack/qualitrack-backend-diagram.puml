@@ -282,6 +282,7 @@ package "batch" {
     class BatchRawMaterialUsageController
     class LaboratoryBatchesController
     class BatchCreatedIntegrationEvent
+    class BatchStartedIntegrationEvent
     class BatchReleasedIntegrationEvent
     class BatchRejectedIntegrationEvent
     class RawMaterialLinkedToBatchIntegrationEvent
@@ -659,6 +660,7 @@ StaffRegisteredIntegrationEvent ..> LaboratoryAuditEventHandler
 EquipmentRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
 MaintenanceRegisteredIntegrationEvent ..> EquipmentAuditEventHandler
 BatchCreatedIntegrationEvent ..> BatchAuditEventHandler
+BatchStartedIntegrationEvent ..> BatchAuditEventHandler
 RawMaterialLinkedToBatchIntegrationEvent ..> BatchAuditEventHandler
 BatchStoredInContainerIntegrationEvent ..> BatchAuditEventHandler
 DeviationAlertCreatedIntegrationEvent ..> CaAuditEventHandler

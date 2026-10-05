@@ -5,6 +5,10 @@ import com.iotech.qualitrack.platform.shared.application.notifications.EmailSend
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
 
 /**
@@ -18,6 +22,8 @@ public class EmailAlertNotifier implements AlertEmailNotifier {
             "TEMPERATURE", new String[]{"Temperatura", "Temperature"},
             "HUMIDITY", new String[]{"Humedad", "Humidity"},
             "LUMINOSITY", new String[]{"Luminosidad", "Luminosity"});
+    private static final DateTimeFormatter PERU_TIME =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("America/Lima"));
 
     private final EmailSender emailSender;
     private final String webUrl;
@@ -45,7 +51,7 @@ public class EmailAlertNotifier implements AlertEmailNotifier {
                 Dispositivo: %2$s
                 Variable: %3$s
                 Valor medido: %5$s%7$s (límite %6$s%7$s)
-                Detectada: %8$s
+                Detectada: %8$s (hora de Perú)
                 Revisa y reconoce la alerta en %9$s
 
                 Hello,
@@ -55,10 +61,19 @@ public class EmailAlertNotifier implements AlertEmailNotifier {
                 Device: %2$s
                 Variable: %4$s
                 Measured value: %5$s%7$s (limit %6$s%7$s)
-                Detected: %8$s
+                Detected: %8$s (Peru time)
                 Review and acknowledge the alert at %9$s
                 """.formatted(environment, device, variable[0], variable[1], format(notice.recordedValue()),
-                format(notice.thresholdValue()), unit, notice.detectedAt(), link)));
+                format(notice.thresholdValue()), unit, peruTime(notice.detectedAt()), link)));
+    }
+
+    private static String peruTime(String instant) {
+        if (instant == null) return "—";
+        try {
+            return PERU_TIME.format(Instant.parse(instant));
+        } catch (DateTimeParseException exception) {
+            return instant;
+        }
     }
 
     private static String format(Double value) {

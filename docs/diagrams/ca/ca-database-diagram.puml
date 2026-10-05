@@ -60,9 +60,36 @@ entity "notification_preferences" {
   updated_at : DATETIME NOT NULL
   user_id : BIGINT NOT NULL UNIQUE
   email_enabled : BOOLEAN NOT NULL
-  sms_enabled : BOOLEAN NOT NULL
   in_app_enabled : BOOLEAN NOT NULL
   minimum_severity : VARCHAR(50) NOT NULL
 }
+
+entity "notifications" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  recipient_user_id : BIGINT NOT NULL
+  laboratory_id : BIGINT NOT NULL
+  type : VARCHAR(40) NOT NULL
+  severity : VARCHAR(20)
+  subject_id : BIGINT NOT NULL
+  environment_name : VARCHAR(120)
+  subject_name : VARCHAR(150)
+  parameter_name : VARCHAR(60)
+  recorded_value : DOUBLE
+  unit : VARCHAR(20)
+  actor_name : VARCHAR(150)
+  note : VARCHAR(500)
+  occurred_at : DATETIME(6) NOT NULL
+  read_at : DATETIME(6)
+  --
+  INDEX idx_notifications_recipient (recipient_user_id, occurred_at)
+}
+
+note right of "notifications"
+  One row per person: subject_id is the alert (ALERT_*) or the batch (BATCH_*).
+  read_at stays empty until the person reads it in the bell.
+end note
 
 @enduml

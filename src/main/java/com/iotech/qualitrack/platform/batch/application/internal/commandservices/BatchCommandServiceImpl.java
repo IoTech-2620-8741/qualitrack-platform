@@ -89,7 +89,7 @@ public class BatchCommandServiceImpl implements BatchCommandService {
         var released = batchRepository.save(batch.get());
         var signature = evidenceRepository.saveSignature(
                 DigitalSignature.sign(released, currentUser.userId(), Instant.now().truncatedTo(ChronoUnit.SECONDS)));
-        eventPublisher.publishEvent(BatchReleasedEvent.from(released));
+        eventPublisher.publishEvent(BatchReleasedEvent.from(released, currentUser.userId()));
         return Result.success(new BatchRelease(released, signature));
     }
 
@@ -105,7 +105,7 @@ public class BatchCommandServiceImpl implements BatchCommandService {
         }
         var rejected = batchRepository.save(batch.get());
         var record = evidenceRepository.saveRejection(new RejectionRecord(command));
-        eventPublisher.publishEvent(BatchRejectedEvent.from(rejected));
+        eventPublisher.publishEvent(BatchRejectedEvent.from(rejected, currentUser.userId()));
         return Result.success(new BatchRejection(rejected, record));
     }
 

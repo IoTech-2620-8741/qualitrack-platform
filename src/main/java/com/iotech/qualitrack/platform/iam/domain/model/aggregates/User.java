@@ -169,6 +169,24 @@ public class User extends AbstractDomainAggregateRoot<User> {
     }
 
     /**
+     * Replaces the username used to sign in and the e-mail of the account. Uniqueness against other accounts is
+     * checked by the application service.
+     *
+     * @param username new username
+     * @param email new e-mail address
+     * @return true when at least one of them changed
+     */
+    public boolean updateAccount(Username username, EmailAddress email) {
+        if (username == null || email == null) {
+            throw new IllegalArgumentException("The username and the e-mail are required");
+        }
+        var changed = !username.equals(this.username) || !email.equals(this.email);
+        this.username = username;
+        this.email = email;
+        return changed;
+    }
+
+    /**
      * Adds a role to this user.
      *
      * @param role role to assign

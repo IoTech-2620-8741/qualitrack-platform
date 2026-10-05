@@ -7,6 +7,7 @@ import com.iotech.qualitrack.platform.iam.domain.model.commands.CreateStaffAccou
 import com.iotech.qualitrack.platform.iam.domain.model.commands.DeactivateUserCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.SignInCommand;
 import com.iotech.qualitrack.platform.iam.domain.model.commands.SignUpCommand;
+import com.iotech.qualitrack.platform.iam.domain.model.commands.UpdateAccountCommand;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 
@@ -37,6 +38,12 @@ public interface UserCommandService {
      * @return the user, or VALIDATION_ERROR when the current password is not correct
      */
     Result<User, ApplicationError> handle(ChangePasswordCommand command);
+
+    /**
+     * Replaces the username and the e-mail of the account. The token of the session is issued again because it
+     * identifies the user by username.
+     */
+    Result<AuthenticatedUser, ApplicationError> handle(UpdateAccountCommand command);
 
     /**
      * Account created for a staff member.

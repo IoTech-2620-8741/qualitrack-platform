@@ -53,6 +53,35 @@ package "IAM Context" {
   iam_roles ||--o{ iam_user_roles : "role_id"
 }
 
+package "Profile Context" {
+  entity "profiles" as profiles {
+    * id : BIGINT <<PK>>
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    * user_id : BIGINT <<UK>>
+    full_name : VARCHAR(120)
+    dni : VARCHAR(8)
+    phone_number : VARCHAR(30)
+    location : VARCHAR(120)
+    photo_content_type : VARCHAR(20)
+    photo_size_bytes : INT
+    photo_updated_at : DATETIME
+  }
+
+  entity "profile_photos" as profile_photos {
+    * id : BIGINT <<PK>>
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    * profile_id : BIGINT <<UK>>
+    * content_type : VARCHAR(20)
+    * content : MEDIUMBLOB
+  }
+
+  profiles ||--o| profile_photos : "profile_id"
+}
+
 package "Laboratory Context" {
   entity "laboratories" as laboratories {
     * id : BIGINT <<PK>>
@@ -416,9 +445,29 @@ package "Compliance and Alerts Context" {
     * updated_at : DATETIME
     * user_id : BIGINT <<UK>>
     * email_enabled : BOOLEAN
-    * sms_enabled : BOOLEAN
     * in_app_enabled : BOOLEAN
     * minimum_severity : VARCHAR(50)
+  }
+
+  entity "notifications" as notifications {
+    * id : BIGINT <<PK>>
+    --
+    * created_at : DATETIME
+    * updated_at : DATETIME
+    * recipient_user_id : BIGINT
+    * laboratory_id : BIGINT
+    * type : VARCHAR(40)
+    severity : VARCHAR(20)
+    * subject_id : BIGINT
+    environment_name : VARCHAR(120)
+    subject_name : VARCHAR(150)
+    parameter_name : VARCHAR(60)
+    recorded_value : DOUBLE
+    unit : VARCHAR(20)
+    actor_name : VARCHAR(150)
+    note : VARCHAR(500)
+    * occurred_at : DATETIME
+    read_at : DATETIME
   }
 }
 
@@ -531,6 +580,8 @@ iam_users ||..o{ inventory_movements : actor_id
 inventory_receipts |o..o{ raw_material_usages : inventory_receipt_id
 equipment |o..o{ inventory_receipts : container_monitor_id
 equipment |o..o{ batches : container_monitor_id
+iam_users ||..o| profiles : user_id
+iam_users ||..o{ notifications : recipient_user_id
 
 note bottom of inventory_materials
   Catalogue only: usableStock and physicalStock are calculated,

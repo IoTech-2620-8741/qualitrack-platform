@@ -88,6 +88,7 @@ package "iam.domain.model.aggregates" {
     - passwordChangeRequired: boolean
     + {static} staffAccount(email, temporaryPasswordHash, role, laboratoryId): User
     + changePassword(newPasswordHash: String): void
+    + updateAccount(username: Username, email: EmailAddress): boolean
     + addRole(role: Role): void
     + addRoles(roles: Collection<Role>): void
     + deactivate(): void
@@ -176,6 +177,23 @@ package "iam.domain.model.commands" {
     + code: String
     + newPassword: String
   }
+
+  class UpdateAccountCommand <<record>> {
+    + userId: Long
+    + username: Username
+    + email: EmailAddress
+    + currentPassword: String
+    + {static} of(userId, username, email, currentPassword): UpdateAccountCommand
+  }
+}
+
+package "iam.domain.model.events" {
+  class UserAccountUpdatedEvent <<record>> {
+    + userId: Long
+    + laboratoryId: Long
+    + username: String
+    + email: String
+  }
 }
 
 ChangePasswordCommand ..> PasswordPolicy
@@ -204,6 +222,7 @@ package "iam.domain.repositories" {
     + findById(id: Long): Optional<User>
     + findByUsername(username: String): Optional<User>
     + findAll(): List<User>
+    + findByLaboratoryId(laboratoryId: Long): List<User>
     + save(user: User): User
     + existsById(id: Long): boolean
     + existsByUsername(username: String): boolean
@@ -248,6 +267,7 @@ package "iam.application.internal.outboundservices.tokens" {
   interface TokenService {
     + generateToken(user: User): String
     + getUsernameFromToken(token: String): String
+    + getUserIdFromToken(token: String): Long
     + validateToken(token: String): boolean
   }
 }
@@ -262,6 +282,7 @@ package "iam.application.commandservices" {
     + handle(command: DeactivateUserCommand): Result<Long, ApplicationError>
     + handle(command: CreateStaffAccountCommand): Result<StaffAccount, ApplicationError>
     + handle(command: ChangePasswordCommand): Result<User, ApplicationError>
+    + handle(command: UpdateAccountCommand): Result<AuthenticatedUser, ApplicationError>
   }
 
   class StaffAccount <<record>> {
@@ -399,7 +420,24 @@ RoleQueryServiceImpl --> RoleRepository
 
 package "iam.application.internal.eventhandlers" {
   class ApplicationReadyEventHandler
+  class UserAccountUpdatedEventHandler
 }
+
+package "iam.interfaces.events" {
+  class UserAccountUpdatedIntegrationEvent <<record>> {
+    + userId: Long
+    + laboratoryId: Long
+    + username: String
+    + email: String
+  }
+}
+
+UserAccountUpdatedEventHandler ..> UserAccountUpdatedEvent
+UserAccountUpdatedEventHandler ..> UserAccountUpdatedIntegrationEvent
+note bottom of UserAccountUpdatedIntegrationEvent
+  Laboratory updates the e-mail of the
+  staff member of the account.
+end note
 
 ApplicationReadyEventHandler --> RoleCommandService
 ApplicationReadyEventHandler ..> SeedRolesCommand
@@ -414,8 +452,22 @@ package "iam.interfaces.acl" {
     + createStaffAccount(laboratoryId, email, fullName, auditor): StaffAccountReference
     + existsUsername(username: String): boolean
     + deactivateUser(userId: Long): void
+    + findAccount(userId: Long): Optional<AccountReference>
+    + findActiveAccounts(laboratoryId: Long): List<AccountReference>
+  }
+
+  class AccountReference <<record>> {
+    + userId: Long
+    + laboratoryId: Long
+    + username: String
+    + email: String
+    + roles: List<String>
+    + active: boolean
   }
 }
+
+IamContextFacade ..> AccountReference
+IamContextFacade --> UserRepository
 
 IamContextFacade --> UserQueryService
 IamContextFacade --> UserCommandService
@@ -495,7 +547,8 @@ class ForbiddenRequestHandler
 class ReadOnlyAuditorAuthorizationManager
 note bottom of ReadOnlyAuditorAuthorizationManager
   Users whose only role is ROLE_AUDITOR can read but not write, except
-  their password change, notification preferences and report generation.
+  their own resources (/api/v1/users/me/**: account, password, profile,
+  notification preferences and notifications) and report generation.
   Subscription and billing paths require ROLE_QA_MANAGER or ROLE_ADMIN.
 end note
 
@@ -555,6 +608,7 @@ package "iam.infrastructure.persistence.jpa.repositories" {
     + existsByUsername(username: String): boolean
     + findByEmail(email: String): Optional<UserPersistenceEntity>
     + existsByEmail(email: String): boolean
+    + findByLaboratoryId(laboratoryId: Long): List<UserPersistenceEntity>
   }
   interface PasswordRecoveryPersistenceRepository {
     + findFirstByUserIdOrderByRequestedAtDescIdDesc(userId: Long): Optional<PasswordRecoveryPersistenceEntity>
@@ -635,6 +689,11 @@ package "iam.interfaces.rest.resources" {
   class PasswordResetCompletedResource <<record>> {
     + username: String
   }
+  class UpdateAccountResource <<record>> {
+    + username: String
+    + email: String
+    + currentPassword: String
+  }
 }
 
 package "iam.interfaces.rest.transform" {
@@ -661,7 +720,22 @@ package "iam.interfaces.rest" {
   class PasswordRecoveryController
   class UsersController
   class RolesController
+  class UserAccountController
 }
+
+UserAccountController --> UserCommandService
+UserAccountController --> UserQueryService
+UserAccountController ..> UpdateAccountResource
+UserAccountController ..> UpdateAccountCommand
+UserAccountController ..> AuthenticatedUserResourceFromEntityAssembler
+UserAccountController ..> UserResourceFromEntityAssembler
+note bottom of UserAccountController
+  GET /api/v1/users/me    account of the authenticated user
+  PUT /api/v1/users/me    username and e-mail with the current password
+       (200 with a new token / 400 / 409 used by another account)
+  The token names the user and carries its id: an old token never opens an
+  account that later takes the released username.
+end note
 
 PasswordRecoveryController --> PasswordRecoveryCommandService
 PasswordRecoveryController ..> PasswordRecoveryRequestResource

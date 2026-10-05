@@ -22,6 +22,14 @@ package "iam.interfaces.acl" <<External>> {
   class IamContextFacade
 }
 
+package "iam.interfaces.events" <<External>> {
+  class UserAccountUpdatedIntegrationEvent <<record>>
+}
+
+package "profile.interfaces.events" <<External>> {
+  class ProfileUpdatedIntegrationEvent <<record>>
+}
+
 package "laboratory.domain.model.valueobjects" {
   class LaboratoryName <<value object>>
   class Regulation <<value object>>
@@ -95,6 +103,8 @@ package "laboratory.domain.model.aggregates" {
     - accessRole: StaffAccessRole
     - userId: Long
     + linkAccount(userId: Long): void
+    + rename(fullName: String): boolean
+    + changeEmail(email: String): boolean
     + belongsTo(laboratoryId: Long): boolean
     + deactivate(): void
   }
@@ -141,6 +151,8 @@ package "laboratory.domain.model.queries" {
   record GetStaffByLabIdQuery
   record GetEnvironmentsByLaboratoryIdQuery
   record GetEnvironmentByIdQuery
+  record GetStaffMemberByIdQuery
+  record GetStaffMemberByUserIdQuery
 }
 
 package "laboratory.domain.model.events" {
@@ -157,7 +169,9 @@ package "laboratory.domain.model.events" {
 package "laboratory.domain.repositories" {
   interface LaboratoryRepository
   interface RawMaterialRepository
-  interface StaffRepository
+  interface StaffRepository {
+    + findByUserId(userId: Long): Optional<StaffMember>
+  }
   interface EnvironmentRepository
 }
 
@@ -177,7 +191,9 @@ package "laboratory.application.commandservices" {
 package "laboratory.application.queryservices" {
   interface LaboratoryQueryService
   interface RawMaterialQueryService
-  interface StaffQueryService
+  interface StaffQueryService {
+    + handle(query: GetStaffMemberByUserIdQuery): Optional<StaffMember>
+  }
   interface EnvironmentQueryService
 }
 
@@ -227,7 +243,16 @@ package "laboratory.application.internal.eventhandlers" {
   class EnvironmentRegisteredEventHandler
   class EnvironmentUpdatedEventHandler
   class EnvironmentUsageAssignedEventHandler
+  class StaffAccountSynchronizationEventHandler
 }
+
+StaffAccountSynchronizationEventHandler ..> UserAccountUpdatedIntegrationEvent : e-mail
+StaffAccountSynchronizationEventHandler ..> ProfileUpdatedIntegrationEvent : full name
+StaffAccountSynchronizationEventHandler --> StaffRepository
+note bottom of StaffAccountSynchronizationEventHandler
+  The staff list follows what each person changes:
+  the e-mail of the account (IAM) and the name of the profile.
+end note
 
 LaboratoryRegisteredEventHandler ..> LaboratoryRegisteredEvent
 RawMaterialCreatedEventHandler ..> RawMaterialCreatedEvent
@@ -259,7 +284,10 @@ package "laboratory.application.acl" {
 }
 
 package "laboratory.interfaces.acl" {
-  interface LaboratoryContextFacade
+  interface LaboratoryContextFacade {
+    + findStaffMember(laboratoryId, staffId): Optional<StaffReference>
+    + findStaffMemberByAccount(userId: Long): Optional<StaffReference>
+  }
   class StaffReference <<record>> {
     + id: Long
     + laboratoryId: Long

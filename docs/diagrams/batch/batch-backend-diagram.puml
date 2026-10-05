@@ -174,8 +174,12 @@ package "batch.domain.model.queries" {
 package "batch.domain.model.events" {
   class ProductCreatedEvent <<record>>
   class BatchCreatedEvent <<record>>
-  class BatchReleasedEvent <<record>>
-  class BatchRejectedEvent <<record>>
+  class BatchReleasedEvent <<record>> {
+    + releasedBy: Long
+  }
+  class BatchRejectedEvent <<record>> {
+    + rejectedBy: Long
+  }
   class RawMaterialLinkedToBatchEvent <<record>>
   class BatchParticipationRegisteredEvent <<record>>
   class BatchStoredInContainerEvent <<record>>
@@ -330,8 +334,12 @@ end note
 package "batch.interfaces.events" {
   class ProductCreatedIntegrationEvent <<record>>
   class BatchCreatedIntegrationEvent <<record>>
-  class BatchReleasedIntegrationEvent <<record>>
-  class BatchRejectedIntegrationEvent <<record>>
+  class BatchReleasedIntegrationEvent <<record>> {
+    + releasedBy: Long
+  }
+  class BatchRejectedIntegrationEvent <<record>> {
+    + rejectedBy: Long
+  }
   class RawMaterialLinkedToBatchIntegrationEvent <<record>>
   class BatchParticipationRegisteredIntegrationEvent <<record>>
   class BatchStoredInContainerIntegrationEvent <<record>>

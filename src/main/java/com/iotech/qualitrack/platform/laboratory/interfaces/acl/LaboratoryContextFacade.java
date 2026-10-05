@@ -74,6 +74,12 @@ public interface LaboratoryContextFacade {
     Optional<StaffReference> findStaffMember(Long laboratoryId, Long staffId);
 
     /**
+     * @param userId the sign-in account
+     * @return the staff member that signs in with the account, if it is one
+     */
+    Optional<StaffReference> findStaffMemberByAccount(Long userId);
+
+    /**
      * Staff data shared with other bounded contexts.
      *
      * @param id the staff member identifier

@@ -119,6 +119,32 @@ public class StaffMember extends AbstractDomainAggregateRoot<StaffMember> {
         this.userId = userId;
     }
 
+    /**
+     * Keeps the name in line with the one the staff member keeps in the profile.
+     *
+     * @param fullName name of the staff member
+     * @return true when it changed
+     */
+    public boolean rename(String fullName) {
+        if (fullName == null || fullName.isBlank()) return false;
+        var name = fullName.trim();
+        if (name.equals(this.fullName)) return false;
+        this.fullName = name;
+        return true;
+    }
+
+    /**
+     * Keeps the e-mail in line with the one of the sign-in account.
+     *
+     * @param email e-mail of the account
+     * @return true when it changed
+     */
+    public boolean changeEmail(String email) {
+        if (email == null || email.isBlank() || email.equals(this.email)) return false;
+        this.email = email;
+        return true;
+    }
+
     public boolean belongsTo(Long laboratoryId) {
         return Objects.equals(this.laboratoryId, laboratoryId);
     }

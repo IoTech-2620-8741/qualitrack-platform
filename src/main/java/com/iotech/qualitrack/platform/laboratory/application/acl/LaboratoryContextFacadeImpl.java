@@ -6,7 +6,9 @@ import com.iotech.qualitrack.platform.laboratory.application.queryservices.Staff
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentByIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetEnvironmentsByLaboratoryIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetLaboratoryByIdQuery;
+import com.iotech.qualitrack.platform.laboratory.domain.model.aggregates.StaffMember;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffMemberByIdQuery;
+import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffMemberByUserIdQuery;
 import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
 import org.springframework.stereotype.Service;
 
@@ -68,9 +70,17 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
     @Override
     public Optional<StaffReference> findStaffMember(Long laboratoryId, Long staffId) {
         if (laboratoryId == null || laboratoryId <= 0 || staffId == null || staffId <= 0) return Optional.empty();
-        return staffQueryService.handle(new GetStaffMemberByIdQuery(laboratoryId, staffId))
-                .map(member -> new StaffReference(member.getId(), member.getLaboratoryId(), member.getFullName(),
-                        member.getRole(), member.isActive(), member.getUserId(),
-                        member.getAccessRole() == null ? null : member.getAccessRole().name()));
+        return staffQueryService.handle(new GetStaffMemberByIdQuery(laboratoryId, staffId)).map(LaboratoryContextFacadeImpl::toReference);
+    }
+
+    @Override
+    public Optional<StaffReference> findStaffMemberByAccount(Long userId) {
+        if (userId == null || userId <= 0) return Optional.empty();
+        return staffQueryService.handle(new GetStaffMemberByUserIdQuery(userId)).map(LaboratoryContextFacadeImpl::toReference);
+    }
+
+    private static StaffReference toReference(StaffMember member) {
+        return new StaffReference(member.getId(), member.getLaboratoryId(), member.getFullName(), member.getRole(),
+                member.isActive(), member.getUserId(), member.getAccessRole() == null ? null : member.getAccessRole().name());
     }
 }

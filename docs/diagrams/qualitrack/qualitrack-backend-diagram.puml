@@ -8,6 +8,10 @@ hide circle
 hide empty members
 
 package "shared" {
+  package "application.notifications" {
+    interface EmailSender
+  }
+
   package "domain" {
     abstract class AbstractDomainAggregateRoot<T>
   }
@@ -77,11 +81,46 @@ package "iam" {
     class PasswordRecoveryController
     class UsersController
     class RolesController
+    class UserAccountController
+    class UserAccountUpdatedIntegrationEvent
     class SignInResource
     class SignUpResource
     class AuthenticatedUserResource
     class UserResource
     class RoleResource
+  }
+}
+
+package "profile" {
+  package "domain" {
+    class Profile
+    class PersonName
+    class Dni
+    class PhoneNumber
+    class Location
+    class ProfilePhoto
+    class PhotoImage
+    interface ProfileRepository
+  }
+
+  package "application" {
+    interface ProfileCommandService
+    interface ProfileQueryService
+    class ProfileCommandServiceImpl
+    class ProfileQueryServiceImpl
+    interface ProfilePhotoStorage
+  }
+
+  package "infrastructure" {
+    class ProfileRepositoryImpl
+    class DatabaseProfilePhotoStorage
+  }
+
+  package "interfaces" {
+    class ProfileContextFacade
+    class ProfileController
+    class StaffProfileController
+    class ProfileUpdatedIntegrationEvent
   }
 }
 
@@ -290,12 +329,15 @@ package "ca" {
     class DeviationAlert
     class ComplianceEvent
     class NotificationPreference
+    class Notification
+    enum NotificationType
     enum AlertSeverity
     enum AlertStatus
     enum ComplianceEventType
     interface DeviationAlertRepository
     interface ComplianceEventRepository
     interface NotificationPreferenceRepository
+    interface NotificationRepository
   }
 
   package "application" {
@@ -305,6 +347,13 @@ package "ca" {
     class CaQueryServiceImpl
     class CaExternalEquipmentService
     class CaExternalTrackingService
+    interface NotificationCommandService
+    interface NotificationQueryService
+    class NotificationCommandServiceImpl
+    class NotificationQueryServiceImpl
+    class AlertNotificationEventHandler
+    class BatchNotificationEventHandler
+    class CriticalAlertEmailScheduler
     class BatchReleasedComplianceEventHandler
     class BatchRejectedComplianceEventHandler
     class CalibrationExpiredEventHandler
@@ -318,6 +367,7 @@ package "ca" {
     class DeviationAlertController
     class ComplianceEventController
     class NotificationPreferenceController
+    class NotificationController
     class DeviationAlertCreatedIntegrationEvent
     class DeviationAlertAcknowledgedIntegrationEvent
     class DeviationAlertResolvedIntegrationEvent
@@ -420,6 +470,8 @@ package "external systems" {
 }
 
 User --|> AbstractDomainAggregateRoot
+Profile --|> AbstractDomainAggregateRoot
+Notification --|> AbstractDomainAggregateRoot
 Laboratory --|> AbstractDomainAggregateRoot
 Equipment --|> AbstractDomainAggregateRoot
 Batch --|> AbstractDomainAggregateRoot
@@ -512,6 +564,42 @@ DeviationAlertController --> CaQueryService
 ComplianceEventController --> CaQueryService
 NotificationPreferenceController --> CaCommandService
 NotificationPreferenceController --> CaQueryService
+NotificationController --> NotificationCommandService
+NotificationController --> NotificationQueryService
+DeviationAlertController --> NotificationCommandService : e-mail notice (TS78)
+NotificationCommandServiceImpl ..|> NotificationCommandService
+NotificationQueryServiceImpl ..|> NotificationQueryService
+NotificationCommandServiceImpl --> NotificationRepository
+NotificationCommandServiceImpl --> IamContextFacade : accounts of the laboratory
+NotificationCommandServiceImpl --> EmailSender : critical alerts (US84)
+AlertNotificationEventHandler --> NotificationCommandService
+AlertNotificationEventHandler --> CriticalAlertEmailScheduler
+BatchNotificationEventHandler --> NotificationCommandService
+AlertNotificationEventHandler --> ProfileContextFacade : who attended
+BatchReleasedIntegrationEvent ..> BatchNotificationEventHandler
+BatchRejectedIntegrationEvent ..> BatchNotificationEventHandler
+
+UserAccountController --> UserCommandService
+ProfileController --> ProfileCommandService
+ProfileController --> ProfileQueryService
+StaffProfileController --> ProfileQueryService
+ProfileCommandServiceImpl ..|> ProfileCommandService
+ProfileQueryServiceImpl ..|> ProfileQueryService
+ProfileCommandServiceImpl --> ProfileRepository
+ProfileCommandServiceImpl --> ProfilePhotoStorage
+ProfileQueryServiceImpl --> ProfileRepository
+ProfileQueryServiceImpl --> IamContextFacade : account
+ProfileQueryServiceImpl --> LaboratoryContextFacade : staff record
+ProfileRepositoryImpl ..|> ProfileRepository
+DatabaseProfilePhotoStorage ..|> ProfilePhotoStorage
+ProfileContextFacade --> ProfileQueryService
+Profile --> PersonName
+Profile --> Dni
+Profile --> PhoneNumber
+Profile --> Location
+Profile --> ProfilePhoto
+ProfileUpdatedIntegrationEvent ..> StaffRepository : staff name
+UserAccountUpdatedIntegrationEvent ..> StaffRepository : staff e-mail
 
 KpiDashboardController --> RaQueryService
 DeviationTrendController --> RaQueryService

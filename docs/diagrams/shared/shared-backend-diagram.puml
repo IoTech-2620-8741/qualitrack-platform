@@ -17,6 +17,7 @@ package "shared" {
       +notFound(resourceType: String, identifier: Object): ApplicationError
       +businessRuleViolation(rule: String, reason: String): ApplicationError
       +conflict(resource: String, reason: String): ApplicationError
+      +externalServiceFailure(service: String, reason: String): ApplicationError
       +unexpected(context: String, reason: String): ApplicationError
     }
 

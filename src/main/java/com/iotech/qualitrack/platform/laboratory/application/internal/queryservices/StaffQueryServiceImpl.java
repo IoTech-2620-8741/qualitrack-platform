@@ -4,6 +4,7 @@ import com.iotech.qualitrack.platform.laboratory.application.queryservices.Staff
 import com.iotech.qualitrack.platform.laboratory.domain.model.aggregates.StaffMember;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffByLabIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffMemberByIdQuery;
+import com.iotech.qualitrack.platform.laboratory.domain.model.queries.GetStaffMemberByUserIdQuery;
 import com.iotech.qualitrack.platform.laboratory.domain.repositories.StaffRepository;
 import org.springframework.stereotype.Service;
 
@@ -29,5 +30,10 @@ public class StaffQueryServiceImpl implements StaffQueryService {
     @Override
     public Optional<StaffMember> handle(GetStaffMemberByIdQuery query) {
         return staffRepository.findById(query.staffId()).filter(staff -> staff.belongsTo(query.laboratoryId()));
+    }
+
+    @Override
+    public Optional<StaffMember> handle(GetStaffMemberByUserIdQuery query) {
+        return staffRepository.findByUserId(query.userId());
     }
 }

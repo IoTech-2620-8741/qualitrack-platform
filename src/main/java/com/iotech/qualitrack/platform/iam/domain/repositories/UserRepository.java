@@ -20,6 +20,12 @@ public interface UserRepository {
 
     List<User> findAll();
 
+    /**
+     * @param laboratoryId laboratory of the accounts
+     * @return accounts of the laboratory, active or not
+     */
+    List<User> findByLaboratoryId(Long laboratoryId);
+
     User save(User user);
 
     boolean existsById(Long id);

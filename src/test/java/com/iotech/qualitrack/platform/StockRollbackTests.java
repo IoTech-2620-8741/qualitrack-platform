@@ -22,7 +22,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,7 +47,7 @@ class StockRollbackTests {
         var material = inventory.handle(new SaveRawMaterialCommand(LAB, ENV, null, "RM-ROLLBACK", "Rollback fixture", "kg",
                 BigDecimal.TEN)).toOptional().orElseThrow();
         var lot = inventory.handle(new ReceiveRawMaterialBatchCommand(LAB, ENV, material.getId(), "Supplier", "SUP-1", "kg",
-                new BigDecimal("100"), LocalDate.now().minusDays(1), LocalDate.now().plusYears(1))).toOptional().orElseThrow();
+                new BigDecimal("100"), LimaDates.today().minusDays(1), LimaDates.today().plusYears(1))).toOptional().orElseThrow();
         inventory.handle(new ReviewRawMaterialBatchCommand(LAB, ENV, material.getId(), lot.getId(), RawMaterialBatchStatus.RELEASED,
                 "Certificate checked")).toOptional().orElseThrow();
         var batch = batches.save(new Batch(null, LAB, ENV, 1L, "Fixture", "ROLLBACK-LOT", 10.0,

@@ -64,11 +64,11 @@ class EnvironmentInventoryIntegrationTests {
         assertThat(duplicate.statusCode()).isEqualTo(409);
         assertThat(registerMaterial(warehouse, "barrels", 1).statusCode()).isEqualTo(400);
 
-        var lot = receive(warehouse, material, "LOT-A", "kg", LocalDate.now().plusYears(1), token);
+        var lot = receive(warehouse, material, "LOT-A", "kg", LimaDates.today().plusYears(1), token);
         assertThat(lot.statusCode()).withFailMessage(lot.body()).isEqualTo(201);
         long lotId = id(lot);
         assertThat(lot.body()).contains("\"status\":\"QUARANTINED\"").contains("\"expirationStatus\":\"VALID\"");
-        assertThat(receive(warehouse, material, "LOT-A", "kg", LocalDate.now().plusYears(1), token).statusCode()).isEqualTo(409);
+        assertThat(receive(warehouse, material, "LOT-A", "kg", LimaDates.today().plusYears(1), token).statusCode()).isEqualTo(409);
 
         var stockBefore = call("GET", warehouse.rawMaterials() + "/" + material + "/stock", token, null);
         assertThat(((Number) JsonPath.read(stockBefore.body(), "$.usableStock")).doubleValue()).isZero();
@@ -100,8 +100,8 @@ class EnvironmentInventoryIntegrationTests {
         var token = warehouse.manager().token();
         long low = id(registerMaterial(warehouse, "kg", 500));
         long sufficient = id(registerMaterial(warehouse, "kg", 0));
-        long soon = id(receive(warehouse, low, "SOON", "kg", LocalDate.now().plusDays(10), token));
-        id(receive(warehouse, sufficient, "LATER", "kg", LocalDate.now().plusDays(200), token));
+        long soon = id(receive(warehouse, low, "SOON", "kg", LimaDates.today().plusDays(10), token));
+        id(receive(warehouse, sufficient, "LATER", "kg", LimaDates.today().plusDays(200), token));
 
         var lowStock = call("GET", warehouse.rawMaterials() + "?stockStatus=LOW", token, null);
         assertThat(JsonPath.<List<Integer>>read(lowStock.body(), "$[*].id")).containsExactly((int) low);
@@ -143,7 +143,7 @@ class EnvironmentInventoryIntegrationTests {
         var operator = TestStaff.register(this::call, warehouse.lab(), warehouse.manager().token(), "Warehouse operator", "OPERATOR");
 
         assertThat(registerMaterialAs(warehouse, operator.token()).statusCode()).isEqualTo(403);
-        var lot = receive(warehouse, material, "OP-1", "units", LocalDate.now().plusMonths(6), operator.token());
+        var lot = receive(warehouse, material, "OP-1", "units", LimaDates.today().plusMonths(6), operator.token());
         assertThat(lot.statusCode()).withFailMessage(lot.body()).isEqualTo(201);
         assertThat(call("POST", warehouse.rawMaterials() + "/" + material + "/batches/" + id(lot) + "/reviews", operator.token(),
                 "{\"status\":\"RELEASED\",\"reason\":\"Not allowed\"}").statusCode()).isEqualTo(403);
@@ -154,7 +154,7 @@ class EnvironmentInventoryIntegrationTests {
         var warehouse = warehouse();
         var token = warehouse.manager().token();
         long material = id(registerMaterial(warehouse, "kg", 1));
-        long lot = id(receive(warehouse, material, "USE-1", "kg", LocalDate.now().plusYears(1), token));
+        long lot = id(receive(warehouse, material, "USE-1", "kg", LimaDates.today().plusYears(1), token));
         call("POST", warehouse.rawMaterials() + "/" + material + "/batches/" + lot + "/reviews", token,
                 "{\"status\":\"RELEASED\",\"reason\":\"Reviewed\"}");
         var usages = warehouse.rawMaterials() + "/" + material + "/usages";
@@ -198,7 +198,7 @@ class EnvironmentInventoryIntegrationTests {
                                          String token) throws Exception {
         return call("POST", warehouse.rawMaterials() + "/" + material + "/batches", token, """
                 {"supplier":"Supplier SAC","batchNumber":"%s","unit":"%s","amount":100,"receivedOn":"%s","expiresOn":"%s"}
-                """.formatted(lot, unit, LocalDate.now().minusDays(1), expiresOn));
+                """.formatted(lot, unit, LimaDates.today().minusDays(1), expiresOn));
     }
 
     private Warehouse warehouse() throws Exception {

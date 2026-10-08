@@ -142,26 +142,26 @@ class EquipmentIntegrationTests {
         assertThat(call("GET", maintenance, token, null).body()).isEqualTo("[]");
         var operator = staffOperator(plant, "Luis Paredes");
         var colleague = staffOperator(plant, "Rosa Diaz");
-        var older = call("POST", maintenance, operator.token(), maintenanceBody(LocalDate.now().minusDays(10), "INSPECTION", operator.staffId()));
+        var older = call("POST", maintenance, operator.token(), maintenanceBody(LimaDates.today().minusDays(10), "INSPECTION", operator.staffId()));
         assertThat(older.statusCode()).withFailMessage(older.body()).isEqualTo(201);
         assertThat(older.body()).contains("\"environmentId\":" + plant.storage()).contains("\"type\":\"INSPECTION\"")
                 .contains("\"technicianName\":\"Luis Paredes\"").contains("\"technicianStaffId\":" + operator.staffId());
-        assertThat(call("POST", maintenance, operator.token(), maintenanceBody(LocalDate.now(), "INSPECTION", colleague.staffId()))
+        assertThat(call("POST", maintenance, operator.token(), maintenanceBody(LimaDates.today(), "INSPECTION", colleague.staffId()))
                 .statusCode()).isEqualTo(403);
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "calibration", colleague.staffId())).statusCode())
+        assertThat(call("POST", maintenance, token, maintenanceBody(LimaDates.today(), "calibration", colleague.staffId())).statusCode())
                 .isEqualTo(201);
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "OTHER", 999999L)).statusCode()).isEqualTo(404);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LimaDates.today(), "OTHER", 999999L)).statusCode()).isEqualTo(404);
 
         var history = call("GET", maintenance, operator.token(), null);
         assertThat(JsonPath.<List<String>>read(history.body(), "$[*].type")).containsExactly("CALIBRATION", "INSPECTION");
 
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now().plusDays(1), "PREVENTIVE", colleague.staffId())).statusCode()).isEqualTo(400);
-        assertThat(call("POST", maintenance, token, maintenanceBody(LocalDate.now(), "PAINTING", colleague.staffId())).statusCode()).isEqualTo(400);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LimaDates.today().plusDays(1), "PREVENTIVE", colleague.staffId())).statusCode()).isEqualTo(400);
+        assertThat(call("POST", maintenance, token, maintenanceBody(LimaDates.today(), "PAINTING", colleague.staffId())).statusCode()).isEqualTo(400);
 
         long unlocated = id(call("POST", plant.equipment(), token, equipment("Unlocated mixer", "SN-" + suffix())));
         var unlocatedMaintenance = plant.environment(plant.storage()) + "/equipments/" + unlocated + "/maintenance-records";
         assertThat(call("GET", unlocatedMaintenance, token, null).statusCode()).isEqualTo(404);
-        assertThat(call("POST", unlocatedMaintenance, token, maintenanceBody(LocalDate.now(), "PREVENTIVE", colleague.staffId())).statusCode()).isEqualTo(404);
+        assertThat(call("POST", unlocatedMaintenance, token, maintenanceBody(LimaDates.today(), "PREVENTIVE", colleague.staffId())).statusCode()).isEqualTo(404);
     }
 
     @Test

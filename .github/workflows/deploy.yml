@@ -37,4 +37,4 @@ jobs:
           docker push $ACR_NAME.azurecr.io/$IMG:${{ github.sha }}
       - run: |
           az containerapp registry set -g $RG -n $APP --server $ACR_NAME.azurecr.io --identity system
-          az containerapp update -g $RG -n $APP
+          az containerapp update -g $RG -n $APP --image $ACR_NAME.azurecr.io/$IMG:${{ github.sha }}

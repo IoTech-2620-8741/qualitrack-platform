@@ -180,7 +180,7 @@ class ContainerAssignmentIntegrationTests {
     private static String lot(String number) {
         return """
                 {"supplier":"Supplier SAC","batchNumber":"%s","unit":"kg","amount":100,"receivedOn":"%s","expiresOn":"%s"}
-                """.formatted(number, LocalDate.now(), LocalDate.now().plusYears(1));
+                """.formatted(number, LimaDates.today(), LimaDates.today().plusYears(1));
     }
 
     private static String container(long containerMonitorId) {

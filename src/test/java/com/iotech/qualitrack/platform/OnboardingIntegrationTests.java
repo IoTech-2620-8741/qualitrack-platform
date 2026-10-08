@@ -365,7 +365,7 @@ class OnboardingIntegrationTests {
         var receipt = call("POST", materials + "/" + materialId + "/batches", account.token(), """
                 {"supplier":"Test supplier","batchNumber":"SUP-1","unit":"%s","amount":100,
                  "receivedOn":"%s","expiresOn":"%s"}
-                """.formatted(unit, java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusYears(1)));
+                """.formatted(unit, LimaDates.today().minusDays(1), LimaDates.today().plusYears(1)));
         assertThat(receipt.statusCode()).withFailMessage(receipt.body()).isEqualTo(201);
         long receiptId = ((Number) JsonPath.read(receipt.body(), "$.id")).longValue();
         var review = call("POST", materials + "/" + materialId + "/batches/" + receiptId + "/reviews", account.token(),

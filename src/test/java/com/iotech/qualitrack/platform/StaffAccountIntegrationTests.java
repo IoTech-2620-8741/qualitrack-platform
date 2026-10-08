@@ -15,7 +15,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -164,7 +163,7 @@ class StaffAccountIntegrationTests {
                 "$.id")).longValue();
         var lot = call("POST", materials + "/" + material + "/batches", operator.token(), """
                 {"supplier":"Supplier","batchNumber":"SUP-9","unit":"kg","amount":10,"receivedOn":"%s","expiresOn":"%s"}
-                """.formatted(LocalDate.now().minusDays(1), LocalDate.now().plusYears(1)));
+                """.formatted(LimaDates.today().minusDays(1), LimaDates.today().plusYears(1)));
         assertThat(lot.statusCode()).withFailMessage(lot.body()).isEqualTo(201);
 
         var history = call("GET", activity, lab.manager().token(), null);
@@ -194,7 +193,7 @@ class StaffAccountIntegrationTests {
     private static String maintenanceBody(long technicianStaffId) {
         return """
                 {"maintenanceDate":"%s","technicianStaffId":%d,"description":"Routine check","type":"INSPECTION"}
-                """.formatted(LocalDate.now(), technicianStaffId);
+                """.formatted(LimaDates.today(), technicianStaffId);
     }
 
     private static String staffBody(String fullName, String email, String accessRole) {

@@ -31,7 +31,10 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - run: az acr build -r $ACR_NAME -t $IMG:${{ github.sha }} .
+      - run: |
+          az acr login -n $ACR_NAME
+          docker build -t $ACR_NAME.azurecr.io/$IMG:${{ github.sha }} .
+          docker push $ACR_NAME.azurecr.io/$IMG:${{ github.sha }}
       - run: |
           az containerapp registry set -g $RG -n $APP --server $ACR_NAME.azurecr.io --identity system
-          az containerapp update -g $RG -n $APP --image $ACR_NAME.azurecr.io/$IMG:${{ github.sha }}
+          az containerapp update -g $RG -n $APP

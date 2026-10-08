@@ -305,7 +305,7 @@ class ProductBatchIntegrationTests {
                 "{\"code\":\"RM-" + UUID.randomUUID().toString().substring(0, 8) + "\",\"name\":\"Active ingredient\",\"unit\":\"kg\",\"minimumStock\":1}"));
         var received = call("POST", materials + "/" + material + "/batches", token, """
                 {"supplier":"Supplier","batchNumber":"SUP-1","unit":"kg","amount":%s,"receivedOn":"%s","expiresOn":"%s"}
-                """.formatted(amount, java.time.LocalDate.now().minusDays(1), java.time.LocalDate.now().plusYears(1)));
+                """.formatted(amount, LimaDates.today().minusDays(1), LimaDates.today().plusYears(1)));
         assertThat(received.statusCode()).withFailMessage(received.body()).isEqualTo(201);
         long lot = id(received);
         assertThat(call("POST", materials + "/" + material + "/batches/" + lot + "/reviews", token,

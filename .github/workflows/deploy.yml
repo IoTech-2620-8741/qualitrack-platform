@@ -1,0 +1,37 @@
+name: Deploy to Azure Container Apps
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ACR_NAME: iotechqualitrack
+  RG: iotech-qualitrack-rg
+  APP: iotech-qualitrack-api
+  IMG: iotech-qualitrack-api
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '26'
+          cache: maven
+      - run: mvn -B test
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - run: az acr build -r $ACR_NAME -t $IMG:${{ github.sha }} .
+      - run: |
+          az containerapp registry set -g $RG -n $APP --server $ACR_NAME.azurecr.io --identity system
+          az containerapp update -g $RG -n $APP --image $ACR_NAME.azurecr.io/$IMG:${{ github.sha }}

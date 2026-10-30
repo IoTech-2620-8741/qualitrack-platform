@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert;
 import com.iotech.qualitrack.platform.ca.domain.model.entities.ComplianceEvent;
+import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventSubject;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventType;
 import com.iotech.qualitrack.platform.ca.domain.repositories.ComplianceEventRepository;
 import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepository;
@@ -127,8 +128,7 @@ public class ComplianceContextFacade {
         }
 
         return complianceEventRepository.findAllByRelatedEntityId(batchId).stream()
-                .filter(event -> event.getEventType().subject()
-                        == com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventSubject.BATCH)
+                .filter(event -> event.getEventType().subject() == ComplianceEventSubject.BATCH)
                 .noneMatch(event -> !event.isResolved());
     }
 }

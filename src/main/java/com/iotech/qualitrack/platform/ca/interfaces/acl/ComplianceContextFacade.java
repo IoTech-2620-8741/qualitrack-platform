@@ -9,6 +9,7 @@ import com.iotech.qualitrack.platform.ca.domain.repositories.ComplianceEventRepo
 import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -24,17 +25,21 @@ public class ComplianceContextFacade {
 
     private final ComplianceEventRepository complianceEventRepository;
     private final DeviationAlertRepository deviationAlertRepository;
+    private final Clock complianceClock;
 
     /**
      * Creates a new ComplianceContextFacade.
      *
      * @param complianceEventRepository compliance event repository
      * @param deviationAlertRepository deviation alert repository
+     * @param complianceClock clock that dates the compliance events
      */
     public ComplianceContextFacade(ComplianceEventRepository complianceEventRepository,
-                                   DeviationAlertRepository deviationAlertRepository) {
+                                   DeviationAlertRepository deviationAlertRepository,
+                                   Clock complianceClock) {
         this.complianceEventRepository = complianceEventRepository;
         this.deviationAlertRepository = deviationAlertRepository;
+        this.complianceClock = complianceClock;
     }
 
     /**
@@ -101,7 +106,7 @@ public class ComplianceContextFacade {
                 ComplianceEventType.RAW_MATERIAL_LOW_STOCK,
                 "Raw material '%s' from laboratory ID %d is below minimum stock. Current stock: %s, minimum threshold: %s."
                         .formatted(materialName, laboratoryId, currentStock, minimumThreshold),
-                Instant.now().toString(),
+                Instant.now(complianceClock).toString(),
                 null
         ));
     }

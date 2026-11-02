@@ -88,6 +88,14 @@ public interface LaboratoryContextFacade {
     Optional<StaffReference> findStaffMemberByAccount(Long userId);
 
     /**
+     * Gives the staff member that signs in with the account the full name kept in its profile.
+     *
+     * @param userId the account
+     * @param fullName the full name of the profile
+     */
+    void renameStaffMemberByAccount(Long userId, String fullName);
+
+    /**
      * Staff data shared with other bounded contexts.
      *
      * @param id the staff member identifier

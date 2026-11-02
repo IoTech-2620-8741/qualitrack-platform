@@ -1,11 +1,11 @@
 package com.iotech.qualitrack.platform.subscription.application.internal.commandservices;
 
-import com.iotech.qualitrack.platform.iam.interfaces.acl.IamContextFacade;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.subscription.application.commandservices.SubscriptionCommandService;
 import com.iotech.qualitrack.platform.subscription.application.internal.outboundservices.acl.ExternalStripeService;
+import com.iotech.qualitrack.platform.subscription.application.internal.outboundservices.acl.SubscriptionExternalIamService;
 import com.iotech.qualitrack.platform.subscription.domain.model.commands.ActivateSubscriptionCommand;
 import com.iotech.qualitrack.platform.subscription.domain.model.commands.RecordStripePaymentCommand;
 import com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.BillingCycle;
@@ -28,11 +28,11 @@ public class StripeWebhookService {
     private final SubscriptionRepository subscriptions;
     private final SubscriptionPaymentRepository payments;
     private final ExternalStripeService stripe;
-    private final IamContextFacade users;
+    private final SubscriptionExternalIamService users;
 
     public StripeWebhookService(SubscriptionCommandService commands, SubscriptionRepository subscriptions,
                                 SubscriptionPaymentRepository payments, ExternalStripeService stripe,
-                                IamContextFacade users) {
+                                SubscriptionExternalIamService users) {
         this.commands = commands;
         this.subscriptions = subscriptions;
         this.payments = payments;

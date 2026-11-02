@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - LICENSE.md with the QualiTrack Proprietary Software License; `pom.xml` and the README refer to it (#11).
 
+- Product Batch (batch), Equipment (equipment), Laboratory (laboratory) and Compliance & Alerting (ca): their facades share the batches and recorded material uses, the laboratory equipment and the equipment log, the laboratory name, and the alerts of a batch or a set of devices (#12).
+
+### Changed
+
+- Reporting & Audit (ra): the batch report, the equipment log report and the operational counts of the indicators read the other bounded contexts through their facades instead of their repositories (#12).
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

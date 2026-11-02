@@ -193,6 +193,7 @@ package "inventory" {
     class "InventoryContextFacadeImpl" as InvInventoryContextFacadeImpl
     class "InventoryMovementRecorder" as InvInventoryMovementRecorder
     class "InventoryExternalEquipmentService" as InvInventoryExternalEquipmentService
+    class "InventoryExternalLaboratoryService" as InvInventoryExternalLaboratoryService
   }
   package "infrastructure" {
     class "InventoryRepositoryImpl" as InvInventoryRepositoryImpl
@@ -688,8 +689,9 @@ InvInventoryContextFacadeImpl --> InvInventoryQueryService
 InvInventoryCommandServiceImpl --> InvInventoryRepository
 InvInventoryQueryServiceImpl --> InvInventoryRepository
 InvInventoryImportServiceImpl --> InvInventoryRepository
-InvInventoryImportServiceImpl --> LegacyInventoryFacade
-InvInventoryQueryServiceImpl --> LegacyInventoryFacade
+InvInventoryImportServiceImpl --> InvInventoryExternalLaboratoryService
+InvInventoryQueryServiceImpl --> InvInventoryExternalLaboratoryService
+InvInventoryExternalLaboratoryService --> LegacyInventoryFacade : opening balances
 InvInventoryCommandServiceImpl --> BatchContextFacade : validate and lock batch
 InvInventoryCommandServiceImpl --> InvInventoryMovementRecorder
 InvInventoryImportServiceImpl --> InvInventoryMovementRecorder

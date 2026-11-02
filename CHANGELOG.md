@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reporting & Audit (ra): the batch report, the equipment log report and the operational counts of the indicators read the other bounded contexts through their facades instead of their repositories (#12).
 
+- Product Batch (batch), Inventory (inventory), Laboratory (laboratory), Payments & Subscriptions (subscription), Tracking & Telemetry (tracking) and Reporting & Audit (ra): the facades of other bounded contexts are called only from their ACL services, which translate the answers into their own model (`LegacyRawMaterial`, `MonitoredDevice`, `ReportEnvironment`) (#13).
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

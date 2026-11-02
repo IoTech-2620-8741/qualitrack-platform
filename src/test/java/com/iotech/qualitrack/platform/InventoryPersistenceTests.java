@@ -10,12 +10,14 @@ import com.iotech.qualitrack.platform.inventory.application.internal.outboundser
 import com.iotech.qualitrack.platform.inventory.interfaces.rest.EnvironmentInventoryController;
 import com.iotech.qualitrack.platform.inventory.interfaces.rest.resources.ReviewRawMaterialBatchResource;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchStatus;
 import com.iotech.qualitrack.platform.inventory.interfaces.acl.InventoryContextFacade.ConsumptionRequest;
 import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
 import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchStatus;
 import com.iotech.qualitrack.platform.batch.domain.repositories.*;
 import com.iotech.qualitrack.platform.laboratory.domain.repositories.RawMaterialRepository;
+import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LegacyInventoryFacade;
 import com.iotech.qualitrack.platform.laboratory.domain.model.aggregates.RawMaterial;
 import com.iotech.qualitrack.platform.shared.application.security.CurrentUser;
 import org.junit.jupiter.api.*;
@@ -40,6 +42,7 @@ class InventoryPersistenceTests {
     @Autowired InventoryImportService imports;
     @Autowired BatchRepository batches;
     @Autowired RawMaterialRepository legacy;
+    @Autowired LegacyInventoryFacade legacyMaterials;
     @MockitoSpyBean RawMaterialUsageRepository usages;
     @MockitoBean CurrentUser actor;
     @MockitoBean InventoryExternalLaboratoryService laboratories;
@@ -190,6 +193,12 @@ class InventoryPersistenceTests {
     @Test void importIsExplicitIdempotentAndDoesNotReleaseOrDeductHistoricalStock() {
         var old = legacy.save(new RawMaterial(null, 42L, "Legacy", "OLD-" + UUID.randomUUID(), "Supplier", "SUP-OLD",
             today().plusYears(1).toString(), new BigDecimal("50"), "kg", BigDecimal.TEN));
+        // The ACL service is mocked for the environments; the legacy material is still locked by Laboratory.
+        when(laboratories.lockLegacyMaterial(42L, old.getId())).thenAnswer(call -> {
+            var locked = legacyMaterials.lock(42L, old.getId());
+            return new LegacyRawMaterial(locked.id(), locked.code(), locked.name(), locked.unit(), locked.minimumStock(),
+                locked.supplier(), locked.batchNumber(), locked.expiresOn(), locked.balance());
+        });
         Long material = imports.handle(new ImportLegacyRawMaterialCommand(42L, ENV, old.getId()));
         assertThat(imports.handle(new ImportLegacyRawMaterialCommand(42L, ENV, old.getId()))).isEqualTo(material);
         assertThat(legacy.findById(old.getId()).orElseThrow().getCurrentStock()).isEqualByComparingTo("50");

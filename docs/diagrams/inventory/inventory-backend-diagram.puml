@@ -182,9 +182,12 @@ package "inventory.application" as Inventoryapplication {
     class InventoryMovementRecorder
     class InventoryExternalLaboratoryService {
       +findEnvironment(laboratoryId, environmentId): Optional<EnvironmentReference>
+      +findLegacyMaterials(laboratoryId): List<LegacyRawMaterial>
+      +lockLegacyMaterial(laboratoryId, legacyId): LegacyRawMaterial
     }
     class InventoryExternalEquipmentService {
       +findContainerMonitor(laboratoryId, deviceId): Optional<ContainerReference>
+      +findContainerName(laboratoryId, deviceId): Optional<String>
     }
   }
   
@@ -194,7 +197,7 @@ package "inventory.application" as Inventoryapplication {
   
   package "inventory.application.queryservices" {
     interface InventoryQueryService {
-      +handle(GetPendingLegacyMaterialsQuery): List<LegacyInventoryFacade.Material>
+      +handle(GetPendingLegacyMaterialsQuery): List<LegacyRawMaterial>
       +handle(GetEnvironmentRawMaterialsQuery): List<MaterialStockSummary>
       +handle(GetEnvironmentRawMaterialByIdQuery): Optional<MaterialStockSummary>
       +handle(GetRawMaterialBatchesQuery): List<RawMaterialBatch>
@@ -336,6 +339,17 @@ package "inventory.domain" as Inventorydomain {
   }
   
   package "inventory.domain.model.valueobjects" {
+    class LegacyRawMaterial <<record>> {
+      +id: Long
+      +code: String
+      +name: String
+      +unit: String
+      +minimumStock: BigDecimal
+      +supplier: String
+      +batchNumber: String
+      +expiresOn: String
+      +balance: BigDecimal
+    }
     class MaterialStockSummary <<record>> {
       +id: Long
       +laboratoryId: Long
@@ -485,11 +499,9 @@ InventoryCommandServiceImpl --> ApplicationEventPublisher
 InventoryCommandServiceImpl --> Clock
 InventoryCommandServiceImpl ..> ReceiptConsumedIntegrationEvent : publishes
 InventoryImportServiceImpl --> InventoryRepository
-InventoryImportServiceImpl --> LegacyInventoryFacade : lock opening balance
 InventoryImportServiceImpl --> InventoryMovementRecorder
 InventoryImportServiceImpl --> Clock
 InventoryQueryServiceImpl --> InventoryRepository
-InventoryQueryServiceImpl --> LegacyInventoryFacade
 InventoryQueryServiceImpl --> Clock
 InventoryQueryServiceImpl ..> MaterialStockSummary
 InventoryMovementRecorder --> InventoryRepository
@@ -563,6 +575,8 @@ EnvironmentInventoryController --> InventoryCommandService
 EnvironmentInventoryController --> InventoryQueryService
 EnvironmentInventoryController --> InventoryImportService
 InventoryExternalLaboratoryService --> LaboratoryContextFacade
+InventoryExternalLaboratoryService --> LegacyInventoryFacade : lock opening balance
+InventoryExternalLaboratoryService ..> LegacyRawMaterial
 InventoryCommandServiceImpl --> InventoryExternalLaboratoryService
 InventoryQueryServiceImpl --> InventoryExternalLaboratoryService
 InventoryImportServiceImpl --> InventoryExternalLaboratoryService

@@ -12,10 +12,10 @@ import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryM
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
 import java.util.List;
-import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LegacyInventoryFacade;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
 
 public interface InventoryQueryService {
-    List<LegacyInventoryFacade.Material> handle(GetPendingLegacyMaterialsQuery query);
+    List<LegacyRawMaterial> handle(GetPendingLegacyMaterialsQuery query);
     List<MaterialStockSummary> handle(GetEnvironmentRawMaterialsQuery query);
     Optional<MaterialStockSummary> handle(GetEnvironmentRawMaterialByIdQuery query);
     List<RawMaterialBatch> handle(GetRawMaterialBatchesQuery query);

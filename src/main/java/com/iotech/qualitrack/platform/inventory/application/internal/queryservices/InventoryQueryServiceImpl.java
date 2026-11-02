@@ -1,6 +1,5 @@
 package com.iotech.qualitrack.platform.inventory.application.internal.queryservices;
 
-import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalEquipmentService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
@@ -16,6 +15,7 @@ import java.util.Optional;import com.iotech.qualitrack.platform.inventory.applic
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
 import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
@@ -25,18 +25,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
-import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LegacyInventoryFacade;
 
 @Service
 @Transactional(readOnly = true)
 public class InventoryQueryServiceImpl implements InventoryQueryService {
     private final InventoryRepository repository;
     private final Clock clock;
-    private final LegacyInventoryFacade legacy;
     private final InventoryExternalLaboratoryService laboratories;
     private final NearExpiryPeriod nearExpiryPeriod;
     private final InventoryExternalEquipmentService equipment;
-    public InventoryQueryServiceImpl(InventoryRepository repository, Clock inventoryClock, LegacyInventoryFacade legacy,
+    public InventoryQueryServiceImpl(InventoryRepository repository, Clock inventoryClock,
             InventoryExternalLaboratoryService laboratories, NearExpiryPeriod inventoryNearExpiryPeriod,
             InventoryExternalEquipmentService equipment) {
         this.equipment = equipment;
@@ -44,11 +42,10 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
         this.laboratories = laboratories;
         this.nearExpiryPeriod = inventoryNearExpiryPeriod;
         this.clock = inventoryClock;
-        this.legacy = legacy;
     }
     @Override
-    public List<LegacyInventoryFacade.Material> handle(GetPendingLegacyMaterialsQuery query) {
-        return legacy.materials(query.laboratoryId()).stream()
+    public List<LegacyRawMaterial> handle(GetPendingLegacyMaterialsQuery query) {
+        return laboratories.findLegacyMaterials(query.laboratoryId()).stream()
             .filter(material -> repository.importedMaterial(query.laboratoryId(), material.id()).isEmpty()).toList();
     }
 
@@ -95,8 +92,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
             .filter(lot -> lot.getRawMaterialId().equals(query.rawMaterialId()))
             .orElseThrow(() -> new ApplicationException(ApplicationError.notFound("RawMaterialBatch", query.rawMaterialBatchId())));
         return receipt.container().map(container -> new RawMaterialBatchContainer(receipt.getId(), container.containerMonitorId(),
-            equipment.findContainerMonitor(query.laboratoryId(), container.containerMonitorId())
-                .map(EquipmentContextFacade.ContainerReference::name).orElse(null),
+            equipment.findContainerName(query.laboratoryId(), container.containerMonitorId()).orElse(null),
             container.environmentId(), container.assignedBy(), container.assignedAt()));
     }
 

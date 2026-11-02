@@ -27,6 +27,7 @@ package "java.time" <<External>> {
 }
 
 package "external bounded contexts" <<External>> {
+  class IamContextFacade
   interface LaboratoryContextFacade
   interface TrackingContextFacade
   interface ComplianceContextFacade
@@ -36,6 +37,11 @@ package "external bounded contexts" <<External>> {
 }
 
 package "ra.domain.model.valueobjects" {
+  class ReportEnvironment <<record>> {
+    + id: Long
+    + code: String
+    + name: String
+  }
   enum AuditAction {
     CREATE
     UPDATE
@@ -385,9 +391,13 @@ package "ra.application.internal.outboundservices.acl" {
   class RaExternalLaboratoryService {
     + existsLaboratoryById(laboratoryId: Long): boolean
     + laboratoryName(laboratoryId: Long): String
-    + findEnvironments(laboratoryId: Long): List<EnvironmentReference>
-    + findEnvironment(laboratoryId, environmentId): Optional<EnvironmentReference>
+    + findEnvironments(laboratoryId: Long): List<ReportEnvironment>
+    + findEnvironment(laboratoryId, environmentId): Optional<ReportEnvironment>
     + findStaffAccount(laboratoryId: Long, staffId: Long): Optional<Optional<Long>>
+  }
+
+  class RaExternalIamService {
+    + username(userId: Long): String
   }
 
   class RaOperationalDataService {
@@ -405,6 +415,8 @@ RaExternalEquipmentService --> EquipmentContextFacade
 RaExternalInventoryService --> InventoryContextFacade
 RaExternalBatchService --> BatchContextFacade
 RaExternalLaboratoryService --> LaboratoryContextFacade
+RaExternalLaboratoryService ..> ReportEnvironment
+RaExternalIamService --> IamContextFacade
 RaOperationalDataService --> RaExternalBatchService
 RaOperationalDataService --> RaExternalEquipmentService
 RaOperationalDataService --> RaExternalComplianceService
@@ -445,6 +457,7 @@ ReportDocumentWriter ..> InventoryReportData
 
 RaCommandServiceImpl --> RaOperationalDataService
 RaCommandServiceImpl --> RaExternalLaboratoryService
+RaCommandServiceImpl --> RaExternalIamService
 RaCommandServiceImpl --> RaExternalTrackingService
 RaCommandServiceImpl --> RaExternalComplianceService
 RaCommandServiceImpl --> RaExternalEquipmentService

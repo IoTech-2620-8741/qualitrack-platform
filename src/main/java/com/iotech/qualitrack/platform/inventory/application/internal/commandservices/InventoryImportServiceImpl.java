@@ -6,7 +6,6 @@ import com.iotech.qualitrack.platform.inventory.application.commandservices.Inve
 
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.*;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
-import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LegacyInventoryFacade;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -19,15 +18,13 @@ import com.iotech.qualitrack.platform.shared.application.result.*;
 @Transactional
 public class InventoryImportServiceImpl implements InventoryImportService {
     private final InventoryRepository repository;
-    private final LegacyInventoryFacade legacy;
     private final InventoryMovementRecorder recorder;
     private final Clock clock;
     private final InventoryExternalLaboratoryService laboratories;
-    public InventoryImportServiceImpl(InventoryRepository repository, LegacyInventoryFacade legacy, InventoryMovementRecorder recorder,
+    public InventoryImportServiceImpl(InventoryRepository repository, InventoryMovementRecorder recorder,
             Clock inventoryClock, InventoryExternalLaboratoryService laboratories) {
         this.repository = repository;
         this.laboratories = laboratories;
-        this.legacy = legacy;
         this.recorder = recorder;
         this.clock = inventoryClock;
     }
@@ -37,7 +34,7 @@ public class InventoryImportServiceImpl implements InventoryImportService {
         var legacyId = command.legacyId();
         if (!laboratories.existsEnvironment(lab, command.environmentId()))
             throw new ApplicationException(ApplicationError.notFound("Environment", command.environmentId()));
-        var previous = legacy.lock(lab, legacyId);
+        var previous = laboratories.lockLegacyMaterial(lab, legacyId);
         var imported = repository.importedMaterial(lab, legacyId);
         if (imported.isPresent()) return imported.get();
         if (repository.codeExists(lab, previous.code(), null)) throw conflict("Material code already exists; review the legacy record before importing");

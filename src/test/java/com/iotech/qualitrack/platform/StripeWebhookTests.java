@@ -1,6 +1,5 @@
 package com.iotech.qualitrack.platform;
 
-import com.iotech.qualitrack.platform.iam.interfaces.acl.IamContextFacade;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.subscription.application.commandservices.SubscriptionCommandService;
 import com.iotech.qualitrack.platform.subscription.application.internal.commandservices.StripeWebhookService;
@@ -21,7 +20,7 @@ class StripeWebhookTests {
     private final SubscriptionRepository subscriptions = mock(SubscriptionRepository.class);
     private final SubscriptionPaymentRepository payments = mock(SubscriptionPaymentRepository.class);
     private final ExternalStripeService stripe = mock(ExternalStripeService.class);
-    private final IamContextFacade users = mock(IamContextFacade.class);
+    private final SubscriptionExternalIamService users = mock(SubscriptionExternalIamService.class);
     private final StripeWebhookService service = new StripeWebhookService(commands, subscriptions, payments, stripe, users);
 
     @Test void unpaidCheckoutNeverGrantsAccess() {

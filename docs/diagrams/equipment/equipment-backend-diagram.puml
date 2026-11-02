@@ -355,9 +355,26 @@ package "equipment.interfaces.acl" {
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
     + findContainerMonitor(laboratoryId, deviceId): Optional<ContainerReference>
     + findDevices(laboratoryId): List<DeviceReference>
+    + findLaboratoryEquipment(laboratoryId): List<EquipmentReference>
+    + findEquipmentLog(laboratoryId, environmentId, equipmentId): Optional<EquipmentLogReference>
   }
   class EquipmentReference <<record>>
   class DeviceReference <<record>>
+  class EquipmentLogReference <<record>> {
+    + id: Long
+    + laboratoryId: Long
+    + environmentId: Long
+    + name: String
+    + type: String
+    + model: String
+    + serialNumber: String
+    + status: String
+    + sensorExternalId: String
+    + parameters: List<ParameterRange>
+    + maintenance: List<MaintenanceEntry>
+  }
+  class ParameterRange <<record>>
+  class MaintenanceEntry <<record>>
   class ContainerReference <<record>> {
     + id: Long
     + laboratoryId: Long
@@ -378,7 +395,16 @@ package "equipment.application.acl" {
 
 EquipmentContextFacadeImpl ..|> EquipmentContextFacade
 EquipmentContextFacadeImpl --> EquipmentQueryService
+EquipmentContextFacadeImpl --> BpmConfigQueryService
+EquipmentContextFacadeImpl --> MaintenanceQueryService
 EquipmentContextFacade ..> ContainerReference
+EquipmentContextFacade ..> EquipmentLogReference
+EquipmentLogReference *-- ParameterRange
+EquipmentLogReference *-- MaintenanceEntry
+note bottom of EquipmentLogReference
+  Equipment located in an environment with its BPM ranges and
+  maintenance history, read by the equipment log report of Reporting.
+end note
 note bottom of ContainerReference
   Container monitor where Inventory stores raw material lots and
   Product Batch stores batches (US43, US78); only OPERATIONAL

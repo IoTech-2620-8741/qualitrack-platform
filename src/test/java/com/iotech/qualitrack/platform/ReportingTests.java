@@ -1,11 +1,15 @@
 package com.iotech.qualitrack.platform;
 
-import com.iotech.qualitrack.platform.batch.domain.model.aggregates.Batch;
-import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchStatus;
-import com.iotech.qualitrack.platform.batch.domain.repositories.BatchRepository;
-import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepository;
-import com.iotech.qualitrack.platform.equipment.domain.repositories.*;
+import com.iotech.qualitrack.platform.batch.interfaces.acl.BatchContextFacade;
+import com.iotech.qualitrack.platform.ca.interfaces.acl.ComplianceContextFacade;
+import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
+import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
+import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalBatchService;
+import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalComplianceService;
+import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalEquipmentService;
+import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalLaboratoryService;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaOperationalDataService;
+import com.iotech.qualitrack.platform.ra.domain.model.entities.KpiMetric;
 import com.iotech.qualitrack.platform.ra.domain.model.entities.DeviationTrend;
 import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.EnvironmentalReading;
 import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.MeasurementSummary;
@@ -22,14 +26,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class ReportingTests {
-    private final EquipmentRepository equipment = mock(EquipmentRepository.class);
-    private final BatchRepository batches = mock(BatchRepository.class);
-    private final DeviationAlertRepository alerts = mock(DeviationAlertRepository.class);
-    private final BpmParameterConfigRepository configs = mock(BpmParameterConfigRepository.class);
-    private final RaOperationalDataService data = new RaOperationalDataService(equipment, batches, alerts, configs,
-            mock(com.iotech.qualitrack.platform.batch.domain.repositories.RawMaterialUsageRepository.class),
-            mock(com.iotech.qualitrack.platform.laboratory.domain.repositories.LaboratoryRepository.class),
-            mock(MaintenanceRepository.class));
+    private final BatchContextFacade batches = mock(BatchContextFacade.class);
+    private final EquipmentContextFacade equipment = mock(EquipmentContextFacade.class);
+    private final ComplianceContextFacade alerts = mock(ComplianceContextFacade.class);
+    private final RaOperationalDataService data = new RaOperationalDataService(new RaExternalBatchService(batches),
+            new RaExternalEquipmentService(equipment), new RaExternalComplianceService(alerts),
+            new RaExternalLaboratoryService(mock(LaboratoryContextFacade.class)));
 
     @Test void emptyRepositoryProducesNoInventedMetricOrHealthScore() {
         var dashboard = data.dashboard(47L);
@@ -39,16 +41,34 @@ class ReportingTests {
     }
 
     @Test void countsUseOnlyTheRequestedLaboratoryRecords() {
-        var released = mock(Batch.class);
-        when(released.getStatus()).thenReturn(BatchStatus.RELEASED);
-        var pending = mock(Batch.class);
-        when(pending.getStatus()).thenReturn(BatchStatus.PENDING);
-        when(batches.findAllByLabId(47L)).thenReturn(List.of(released, pending));
+        when(batches.findBatches(47L)).thenReturn(List.of(batch(1L, "RELEASED"), batch(2L, "PENDING")));
         var dashboard = data.dashboard(47L);
         assertThat(dashboard.getMetrics()).extracting(metric -> metric.getValue()).containsExactly(2.0, 1.0);
         assertThat(dashboard.getMetrics()).allMatch(metric -> metric.getTargetValue() == null);
-        verify(batches).findAllByLabId(47L);
-        verify(alerts, never()).findAll();
+        verify(batches).findBatches(47L);
+        verifyNoInteractions(alerts);
+    }
+
+    @Test void unresolvedAlertsAreCountedOnlyForTheEquipmentOfTheLaboratory() {
+        when(equipment.findLaboratoryEquipment(47L)).thenReturn(List.of(
+                new EquipmentContextFacade.EquipmentReference(5L, 47L, "Refrigerator", "SN-5", "OPERATIONAL"),
+                new EquipmentContextFacade.EquipmentReference(6L, 47L, "Incubator", "SN-6", "MAINTENANCE")));
+        when(alerts.findDeviceAlerts(List.of(5L, 6L))).thenReturn(List.of(alert(1L, "UNRESOLVED"),
+                alert(2L, "ACKNOWLEDGED"), alert(3L, "RESOLVED")));
+        var dashboard = data.dashboard(47L);
+        assertThat(dashboard.getMetrics()).extracting(KpiMetric::getName)
+                .containsExactly("equipment-count", "unresolved-alert-count");
+        assertThat(dashboard.getMetrics()).extracting(KpiMetric::getValue).containsExactly(2.0, 2.0);
+    }
+
+    private static BatchContextFacade.BatchReference batch(Long id, String status) {
+        return new BatchContextFacade.BatchReference(id, 47L, "B-" + id, "Ibuprofen 400 mg", 100.0, "units", status,
+                "2026-09-01", null, null);
+    }
+
+    private static ComplianceContextFacade.AlertReference alert(Long id, String status) {
+        return new ComplianceContextFacade.AlertReference(id, 5L, "ENVIRONMENT", "TEMPERATURE", 31.0, 30.0, "°C",
+                Instant.parse("2026-09-01T10:00:00Z"), "CRITICAL", status, 1, null, "2026-09-01T10:00:00Z");
     }
 
     @Test void timeInRangeWeighsEachEvaluatedReadingUntilTheNextOne() {

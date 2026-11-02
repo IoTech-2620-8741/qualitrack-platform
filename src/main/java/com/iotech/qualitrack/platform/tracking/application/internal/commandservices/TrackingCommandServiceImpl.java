@@ -1,6 +1,5 @@
 package com.iotech.qualitrack.platform.tracking.application.internal.commandservices;
 
-import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade.DeviceReference;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import com.iotech.qualitrack.platform.shared.application.result.Result;
 import com.iotech.qualitrack.platform.shared.application.security.CurrentUser;
@@ -19,6 +18,7 @@ import com.iotech.qualitrack.platform.tracking.domain.model.events.Environmental
 import com.iotech.qualitrack.platform.tracking.domain.model.events.EnvironmentalProfileUpdatedEvent;
 import com.iotech.qualitrack.platform.tracking.domain.model.events.MeasurementRecordedEvent;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.EnvironmentalState;
+import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.MonitoredDevice;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.MonitoredMetric.DeviceKind;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.ThresholdEvaluation;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.ActuationEventRepository;
@@ -191,7 +191,7 @@ public class TrackingCommandServiceImpl implements TrackingCommandService {
 
     private Optional<EnvironmentalProfile> containerMonitorProfile(Long laboratoryId, Long environmentId, Long deviceId) {
         return externalEquipmentService.findContainerMonitor(laboratoryId, environmentId, deviceId)
-                .map(DeviceReference::id)
+                .map(MonitoredDevice::id)
                 .map(id -> profileRepository.findByDeviceId(id)
                         .orElseGet(() -> EnvironmentalProfile.forContainerMonitor(laboratoryId, id)));
     }

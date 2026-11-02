@@ -1,12 +1,12 @@
 package com.iotech.qualitrack.platform;
 
-import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade.DeviceReference;
 import com.iotech.qualitrack.platform.tracking.application.internal.outboundservices.acl.TrackingExternalEquipmentService;
 import com.iotech.qualitrack.platform.tracking.application.internal.queryservices.TrackingQueryServiceImpl;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetDeviceConnectionQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.DeviceConnection;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.DeviceConnectionStatus;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.ExpectedCommunicationPeriod;
+import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.MonitoredDevice;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.ActuationEventRepository;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.EnvironmentalProfileRepository;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.MeasurementRepository;
@@ -34,7 +34,7 @@ class TrackingQueryTests {
         var service = new TrackingQueryServiceImpl(mock(EnvironmentalProfileRepository.class), measurements, actions,
                 equipment, new ExpectedCommunicationPeriod(Duration.ofMinutes(5)), Clock.fixed(now, ZoneOffset.UTC));
         when(equipment.findDevice(1L, 2L, 7L)).thenReturn(Optional.of(
-                new DeviceReference(7L, 1L, 2L, "Cold cabinet monitor", "CONTAINER_MONITOR", "CNT-1")));
+                new MonitoredDevice(7L, "CONTAINER_MONITOR")));
         when(measurements.findLastReceivedAt(7L)).thenReturn(Optional.of(now.minusSeconds(900)));
         when(actions.findLastReceivedAt(7L)).thenReturn(Optional.of(now.minusSeconds(60)));
 

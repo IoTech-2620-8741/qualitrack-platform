@@ -13,7 +13,6 @@ import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetEnvironme
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetMeasurementsQuery;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.DeviceConnection;
 import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.ExpectedCommunicationPeriod;
-import com.iotech.qualitrack.platform.tracking.domain.model.valueobjects.MonitoredMetric.DeviceKind;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.ActuationEventRepository;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.EnvironmentalProfileRepository;
 import com.iotech.qualitrack.platform.tracking.domain.repositories.MeasurementRepository;
@@ -67,7 +66,7 @@ public class TrackingQueryServiceImpl implements TrackingQueryService {
     @Transactional(readOnly = true)
     public Optional<EnvironmentalProfile> handle(GetDeviceProfileQuery query) {
         return externalEquipmentService.findDevice(query.laboratoryId(), query.environmentId(), query.deviceId())
-                .flatMap(device -> DeviceKind.CONTAINER_MONITOR.name().equals(device.deviceType())
+                .flatMap(device -> device.isContainerMonitor()
                         ? profileRepository.findByDeviceId(device.id())
                         : handle(new GetEnvironmentProfileQuery(query.laboratoryId(), query.environmentId())));
     }

@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- CHANGELOG.md with the history of the platform since version 0.1.0.
+- CHANGELOG.md with the history of the platform since version 0.1.0 (#11).
 
-- LICENSE.md with the QualiTrack Proprietary Software License; `pom.xml` and the README refer to it.
+- LICENSE.md with the QualiTrack Proprietary Software License; `pom.xml` and the README refer to it (#11).
 
 ## [1.0.1] - 2026-10-08
 

@@ -1,6 +1,7 @@
 package com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl;
 
 import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
+import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.ReportEnvironment;
 import org.springframework.stereotype.Service;
 
 /**
@@ -45,15 +46,17 @@ public class RaExternalLaboratoryService {
     /**
      * Environments of the laboratory, ordered by code.
      */
-    public java.util.List<LaboratoryContextFacade.EnvironmentReference> findEnvironments(Long laboratoryId) {
-        return laboratoryContextFacade.findEnvironments(laboratoryId);
+    public java.util.List<ReportEnvironment> findEnvironments(Long laboratoryId) {
+        return laboratoryContextFacade.findEnvironments(laboratoryId).stream()
+                .map(RaExternalLaboratoryService::toReportEnvironment).toList();
     }
 
     /**
      * An environment of the laboratory, or empty when it does not belong to it.
      */
-    public java.util.Optional<LaboratoryContextFacade.EnvironmentReference> findEnvironment(Long laboratoryId, Long environmentId) {
-        return laboratoryContextFacade.findEnvironment(laboratoryId, environmentId);
+    public java.util.Optional<ReportEnvironment> findEnvironment(Long laboratoryId, Long environmentId) {
+        return laboratoryContextFacade.findEnvironment(laboratoryId, environmentId)
+                .map(RaExternalLaboratoryService::toReportEnvironment);
     }
 
     /**
@@ -65,5 +68,9 @@ public class RaExternalLaboratoryService {
     public java.util.Optional<java.util.Optional<Long>> findStaffAccount(Long laboratoryId, Long staffId) {
         return laboratoryContextFacade.findStaffMember(laboratoryId, staffId)
                 .map(staff -> java.util.Optional.ofNullable(staff.userId()));
+    }
+
+    private static ReportEnvironment toReportEnvironment(LaboratoryContextFacade.EnvironmentReference environment) {
+        return new ReportEnvironment(environment.id(), environment.code(), environment.name());
     }
 }

@@ -1,5 +1,6 @@
 package com.iotech.qualitrack.platform.equipment.interfaces.acl;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -56,6 +57,25 @@ public interface EquipmentContextFacade {
     List<DeviceReference> findDevices(Long laboratoryId);
 
     /**
+     * Equipment of the laboratory, located or not, used by the operational counts of the indicators (US93).
+     *
+     * @param laboratoryId the laboratory that owns the equipment
+     * @return the equipment; empty when the laboratory has none
+     */
+    List<EquipmentReference> findLaboratoryEquipment(Long laboratoryId);
+
+    /**
+     * Finds an equipment located in an environment with its BPM parameter ranges and its maintenance history, used by
+     * the equipment log report.
+     *
+     * @param laboratoryId the laboratory that must own the equipment
+     * @param environmentId the environment where the equipment must be located
+     * @param equipmentId the equipment identifier
+     * @return the equipment, or empty when it is not located in the environment of the laboratory
+     */
+    Optional<EquipmentLogReference> findEquipmentLog(Long laboratoryId, Long environmentId, Long equipmentId);
+
+    /**
      * Equipment data shared with other bounded contexts.
      *
      * @param id the equipment identifier
@@ -87,6 +107,36 @@ public interface EquipmentContextFacade {
      */
     record DeviceReference(Long id, Long laboratoryId, Long environmentId, String name, String deviceType,
                            String sensorExternalId) {
+    }
+
+    /**
+     * Equipment with its BPM parameter ranges and maintenance history, shared with other bounded contexts.
+     *
+     * @param type the equipment type name
+     * @param status the operational status name (OPERATIONAL, MAINTENANCE, OUT_OF_SERVICE or INACTIVE)
+     * @param sensorExternalId the identifier with which Edge recognises the device, or null
+     * @param parameters the configured BPM parameter ranges
+     * @param maintenance the maintenance records, in any order
+     */
+    record EquipmentLogReference(Long id, Long laboratoryId, Long environmentId, String name, String type, String model,
+                                 String serialNumber, String status, String sensorExternalId,
+                                 List<ParameterRange> parameters, List<MaintenanceEntry> maintenance) {
+        public EquipmentLogReference {
+            parameters = List.copyOf(parameters);
+            maintenance = List.copyOf(maintenance);
+        }
+    }
+
+    /** BPM range configured for a parameter of an equipment. */
+    record ParameterRange(String parameterName, Double minValue, Double maxValue, String unit) {
+    }
+
+    /**
+     * Maintenance record of an equipment.
+     *
+     * @param type the maintenance type name
+     */
+    record MaintenanceEntry(Long id, LocalDate performedOn, String type, String technicianName, String description) {
     }
 
     /**

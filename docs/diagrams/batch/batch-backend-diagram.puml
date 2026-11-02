@@ -295,6 +295,10 @@ ProductCommandServiceImpl --> ExternalLaboratoryService
 BatchCommandServiceImpl --> BatchExternalEquipmentService
 BatchCommandServiceImpl --> ExternalLaboratoryService
 RawMaterialUsageCommandServiceImpl --> BatchExternalInventoryService
+note bottom of RawMaterialUsageCommandServiceImpl
+  Locks the batch and rejects released or rejected batches before
+  asking Inventory to consume the lot; Inventory does not call Batch.
+end note
 BatchParticipationCommandServiceImpl --> BatchExternalEquipmentService
 BatchParticipationCommandServiceImpl --> ExternalLaboratoryService
 BatchTraceabilityQueryServiceImpl --> BatchExternalInventoryService
@@ -311,7 +315,6 @@ package "batch.application.acl" {
 
 package "batch.interfaces.acl" {
   interface BatchContextFacade {
-    + requireConsumable(batchId, laboratoryId): void
     + existsBatchById(batchId): boolean
     + belongsToLaboratory(batchId, laboratoryId): boolean
     + isBatchReleased(batchId): boolean

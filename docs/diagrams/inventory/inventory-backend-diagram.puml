@@ -28,7 +28,6 @@ package "spring and java.time" <<External>> {
   abstract class Clock
 }
 package "batch" <<External>> {
-  interface BatchContextFacade
   class ReceiptConsumedEventHandler
   interface RawMaterialUsageRepository
 }
@@ -493,7 +492,6 @@ InventoryQueryServiceImpl ..|> InventoryQueryService
 InventoryContextFacadeImpl ..|> InventoryContextFacade
 InventoryRepositoryImpl ..|> InventoryRepository
 InventoryCommandServiceImpl --> InventoryRepository
-InventoryCommandServiceImpl --> BatchContextFacade : validate and lock
 InventoryCommandServiceImpl --> InventoryMovementRecorder
 InventoryCommandServiceImpl --> ApplicationEventPublisher
 InventoryCommandServiceImpl --> Clock

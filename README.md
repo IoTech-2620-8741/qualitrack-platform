@@ -107,3 +107,8 @@ Pushes to `main` trigger the workflow in `.github/workflows/deploy.yml`, which r
 - `main`: production
 - `develop`: integration
 - `feature/*`, `hotfix/*`, `release/*`: short-lived branches merged by pull request
+
+## Changelog and license
+
+- [CHANGELOG.md](CHANGELOG.md) lists the changes of every version, following Keep a Changelog.
+- QualiTrack is proprietary software of IoTech; see [LICENSE.md](LICENSE.md).

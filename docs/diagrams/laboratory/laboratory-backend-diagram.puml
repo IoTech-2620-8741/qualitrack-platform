@@ -285,6 +285,7 @@ package "laboratory.application.acl" {
 
 package "laboratory.interfaces.acl" {
   interface LaboratoryContextFacade {
+    + findLaboratoryName(laboratoryId: Long): Optional<String>
     + findStaffMember(laboratoryId, staffId): Optional<StaffReference>
     + findStaffMemberByAccount(userId: Long): Optional<StaffReference>
   }

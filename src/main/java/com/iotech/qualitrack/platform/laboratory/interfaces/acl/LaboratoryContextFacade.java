@@ -19,6 +19,14 @@ public interface LaboratoryContextFacade {
     boolean existsLaboratoryById(Long labId);
 
     /**
+     * Finds the name of a laboratory, shown in the header of its reports.
+     *
+     * @param laboratoryId the laboratory identifier
+     * @return the name, or empty when the laboratory does not exist
+     */
+    Optional<String> findLaboratoryName(Long laboratoryId);
+
+    /**
      * Verifies if an environment exists and belongs to the given laboratory.
      *
      * @param laboratoryId the laboratory that must own the environment

@@ -623,15 +623,20 @@ package "ca.interfaces.acl" {
     + recordRawMaterialLowStockEvent(rawMaterialId: Long, laboratoryId: Long, materialName: String, currentStock: Integer, minimumThreshold: Integer): void
     + canReleaseBatch(batchId: Long): boolean
     + findEnvironmentAlerts(laboratoryId, environmentId, from, to): List<AlertReference>
+    + findBatchAlerts(batchId: Long): List<AlertReference>
+    + findDeviceAlerts(deviceIds: Collection<Long>): List<AlertReference>
   }
   class AlertReference <<record>> {
     + id: Long
     + deviceId: Long
     + origin: String
     + parameterName: String
+    + detectedAt: Instant
     + severity: String
     + status: String
     + deviationCount: Integer
+    + recordedAt: String
+    + isOpen(): boolean
   }
   class CaTenantResourceLookup {
     + types(): alertId
@@ -644,6 +649,8 @@ ComplianceContextFacade ..> AlertReference
 note bottom of ComplianceContextFacade
   findEnvironmentAlerts: incidents of an environment and its containers detected
   in the period, read by the environmental report of Reporting (US95).
+  findBatchAlerts and findDeviceAlerts: deviations of the batch report (US96)
+  and open alerts of the indicators (US93).
 end note
 CaTenantResourceLookup --> DeviationAlertRepository
 note bottom of CaTenantResourceLookup

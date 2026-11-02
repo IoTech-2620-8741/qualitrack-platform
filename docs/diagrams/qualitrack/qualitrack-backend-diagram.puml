@@ -640,10 +640,10 @@ BatchCommandServiceImpl --> BatchExternalEquipmentService
 CaExternalEquipmentService --> EquipmentContextFacade : device and origin
 CaExternalTrackingService --> TrackingContextFacade : related actions
 TrackingContextFacadeImpl ..|> TrackingContextFacade
-RaExternalLaboratoryService --> LaboratoryContextFacade
-RaExternalEquipmentService --> EquipmentContextFacade : device names
-RaExternalBatchService --> BatchContextFacade : traceability
-RaExternalComplianceService --> ComplianceContextFacade : environment alerts
+RaExternalLaboratoryService --> LaboratoryContextFacade : environments, staff and name
+RaExternalEquipmentService --> EquipmentContextFacade : device names and equipment log
+RaExternalBatchService --> BatchContextFacade : batches and traceability
+RaExternalComplianceService --> ComplianceContextFacade : environment, batch and device alerts
 RaExternalTrackingService --> TrackingContextFacade : readings and actions
 RaExternalInventoryService --> InvInventoryContextFacade : materials and lots
 

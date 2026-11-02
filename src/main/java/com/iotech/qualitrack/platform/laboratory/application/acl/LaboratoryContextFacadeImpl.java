@@ -43,6 +43,13 @@ public class LaboratoryContextFacadeImpl implements LaboratoryContextFacade {
     }
 
     @Override
+    public Optional<String> findLaboratoryName(Long laboratoryId) {
+        if (laboratoryId == null || laboratoryId <= 0) return Optional.empty();
+        return laboratoryQueryService.handle(new GetLaboratoryByIdQuery(laboratoryId))
+                .map(laboratory -> laboratory.getName().name());
+    }
+
+    @Override
     public boolean existsEnvironment(Long laboratoryId, Long environmentId) {
         if (laboratoryId == null || laboratoryId <= 0 || environmentId == null || environmentId <= 0) return false;
         return environmentQueryService.handle(new GetEnvironmentByIdQuery(laboratoryId, environmentId)).isPresent();

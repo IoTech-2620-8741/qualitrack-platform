@@ -10,6 +10,7 @@ import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepos
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 
@@ -51,12 +52,42 @@ public class ComplianceContextFacade {
         return deviationAlertRepository.findAllByLaboratoryIdAndEnvironmentId(laboratoryId, environmentId).stream()
                 .filter(alert -> alert.detectedAt() != null && !alert.detectedAt().isBefore(from) && !alert.detectedAt().isAfter(to))
                 .sorted(Comparator.comparing(DeviationAlert::detectedAt))
-                .map(alert -> new AlertReference(alert.getId(), alert.getEquipmentId(),
-                        alert.getOrigin() == null ? null : alert.getOrigin().name(), alert.getParameterName(),
-                        alert.getRecordedValue(), alert.getThresholdValue(), alert.getUnit(), alert.detectedAt(),
-                        alert.getSeverity().name(), alert.getStatus().name(), alert.getDeviationCount(),
-                        alert.getResolutionNotes()))
+                .map(ComplianceContextFacade::toReference)
                 .toList();
+    }
+
+    /**
+     * Alerts recorded for a product batch, in the order they were recorded (US96).
+     *
+     * @param batchId the product batch
+     * @return the alerts with their current status
+     */
+    public List<AlertReference> findBatchAlerts(Long batchId) {
+        if (batchId == null) return List.of();
+        return deviationAlertRepository.findAllByBatchId(batchId).stream()
+                .map(ComplianceContextFacade::toReference)
+                .toList();
+    }
+
+    /**
+     * Alerts detected by any of the given devices, used by the operational counts of the indicators (US93).
+     *
+     * @param deviceIds the equipment identifiers
+     * @return the alerts with their current status, grouped by device
+     */
+    public List<AlertReference> findDeviceAlerts(Collection<Long> deviceIds) {
+        return deviceIds.stream()
+                .flatMap(deviceId -> deviationAlertRepository.findAllByEquipmentId(deviceId).stream())
+                .map(ComplianceContextFacade::toReference)
+                .toList();
+    }
+
+    private static AlertReference toReference(DeviationAlert alert) {
+        return new AlertReference(alert.getId(), alert.getEquipmentId(),
+                alert.getOrigin() == null ? null : alert.getOrigin().name(), alert.getParameterName(),
+                alert.getRecordedValue(), alert.getThresholdValue(), alert.getUnit(), alert.detectedAt(),
+                alert.getSeverity().name(), alert.getStatus().name(), alert.getDeviationCount(),
+                alert.getResolutionNotes(), alert.getTimestamp());
     }
 
     /**
@@ -74,10 +105,18 @@ public class ComplianceContextFacade {
      * @param status the current status
      * @param deviationCount deviations grouped in the incident
      * @param resolutionNotes notes of the resolution, if resolved
+     * @param recordedAt when the incident started as it was stored, also for older alerts whose time is not an
+     *                   ISO-8601 instant
      */
     public record AlertReference(Long id, Long deviceId, String origin, String parameterName, Double recordedValue,
                                  Double thresholdValue, String unit, Instant detectedAt, String severity,
-                                 String status, Integer deviationCount, String resolutionNotes) {
+                                 String status, Integer deviationCount, String resolutionNotes, String recordedAt) {
+        /**
+         * @return true while the incident is not resolved
+         */
+        public boolean isOpen() {
+            return !"RESOLVED".equals(status);
+        }
     }
 
     /**

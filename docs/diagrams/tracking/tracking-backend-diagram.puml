@@ -30,6 +30,11 @@ package "equipment.interfaces.acl" <<External>> {
 }
 
 package "tracking.domain.model.valueobjects" {
+  class MonitoredDevice <<record>> {
+    + id: Long
+    + deviceType: String
+    + isContainerMonitor(): boolean
+  }
   enum MonitoredMetric {
     AIR_QUALITY (ppm, ENVIRONMENTAL_DEVICE)
     MOTION (event, ENVIRONMENTAL_DEVICE)
@@ -442,9 +447,9 @@ end note
 
 package "tracking.application.internal.outboundservices.acl" {
   class TrackingExternalEquipmentService {
-    + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
-    + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
-    + findContainerMonitor(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
+    + findDevice(laboratoryId, environmentId, deviceId): Optional<MonitoredDevice>
+    + findEnvironmentalDevice(laboratoryId, environmentId): Optional<MonitoredDevice>
+    + findContainerMonitor(laboratoryId, environmentId, deviceId): Optional<MonitoredDevice>
   }
 }
 
@@ -452,6 +457,7 @@ TrackingCommandServiceImpl --> TrackingExternalEquipmentService
 TrackingQueryServiceImpl --> TrackingExternalEquipmentService
 
 TrackingExternalEquipmentService --> EquipmentContextFacade
+TrackingExternalEquipmentService ..> MonitoredDevice : translates DeviceReference
 
 package "tracking.application.internal.eventhandlers" {
   class MeasurementRecordedEventHandler

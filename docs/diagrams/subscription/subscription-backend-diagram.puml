@@ -332,7 +332,15 @@ package "subscription.infrastructure.configuration" {
   }
 }
 
+package "iam.interfaces.acl" <<External>> {
+  class IamContextFacade
+}
+
 package "subscription.application.internal.outboundservices.acl" {
+  class SubscriptionExternalIamService {
+    +lockLaboratoryAssociation(userId: Long): Long
+  }
+
   class ExternalStripeService {
     -stripeSecretKey: String
     +createCheckoutSession(command: CreateCheckoutSessionCommand, stripePriceId: String): StripeCheckoutSessionResult
@@ -637,6 +645,11 @@ SubscriptionQueryServiceImpl --> SubscriptionRepository
 SubscriptionQueryServiceImpl --> SubscriptionPlanRepository
 SubscriptionQueryServiceImpl --> SubscriptionPaymentRepository
 
+SubscriptionExternalIamService --> IamContextFacade
+note bottom of SubscriptionExternalIamService
+  The Stripe webhook locks the account to serialize the activation
+  and synchronization of its subscription.
+end note
 ExternalStripeService ..> StripeCheckoutSessionResult
 ExternalStripeService ..> StripeSubscriptionDetails
 ExternalStripeService ..> StripeSession

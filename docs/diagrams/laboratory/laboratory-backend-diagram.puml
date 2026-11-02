@@ -22,6 +22,10 @@ package "iam.interfaces.acl" <<External>> {
   class IamContextFacade
 }
 
+package "subscription.interfaces.acl" <<External>> {
+  class SubscriptionContextFacade
+}
+
 package "iam.interfaces.events" <<External>> {
   class UserAccountUpdatedIntegrationEvent <<record>>
 }
@@ -266,15 +270,26 @@ EnvironmentUsageAssignedEventHandler ..> EnvironmentUsageAssignedEvent
 package "laboratory.application.internal.outboundservices.acl" {
   class LaboratoryExternalComplianceService
   class ExternalIamService {
+    + lockLaboratoryAssociation(userId: Long): boolean
+    + assignLaboratory(userId: Long, laboratoryId: Long): void
     + existsAccount(email: String): boolean
     + createAccount(laboratoryId, email, fullName, accessRole): StaffAccount
     + disableAccount(userId: Long): void
+  }
+  class LaboratoryExternalSubscriptionService {
+    + hasActiveSubscription(userId: Long): boolean
+    + assignLaboratory(userId: Long, laboratoryId: Long): void
   }
 }
 
 StaffCommandServiceImpl --> ExternalIamService
 
 ExternalIamService --> IamContextFacade
+LaboratoryExternalSubscriptionService --> SubscriptionContextFacade
+note bottom of LaboratoryExternalSubscriptionService
+  The onboarding of a laboratory associates it with the account
+  of its owner (IAM) and with the active subscription.
+end note
 
 LaboratoryExternalComplianceService --> ComplianceContextFacade
 RawMaterialLowStockEventHandler --> LaboratoryExternalComplianceService

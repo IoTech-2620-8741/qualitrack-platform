@@ -286,6 +286,7 @@ package "batch.application.internal.outboundservices.acl" {
   class BatchExternalInventoryService
   class BatchExternalEquipmentService {
     + findContainerMonitor(laboratoryId, deviceId): Optional<ContainerReference>
+    + findContainerName(laboratoryId, deviceId): Optional<String>
   }
   class BatchExternalComplianceService
 }

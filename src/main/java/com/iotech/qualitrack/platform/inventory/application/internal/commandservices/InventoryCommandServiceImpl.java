@@ -12,7 +12,6 @@ import com.iotech.qualitrack.platform.inventory.interfaces.events.RawMaterialSav
 import com.iotech.qualitrack.platform.inventory.interfaces.events.ReceiptConsumedIntegrationEvent;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.*;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
-import com.iotech.qualitrack.platform.batch.interfaces.acl.BatchContextFacade;
 import com.iotech.qualitrack.platform.shared.application.result.*;
 import com.iotech.qualitrack.platform.shared.domain.model.valueobjects.StockUnit;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,14 +24,13 @@ import java.time.*;
 @Transactional
 public class InventoryCommandServiceImpl implements InventoryCommandService {
     private final InventoryRepository repository;
-    private final BatchContextFacade batches;
     private final InventoryMovementRecorder recorder;
     private final ApplicationEventPublisher events;
     private final Clock clock;
     private final InventoryExternalLaboratoryService laboratories;
     private final InventoryExternalEquipmentService equipment;
     private final CurrentUser currentUser;
-    public InventoryCommandServiceImpl(InventoryRepository repository, BatchContextFacade batches,
+    public InventoryCommandServiceImpl(InventoryRepository repository,
             InventoryMovementRecorder recorder, ApplicationEventPublisher events, Clock inventoryClock,
             InventoryExternalLaboratoryService laboratories, InventoryExternalEquipmentService equipment,
             CurrentUser currentUser) {
@@ -40,7 +38,6 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         this.currentUser = currentUser;
         this.repository = repository;
         this.laboratories = laboratories;
-        this.batches = batches;
         this.recorder = recorder;
         this.events = events;
         this.clock = inventoryClock;
@@ -139,7 +136,6 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
                 throw conflict("Operation ID was already used with different values");
             return Result.success(consumption(movement));
         }
-        batches.requireConsumable(request.productBatchId(), request.laboratoryId());
         var before = receipt.getAvailableAmount();
         try { receipt.consume(request.amountUsed(), request.unit(), today()); }
         catch (IllegalStateException ex) { throw conflict(ex.getMessage()); }

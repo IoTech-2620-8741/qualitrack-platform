@@ -16,7 +16,11 @@
     <description>QualiTrack IoT platform by IoTech</description>
     <url/>
     <licenses>
-        <license/>
+        <license>
+            <name>QualiTrack Proprietary Software License</name>
+            <url>https://github.com/IoTech-2620-8741/qualitrack-platform/blob/main/LICENSE.md</url>
+            <distribution>repo</distribution>
+        </license>
     </licenses>
     <developers>
         <developer/>

@@ -29,14 +29,15 @@ public class InventoryImportServiceImpl implements InventoryImportService {
         this.clock = inventoryClock;
     }
 
-    public Long handle(ImportLegacyRawMaterialCommand command) {
+    @Override
+    public Result<Long, ApplicationError> handle(ImportLegacyRawMaterialCommand command) {
         var lab = command.laboratoryId();
         var legacyId = command.legacyId();
         if (!laboratories.existsEnvironment(lab, command.environmentId()))
             throw new ApplicationException(ApplicationError.notFound("Environment", command.environmentId()));
         var previous = laboratories.lockLegacyMaterial(lab, legacyId);
         var imported = repository.importedMaterial(lab, legacyId);
-        if (imported.isPresent()) return imported.get();
+        if (imported.isPresent()) return Result.success(imported.get());
         if (repository.codeExists(lab, previous.code(), null)) throw conflict("Material code already exists; review the legacy record before importing");
         var material = repository.saveMaterial(new RawMaterial(null, lab, command.environmentId(), previous.code(), previous.name(),
             previous.unit(), previous.minimumStock()), legacyId);
@@ -55,7 +56,7 @@ public class InventoryImportServiceImpl implements InventoryImportService {
             recorder.record(receipt, null, "OPENING_BALANCE", previous.balance(), BigDecimal.ZERO, null,
                 "Imported legacy balance #" + legacyId + "; original reception date unknown; requires quality review", null);
         }
-        return material.getId();
+        return Result.success(material.getId());
     }
 
     private static ApplicationException conflict(String message) {

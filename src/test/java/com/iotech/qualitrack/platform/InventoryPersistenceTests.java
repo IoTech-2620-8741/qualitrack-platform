@@ -218,8 +218,8 @@ class InventoryPersistenceTests {
             return new LegacyRawMaterial(locked.id(), locked.code(), locked.name(), locked.unit(), locked.minimumStock(),
                 locked.supplier(), locked.batchNumber(), locked.expiresOn(), locked.balance());
         });
-        Long material = imports.handle(new ImportLegacyRawMaterialCommand(42L, ENV, old.getId()));
-        assertThat(imports.handle(new ImportLegacyRawMaterialCommand(42L, ENV, old.getId()))).isEqualTo(material);
+        Long material = imports.handle(new ImportLegacyRawMaterialCommand(42L, ENV, old.getId())).toOptional().orElseThrow();
+        assertThat(imports.handle(new ImportLegacyRawMaterialCommand(42L, ENV, old.getId())).toOptional()).contains(material);
         assertThat(legacy.findById(old.getId()).orElseThrow().getCurrentStock()).isEqualByComparingTo("50");
         assertThat(queries.handle(new GetRawMaterialBatchesQuery(42L, ENV, material))).singleElement().satisfies(receipt -> {
             assertThat(receipt.getStatus()).isEqualTo(RawMaterialBatchStatus.QUARANTINED);

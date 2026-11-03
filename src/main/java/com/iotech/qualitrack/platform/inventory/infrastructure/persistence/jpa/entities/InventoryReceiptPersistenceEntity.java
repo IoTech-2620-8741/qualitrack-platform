@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @Table(name = "inventory_receipts", uniqueConstraints =
     @UniqueConstraint(columnNames = {"laboratory_id", "material_id", "supplier", "batch_number"}))
 @Getter @Setter
-public class InventoryReceiptEntity extends AuditableAbstractPersistenceEntity {
+public class InventoryReceiptPersistenceEntity extends AuditableAbstractPersistenceEntity {
     @Column(name = "laboratory_id", nullable = false) private Long laboratoryId;
     @Column(name = "material_id", nullable = false) private Long materialId;
     @Column(nullable = false, length = 150) private String supplier;

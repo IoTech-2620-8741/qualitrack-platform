@@ -55,6 +55,8 @@ package "iam" {
     class UserQueryServiceImpl
     class RoleCommandServiceImpl
     class RoleQueryServiceImpl
+    class UserOnboardingQueryServiceImpl
+    class IamExternalSubscriptionService
     interface PasswordRecoveryCommandService
     class PasswordRecoveryCommandServiceImpl
     interface HashingService
@@ -644,6 +646,8 @@ RaExternalBatchService --> BatchContextFacade : batches and traceability
 RaExternalComplianceService --> ComplianceContextFacade : environment, batch and device alerts
 RaExternalTrackingService --> TrackingContextFacade : readings and actions
 RaExternalInventoryService --> InvInventoryContextFacade : materials and lots
+UserOnboardingQueryServiceImpl --> IamExternalSubscriptionService
+IamExternalSubscriptionService --> SubscriptionContextFacade : subscription access
 
 RawMaterialLowStockIntegrationEvent ..> RawMaterialLowStockComplianceEventHandler
 CalibrationExpiredIntegrationEvent ..> CalibrationExpiredEventHandler

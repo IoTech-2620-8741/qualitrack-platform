@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Profile (profile) and Laboratory (laboratory): Profile renames the staff member of the account through the Laboratory facade instead of Laboratory listening to the profile event (#14).
 
+- IAM (iam): the onboarding reads the subscription access through its own ACL service (`AccountSubscription`) and no longer asks Laboratory whether the laboratory of the account exists (#15).
+
 ### Removed
 
 - Laboratory (laboratory) and Compliance & Alerting (ca): the unused compliance ACL service of Laboratory and the low stock method of the CA facade; the low stock reaches CA through its integration event (#14).

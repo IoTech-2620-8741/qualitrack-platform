@@ -29,6 +29,20 @@ package "spring" <<External>> {
 }
 
 package "iam.domain.model.valueobjects" {
+  class AccountSubscription <<record>> {
+    + subscriptionId: Long
+    + active: boolean
+  }
+
+  class UserOnboarding <<record>> {
+    + userId: Long
+    + laboratoryId: Long
+    + subscriptionId: Long
+    + subscriptionStatus: String
+    + passwordChangeRequired: boolean
+    + nextStep(): String
+  }
+
   class Username <<record>> {
     + value: String
   }
@@ -324,6 +338,10 @@ package "iam.application.queryservices" {
     + handle(query: GetRoleByNameQuery): Optional<Role>
     + handle(query: GetAllRolesQuery): List<Role>
   }
+
+  interface UserOnboardingQueryService {
+    + handle(query: GetUserOnboardingQuery): UserOnboarding
+  }
 }
 
 UserQueryService --> User
@@ -410,7 +428,30 @@ RoleCommandServiceImpl --> RoleRepository
 package "iam.application.internal.queryservices" {
   class UserQueryServiceImpl
   class RoleQueryServiceImpl
+  class UserOnboardingQueryServiceImpl
 }
+
+package "subscription.interfaces.acl" <<External>> {
+  class SubscriptionContextFacade
+}
+
+package "iam.application.internal.outboundservices.acl" {
+  class IamExternalSubscriptionService {
+    + findSubscription(userId: Long, laboratoryId: Long): AccountSubscription
+  }
+}
+
+UserOnboardingQueryServiceImpl ..|> UserOnboardingQueryService
+UserOnboardingQueryServiceImpl --> UserRepository
+UserOnboardingQueryServiceImpl --> IamExternalSubscriptionService
+UserOnboardingQueryServiceImpl ..> UserOnboarding
+IamExternalSubscriptionService --> SubscriptionContextFacade
+IamExternalSubscriptionService ..> AccountSubscription
+note bottom of IamExternalSubscriptionService
+  The access depends on the end of the subscription period, which only
+  Payments & Subscriptions keeps; the laboratory of the account is the one
+  Laboratory Management associated with it.
+end note
 
 UserQueryServiceImpl ..|> UserQueryService
 UserQueryServiceImpl --> UserRepository

@@ -27,19 +27,20 @@ public class LaboratoryOnboardingServiceImpl implements LaboratoryOnboardingServ
 
     @Transactional
     @Override
-    public Long create(Long userId, CreateLaboratoryCommand command) {
+    public Result<Long, ApplicationError> create(Long userId, CreateLaboratoryCommand command) {
         if (users.lockLaboratoryAssociation(userId)) {
-            throw new ApplicationException(ApplicationError.conflict("Laboratory", "Laboratory setup is already complete"));
+            return Result.failure(ApplicationError.conflict("Laboratory", "Laboratory setup is already complete"));
         }
         if (!subscriptions.hasActiveSubscription(userId)) {
-            throw new ApplicationException(ApplicationError.businessRuleViolation("subscription", "An active subscription is required"));
+            return Result.failure(ApplicationError.businessRuleViolation("subscription", "An active subscription is required"));
         }
         var laboratoryId = switch (commands.handle(command)) {
             case Result.Success<Long, ApplicationError> success -> success.value();
+            // Raised so that a laboratory saved before the failure is rolled back with the rest of the setup.
             case Result.Failure<Long, ApplicationError> failure -> throw new ApplicationException(failure.error());
         };
         users.assignLaboratory(userId, laboratoryId);
         subscriptions.assignLaboratory(userId, laboratoryId);
-        return laboratoryId;
+        return Result.success(laboratoryId);
     }
 }

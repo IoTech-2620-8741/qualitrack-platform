@@ -1,19 +1,19 @@
 package com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.assemblers;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.ContainerAssignment;
-import com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.entities.InventoryReceiptEntity;
+import com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.entities.InventoryReceiptPersistenceEntity;
 
 public final class InventoryReceiptPersistenceAssembler {
     private InventoryReceiptPersistenceAssembler() { }
-    public static RawMaterialBatch toDomainFromPersistence(InventoryReceiptEntity entity) {
+    public static RawMaterialBatch toDomainFromPersistence(InventoryReceiptPersistenceEntity entity) {
         return new RawMaterialBatch(entity.getId(), entity.getLaboratoryId(), entity.getMaterialId(), entity.getSupplier(),
             entity.getBatchNumber(), entity.getUnit(), entity.getInitialAmount(), entity.getAvailableAmount(),
             entity.getReceivedOn(), entity.getExpiresOn(), entity.getStatus(),
             entity.getContainerMonitorId() == null ? null : new ContainerAssignment(entity.getContainerMonitorId(),
                 entity.getContainerEnvironmentId(), entity.getContainerAssignedBy(), entity.getContainerAssignedAt()));
     }
-    public static InventoryReceiptEntity toPersistenceFromDomain(RawMaterialBatch receipt) {
-        var entity = new InventoryReceiptEntity();
+    public static InventoryReceiptPersistenceEntity toPersistenceFromDomain(RawMaterialBatch receipt) {
+        var entity = new InventoryReceiptPersistenceEntity();
         entity.setId(receipt.getId());
         entity.setLaboratoryId(receipt.getLaboratoryId());
         entity.setMaterialId(receipt.getRawMaterialId());

@@ -168,7 +168,7 @@ package "inventory.application" as Inventoryapplication {
       +handle(ConsumeRawMaterialBatchCommand): Result
     }
     interface InventoryImportService {
-      +handle(ImportLegacyRawMaterialCommand): Long
+      +handle(ImportLegacyRawMaterialCommand): Result<Long, ApplicationError>
     }
   }
   
@@ -427,7 +427,7 @@ package "inventory.infrastructure" as Inventoryinfrastructure {
   }
   
   package "inventory.infrastructure.persistence.jpa.entities" {
-    class InventoryMaterialEntity {
+    class InventoryMaterialPersistenceEntity {
       -laboratoryId: Long
       -legacyId: Long
       -code: String
@@ -435,7 +435,7 @@ package "inventory.infrastructure" as Inventoryinfrastructure {
       -unit: String
       -minimumStock: BigDecimal
     }
-    class InventoryMovementEntity {
+    class InventoryMovementPersistenceEntity {
       -laboratoryId: Long
       -materialId: Long
       -receiptId: Long
@@ -452,7 +452,7 @@ package "inventory.infrastructure" as Inventoryinfrastructure {
       -occurredAt: Instant
       -operationId: String
     }
-    class InventoryReceiptEntity {
+    class InventoryReceiptPersistenceEntity {
       -laboratoryId: Long
       -materialId: Long
       -supplier: String
@@ -527,26 +527,26 @@ InventoryCommandService ..> ReceiveRawMaterialBatchCommand
 InventoryCommandService ..> ReviewRawMaterialBatchCommand
 InventoryCommandService ..> SaveRawMaterialCommand
 InventoryQueryService ..> GetPendingLegacyMaterialsQuery
-InventoryMaterialEntity --|> AuditableAbstractPersistenceEntity
+InventoryMaterialPersistenceEntity --|> AuditableAbstractPersistenceEntity
 InventoryMaterialPersistenceRepository --|> JpaRepository
-InventoryMaterialPersistenceRepository ..> InventoryMaterialEntity
+InventoryMaterialPersistenceRepository ..> InventoryMaterialPersistenceEntity
 InventoryRepositoryImpl --> InventoryMaterialPersistenceRepository
 InventoryRepositoryImpl --> InventoryMaterialPersistenceAssembler
-InventoryMaterialPersistenceAssembler ..> InventoryMaterialEntity
+InventoryMaterialPersistenceAssembler ..> InventoryMaterialPersistenceEntity
 InventoryMaterialPersistenceAssembler ..> RawMaterial
-InventoryReceiptEntity --|> AuditableAbstractPersistenceEntity
+InventoryReceiptPersistenceEntity --|> AuditableAbstractPersistenceEntity
 InventoryReceiptPersistenceRepository --|> JpaRepository
-InventoryReceiptPersistenceRepository ..> InventoryReceiptEntity
+InventoryReceiptPersistenceRepository ..> InventoryReceiptPersistenceEntity
 InventoryRepositoryImpl --> InventoryReceiptPersistenceRepository
 InventoryRepositoryImpl --> InventoryReceiptPersistenceAssembler
-InventoryReceiptPersistenceAssembler ..> InventoryReceiptEntity
+InventoryReceiptPersistenceAssembler ..> InventoryReceiptPersistenceEntity
 InventoryReceiptPersistenceAssembler ..> RawMaterialBatch
-InventoryMovementEntity --|> AuditableAbstractPersistenceEntity
+InventoryMovementPersistenceEntity --|> AuditableAbstractPersistenceEntity
 InventoryMovementPersistenceRepository --|> JpaRepository
-InventoryMovementPersistenceRepository ..> InventoryMovementEntity
+InventoryMovementPersistenceRepository ..> InventoryMovementPersistenceEntity
 InventoryRepositoryImpl --> InventoryMovementPersistenceRepository
 InventoryRepositoryImpl --> InventoryMovementPersistenceAssembler
-InventoryMovementPersistenceAssembler ..> InventoryMovementEntity
+InventoryMovementPersistenceAssembler ..> InventoryMovementPersistenceEntity
 InventoryMovementPersistenceAssembler ..> InventoryMovement
 InventoryMovementResourceFromEntityAssembler ..> InventoryMovement
 InventoryMovementResourceFromEntityAssembler ..> InventoryMovementResource

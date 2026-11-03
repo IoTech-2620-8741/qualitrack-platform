@@ -536,7 +536,11 @@ package "ra.application.acl" {
 }
 
 package "ra.interfaces.acl" {
-  interface RaContextFacade
+  interface RaContextFacade {
+    + recordAuditLog(action: String, entityType: String, entityId: Long, performedBy: Long, details: String): boolean
+    + existsAuditReportById(reportId: Long): boolean
+    + existsKpiDashboardByLaboratoryId(laboratoryId: Long): boolean
+  }
 }
 
 RaContextFacadeImpl ..|> RaContextFacade

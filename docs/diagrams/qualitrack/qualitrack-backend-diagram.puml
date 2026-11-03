@@ -198,9 +198,9 @@ package "inventory" {
   }
   package "infrastructure" {
     class "InventoryRepositoryImpl" as InvInventoryRepositoryImpl
-    class "InventoryMaterialEntity" as InvInventoryMaterialEntity
-    class "InventoryReceiptEntity" as InvInventoryReceiptEntity
-    class "InventoryMovementEntity" as InvInventoryMovementEntity
+    class "InventoryMaterialPersistenceEntity" as InvInventoryMaterialEntity
+    class "InventoryReceiptPersistenceEntity" as InvInventoryReceiptEntity
+    class "InventoryMovementPersistenceEntity" as InvInventoryMovementEntity
     interface "InventoryMaterialPersistenceRepository" as InvInventoryMaterialPersistenceRepository
     interface "InventoryReceiptPersistenceRepository" as InvInventoryReceiptPersistenceRepository
     interface "InventoryMovementPersistenceRepository" as InvInventoryMovementPersistenceRepository

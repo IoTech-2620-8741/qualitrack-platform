@@ -4,7 +4,7 @@ import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
 import com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.assemblers.*;
-import com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.entities.InventoryMaterialEntity;
+import com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.entities.InventoryMaterialPersistenceEntity;
 import com.iotech.qualitrack.platform.inventory.infrastructure.persistence.jpa.repositories.*;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -42,10 +42,10 @@ public class InventoryRepositoryImpl implements InventoryRepository {
             materials.save(InventoryMaterialPersistenceAssembler.toPersistenceFromDomain(material, legacyId)));
     }
     public Optional<Long> legacyId(Long lab, Long id) {
-        return materials.findByLaboratoryIdAndId(lab, id).map(InventoryMaterialEntity::getLegacyId);
+        return materials.findByLaboratoryIdAndId(lab, id).map(InventoryMaterialPersistenceEntity::getLegacyId);
     }
     public Optional<Long> importedMaterial(Long lab, Long id) {
-        return materials.findByLaboratoryIdAndLegacyId(lab, id).map(InventoryMaterialEntity::getId);
+        return materials.findByLaboratoryIdAndLegacyId(lab, id).map(InventoryMaterialPersistenceEntity::getId);
     }
     public boolean codeExists(Long lab, String code, Long exceptId) {
         return materials.findIdsByCode(lab, code).stream().anyMatch(id -> !id.equals(exceptId));

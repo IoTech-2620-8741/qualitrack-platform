@@ -618,8 +618,12 @@ DeviationAlertAcknowledgedEventHandler ..> DeviationAlertAcknowledgedIntegration
 DeviationAlertResolvedEventHandler ..> DeviationAlertResolvedIntegrationEvent
 NotificationPreferenceUpdatedEventHandler ..> NotificationPreferenceUpdatedIntegrationEvent
 
+package "ca.application.acl" {
+  class ComplianceContextFacadeImpl
+}
+
 package "ca.interfaces.acl" {
-  class ComplianceContextFacade {
+  interface ComplianceContextFacade {
     + canReleaseBatch(batchId: Long): boolean
     + findEnvironmentAlerts(laboratoryId, environmentId, from, to): List<AlertReference>
     + findBatchAlerts(batchId: Long): List<AlertReference>
@@ -642,8 +646,9 @@ package "ca.interfaces.acl" {
   }
 }
 
-ComplianceContextFacade --> ComplianceEventRepository
-ComplianceContextFacade --> DeviationAlertRepository
+ComplianceContextFacadeImpl ..|> ComplianceContextFacade
+ComplianceContextFacadeImpl --> ComplianceEventRepository
+ComplianceContextFacadeImpl --> DeviationAlertRepository
 ComplianceContextFacade ..> AlertReference
 note bottom of ComplianceContextFacade
   findEnvironmentAlerts: incidents of an environment and its containers detected

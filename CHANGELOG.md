@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Product Batch (batch), Equipment (equipment), Laboratory (laboratory) and Compliance & Alerting (ca): their facades share the batches and recorded material uses, the laboratory equipment and the equipment log, the laboratory name, and the alerts of a batch or a set of devices (#12).
 
+- Shared (shared): error responses in Spanish for `Accept-Language: es`, with the details kept; English responses do not change (#16).
+
 ### Changed
 
 - Reporting & Audit (ra): the batch report, the equipment log report and the operational counts of the indicators read the other bounded contexts through their facades instead of their repositories (#12).
@@ -26,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Profile (profile) and Laboratory (laboratory): Profile renames the staff member of the account through the Laboratory facade instead of Laboratory listening to the profile event (#14).
 
 - IAM (iam): the onboarding reads the subscription access through its own ACL service (`AccountSubscription`) and no longer asks Laboratory whether the laboratory of the account exists (#15).
+
+- Compliance & Alerting (ca), IAM (iam), Profile (profile) and Payments & Subscriptions (subscription): their facades are interfaces implemented in `application/acl`, like the rest of the bounded contexts; `hasActivePlan` takes the plan code as text (#16).
+
+- Reporting & Audit (ra): its event handlers record through the audit command service, and its facade takes the audit action as text (#16).
+
+- IAM (iam), Laboratory (laboratory) and Payments & Subscriptions (subscription): the controllers read the authenticated user through the shared `CurrentUser` port instead of IAM internals (#16).
+
+- Inventory (inventory) and Laboratory (laboratory): the legacy import and the laboratory onboarding return a `Result`; the JPA entities of Inventory are named `*PersistenceEntity` (#16).
 
 ### Removed
 

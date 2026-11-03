@@ -155,7 +155,6 @@ package "laboratory" {
     class ProductCommandServiceImpl
     class RawMaterialCommandServiceImpl
     class StaffCommandServiceImpl
-    class LaboratoryExternalComplianceService
   }
 
   package "interfaces" {
@@ -609,7 +608,6 @@ Profile --> Dni
 Profile --> PhoneNumber
 Profile --> Location
 Profile --> ProfilePhoto
-ProfileUpdatedIntegrationEvent ..> StaffRepository : staff name
 UserAccountUpdatedIntegrationEvent ..> StaffRepository : staff e-mail
 
 KpiDashboardController --> RaQueryService
@@ -630,9 +628,8 @@ StripeWebhookController --> ExternalStripeService
 ExternalStripeService --> Stripe
 
 ExternalLabService --> LaboratoryContextFacade
-ExternalLaboratoryService --> LaboratoryContextFacade
+ExternalLaboratoryService --> LaboratoryContextFacade : staff record and rename
 BatchExternalComplianceService --> ComplianceContextFacade
-LaboratoryExternalComplianceService --> ComplianceContextFacade
 TrackingExternalEquipmentService --> EquipmentContextFacade
 InvInventoryExternalEquipmentService --> EquipmentContextFacade : container monitor
 BatchExternalEquipmentService --> EquipmentContextFacade : container monitor
@@ -692,7 +689,6 @@ InvInventoryImportServiceImpl --> InvInventoryRepository
 InvInventoryImportServiceImpl --> InvInventoryExternalLaboratoryService
 InvInventoryQueryServiceImpl --> InvInventoryExternalLaboratoryService
 InvInventoryExternalLaboratoryService --> LegacyInventoryFacade : opening balances
-InvInventoryCommandServiceImpl --> BatchContextFacade : validate and lock batch
 InvInventoryCommandServiceImpl --> InvInventoryMovementRecorder
 InvInventoryImportServiceImpl --> InvInventoryMovementRecorder
 InvInventoryMovementRecorder --> InvInventoryRepository

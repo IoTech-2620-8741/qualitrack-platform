@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Product Batch (batch), Inventory (inventory), Laboratory (laboratory), Payments & Subscriptions (subscription), Tracking & Telemetry (tracking) and Reporting & Audit (ra): the facades of other bounded contexts are called only from their ACL services, which translate the answers into their own model (`LegacyRawMaterial`, `MonitoredDevice`, `ReportEnvironment`) (#13).
 
+- Product Batch (batch) and Inventory (inventory): Product Batch locks and checks the batch before Inventory consumes a lot, so Inventory no longer calls Product Batch (#14).
+
+- Profile (profile) and Laboratory (laboratory): Profile renames the staff member of the account through the Laboratory facade instead of Laboratory listening to the profile event (#14).
+
+### Removed
+
+- Laboratory (laboratory) and Compliance & Alerting (ca): the unused compliance ACL service of Laboratory and the low stock method of the CA facade; the low stock reaches CA through its integration event (#14).
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

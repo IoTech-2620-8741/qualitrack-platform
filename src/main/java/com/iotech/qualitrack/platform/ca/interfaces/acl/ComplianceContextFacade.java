@@ -1,10 +1,7 @@
 package com.iotech.qualitrack.platform.ca.interfaces.acl;
 
-import java.math.BigDecimal;
 
 import com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert;
-import com.iotech.qualitrack.platform.ca.domain.model.entities.ComplianceEvent;
-import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventType;
 import com.iotech.qualitrack.platform.ca.domain.repositories.ComplianceEventRepository;
 import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepository;
 import org.springframework.stereotype.Service;
@@ -117,32 +114,6 @@ public class ComplianceContextFacade {
         public boolean isOpen() {
             return !"RESOLVED".equals(status);
         }
-    }
-
-    /**
-     * Records a raw material low stock compliance event.
-     *
-     * @param rawMaterialId the raw material identifier
-     * @param laboratoryId the laboratory identifier
-     * @param materialName the raw material name
-     * @param currentStock the current stock quantity
-     * @param minimumThreshold the minimum required stock quantity
-     */
-    public void recordRawMaterialLowStockEvent(
-            Long rawMaterialId,
-            Long laboratoryId,
-            String materialName,
-            BigDecimal currentStock,
-            BigDecimal minimumThreshold
-    ) {
-        complianceEventRepository.save(new ComplianceEvent(
-                rawMaterialId,
-                ComplianceEventType.RAW_MATERIAL_LOW_STOCK,
-                "Raw material '%s' from laboratory ID %d is below minimum stock. Current stock: %s, minimum threshold: %s."
-                        .formatted(materialName, laboratoryId, currentStock, minimumThreshold),
-                Instant.now().toString(),
-                null
-        ));
     }
 
     /**

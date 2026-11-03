@@ -1,10 +1,7 @@
 package com.iotech.qualitrack.platform.batch.application.acl;
 
 import com.iotech.qualitrack.platform.batch.domain.repositories.BatchRepository;
-import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
-import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
 
 import com.iotech.qualitrack.platform.batch.application.queryservices.BatchQueryService;
 import com.iotech.qualitrack.platform.batch.application.queryservices.BatchTraceabilityQueryService;
@@ -17,7 +14,6 @@ import com.iotech.qualitrack.platform.batch.domain.model.queries.GetBatchesByLab
 import com.iotech.qualitrack.platform.batch.domain.model.queries.GetRawMaterialUsageByBatchIdQuery;
 import com.iotech.qualitrack.platform.batch.domain.model.valueobjects.BatchStatus;
 import com.iotech.qualitrack.platform.batch.interfaces.acl.BatchContextFacade;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -34,27 +30,13 @@ public class BatchContextFacadeImpl implements BatchContextFacade {
     private final BatchTraceabilityQueryService traceabilityQueryService;
     private final RawMaterialUsageQueryService usageQueryService;
 
-    /**
-     * @param traceabilityQueryService lazy: the traceability reads Inventory, whose consumption validates batches here
-     */
     public BatchContextFacadeImpl(BatchQueryService batchQueryService,
-            BatchRepository repository, @Lazy BatchTraceabilityQueryService traceabilityQueryService,
+            BatchRepository repository, BatchTraceabilityQueryService traceabilityQueryService,
             RawMaterialUsageQueryService usageQueryService) {
         this.batchQueryService = batchQueryService;
         this.repository = repository;
         this.traceabilityQueryService = traceabilityQueryService;
         this.usageQueryService = usageQueryService;
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.MANDATORY)
-    public void requireConsumable(Long batchId, Long laboratoryId) {
-        var batch = repository.findByIdForUpdate(batchId).filter(value -> laboratoryId.equals(value.getLabId()))
-            .orElseThrow(() -> new ApplicationException(
-                ApplicationError.notFound("Batch", batchId)));
-        if (batch.getStatus() == BatchStatus.RELEASED || batch.getStatus() == BatchStatus.REJECTED)
-            throw new ApplicationException(
-                ApplicationError.conflict("Batch", "Closed product batches cannot consume materials"));
     }
 
     @Override

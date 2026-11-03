@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface BatchContextFacade {
-    void requireConsumable(Long batchId, Long laboratoryId);
-
     boolean existsBatchById(Long batchId);
 
     boolean belongsToLaboratory(Long batchId, Long laboratoryId);

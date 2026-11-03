@@ -620,7 +620,6 @@ NotificationPreferenceUpdatedEventHandler ..> NotificationPreferenceUpdatedInteg
 
 package "ca.interfaces.acl" {
   class ComplianceContextFacade {
-    + recordRawMaterialLowStockEvent(rawMaterialId: Long, laboratoryId: Long, materialName: String, currentStock: Integer, minimumThreshold: Integer): void
     + canReleaseBatch(batchId: Long): boolean
     + findEnvironmentAlerts(laboratoryId, environmentId, from, to): List<AlertReference>
     + findBatchAlerts(batchId: Long): List<AlertReference>

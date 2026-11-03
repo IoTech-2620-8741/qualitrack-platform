@@ -483,8 +483,12 @@ end note
 ApplicationReadyEventHandler --> RoleCommandService
 ApplicationReadyEventHandler ..> SeedRolesCommand
 
+package "iam.application.acl" {
+  class IamContextFacadeImpl
+}
+
 package "iam.interfaces.acl" {
-  class IamContextFacade {
+  interface IamContextFacade {
     + existsUserById(userId: Long): boolean
     + getLaboratoryIdByUserId(userId: Long): Long
     + getUsernameByUserId(userId: Long): String
@@ -493,6 +497,8 @@ package "iam.interfaces.acl" {
     + createStaffAccount(laboratoryId, email, fullName, auditor): StaffAccountReference
     + existsUsername(username: String): boolean
     + deactivateUser(userId: Long): void
+    + lockLaboratoryAssociation(userId: Long): Long
+    + assignLaboratory(userId: Long, laboratoryId: Long): void
     + findAccount(userId: Long): Optional<AccountReference>
     + findActiveAccounts(laboratoryId: Long): List<AccountReference>
   }
@@ -507,11 +513,11 @@ package "iam.interfaces.acl" {
   }
 }
 
+IamContextFacadeImpl ..|> IamContextFacade
 IamContextFacade ..> AccountReference
-IamContextFacade --> UserRepository
-
-IamContextFacade --> UserQueryService
-IamContextFacade --> UserCommandService
+IamContextFacadeImpl --> UserRepository
+IamContextFacadeImpl --> UserQueryService
+IamContextFacadeImpl --> UserCommandService
 
 package "iam.infrastructure.hashing.bcrypt" {
   class BCryptHashingService {

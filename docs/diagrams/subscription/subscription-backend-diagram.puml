@@ -468,11 +468,21 @@ package "subscription.infrastructure.persistence.jpa.converters" {
   class PaymentStatusPersistenceConverter
 }
 
+package "subscription.application.acl" {
+  class SubscriptionContextFacadeImpl
+}
+
 package "subscription.interfaces.acl" {
-  class SubscriptionContextFacade {
+  interface SubscriptionContextFacade {
+    +getAccess(userId: Long, laboratoryId: Long): SubscriptionAccess
+    +assignLaboratory(userId: Long, laboratoryId: Long): void
     +hasActiveSubscription(laboratoryId: Long): boolean
-    +hasActivePlan(laboratoryId: Long, planCode: PlanCode): boolean
+    +hasActivePlan(laboratoryId: Long, planCode: String): boolean
     +getActivePlanCode(laboratoryId: Long): String
+  }
+  class SubscriptionAccess <<record>> {
+    +subscriptionId: Long
+    +active: boolean
   }
 }
 
@@ -690,7 +700,10 @@ SubscriptionPaymentPersistenceAssembler ..> SubscriptionPaymentPersistenceEntity
 MoneyPersistenceAssembler ..> Money
 MoneyPersistenceAssembler ..> MoneyEmbeddable
 
-SubscriptionContextFacade --> SubscriptionQueryService
+SubscriptionContextFacadeImpl ..|> SubscriptionContextFacade
+SubscriptionContextFacadeImpl --> SubscriptionQueryService
+SubscriptionContextFacadeImpl --> SubscriptionRepository
+SubscriptionContextFacade ..> SubscriptionAccess
 
 CheckoutSessionCreatedEventHandler ..> CheckoutSessionCreatedEvent
 CheckoutSessionCreatedEventHandler ..> CheckoutSessionCreatedIntegrationEvent

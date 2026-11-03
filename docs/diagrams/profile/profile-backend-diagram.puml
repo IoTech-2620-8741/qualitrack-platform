@@ -258,13 +258,18 @@ note bottom of ProfileUpdatedIntegrationEvent
   the Laboratory facade.
 end note
 
+package "profile.application.acl" {
+  class ProfileContextFacadeImpl
+}
+
 package "profile.interfaces.acl" {
-  class ProfileContextFacade {
+  interface ProfileContextFacade {
     + displayNameOf(userId: Long): String
   }
 }
 
-ProfileContextFacade --> ProfileQueryService
+ProfileContextFacadeImpl ..|> ProfileContextFacade
+ProfileContextFacadeImpl --> ProfileQueryService
 note bottom of ProfileContextFacade
   Full name, or the username until the profile is completed:
   Compliance uses it in the notifications ("acknowledged by ...").

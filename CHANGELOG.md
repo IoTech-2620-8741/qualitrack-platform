@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - LICENSE.md with the QualiTrack Proprietary Software License; `pom.xml` and the README refer to it (#11).
 
+- `.env.example` with the environment variables of the API and example values (#17).
+
 - Product Batch (batch), Equipment (equipment), Laboratory (laboratory) and Compliance & Alerting (ca): their facades share the batches and recorded material uses, the laboratory equipment and the equipment log, the laboratory name, and the alerts of a batch or a set of devices (#12).
 
 - Shared (shared): error responses in Spanish for `Accept-Language: es`, with the details kept; English responses do not change (#16).

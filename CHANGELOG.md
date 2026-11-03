@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Inventory (inventory) and Laboratory (laboratory): the legacy import and the laboratory onboarding return a `Result`; the JPA entities of Inventory are named `*PersistenceEntity` (#16).
 
+- Tests: organized in the package of the bounded context and layer they cover; the shared helpers are in the `testing` package (#18).
+
 ### Removed
 
 - Laboratory (laboratory) and Compliance & Alerting (ca): the unused compliance ACL service of Laboratory and the low stock method of the CA facade; the low stock reaches CA through its integration event (#14).

@@ -74,7 +74,8 @@ public class InventoryImportServiceImpl implements InventoryImportService {
                 throw conflict("Legacy expiry date requires reconciliation before import");
             }
             // The opening date is the import date (or expiry for an already expired balance), not a fabricated original receipt date.
-            var openingDate = expires.isBefore(LocalDate.now(clock)) ? expires : LocalDate.now(clock);
+            LocalDate importDate = LocalDate.now(clock);
+            var openingDate = expires.isBefore(importDate) ? expires : importDate;
             var receipt = repository.saveReceipt(RawMaterialBatch.receive(lab, material.getId(), previous.supplier(),
                 previous.batchNumber(), previous.unit(), previous.balance(), openingDate, expires));
             recorder.record(receipt, null, "OPENING_BALANCE", previous.balance(), BigDecimal.ZERO, null,

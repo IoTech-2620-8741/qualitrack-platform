@@ -51,12 +51,17 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
 
     public List<MaterialStockSummary> handle(GetEnvironmentRawMaterialsQuery query) {
         requireEnvironment(query.laboratoryId(), query.environmentId());
-        return repository.materials(query.laboratoryId(), query.environmentId()).stream().map(this::summary)
-            .filter(material -> query.stockStatus() == null || material.stockStatus() == query.stockStatus()).toList();
+        LocalDate referenceDate = LocalDate.now(clock);
+        return repository.materials(query.laboratoryId(), query.environmentId()).stream()
+                .map(material -> summary(material,referenceDate))
+                .filter(material -> query.stockStatus() == null || material.stockStatus() == query.stockStatus())
+                .toList();
     }
     public Optional<MaterialStockSummary> handle(GetEnvironmentRawMaterialByIdQuery query) {
+        LocalDate referenceDate = LocalDate.now(clock);
         return repository.material(query.laboratoryId(), query.rawMaterialId(), false)
-            .filter(material -> material.belongsToEnvironment(query.environmentId())).map(this::summary);
+                .filter(material -> material.belongsToEnvironment(query.environmentId()))
+                .map(material -> summary(material, referenceDate));
     }
     public List<RawMaterialBatch> handle(GetRawMaterialBatchesQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
@@ -96,11 +101,11 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
             container.environmentId(), container.assignedBy(), container.assignedAt()));
     }
 
-    private MaterialStockSummary summary(RawMaterial material) {
+    private MaterialStockSummary summary(RawMaterial material, LocalDate referenceDate) {
         var lab = material.getLaboratoryId();
         var receipts = repository.receipts(lab, material.getId());
         return new MaterialStockSummary(material.getId(), lab, material.getEnvironmentId(), material.getCode(), material.getName(),
-            material.getUnit(), material.getMinimumStock(), material.usableStock(receipts, LocalDate.now(clock)),
+            material.getUnit(), material.getMinimumStock(), material.usableStock(receipts, referenceDate),
             receipts.stream().map(RawMaterialBatch::getAvailableAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
             repository.legacyId(lab, material.getId()).orElse(null));
     }

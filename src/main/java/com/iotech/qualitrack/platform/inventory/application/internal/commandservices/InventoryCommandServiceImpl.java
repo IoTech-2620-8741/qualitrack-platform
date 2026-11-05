@@ -3,7 +3,8 @@ package com.iotech.qualitrack.platform.inventory.application.internal.commandser
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalEquipmentService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
 import com.iotech.qualitrack.platform.shared.application.security.CurrentUser;
-import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchReview;import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchReview;
+import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryCommandService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.InventoryMovementRecorder;
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.*;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.*;
@@ -109,12 +110,7 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         }
         var previous = receipt.getStatus().name();
         try {
-            if (target == RawMaterialBatchStatus.RELEASED) {
-                if (!today().isBefore(receipt.getExpiresOn())) throw conflict("Expired receipt cannot be released");
-                receipt.release();
-            } else if (target == RawMaterialBatchStatus.OBSERVED) receipt.observe();
-            else if (target == RawMaterialBatchStatus.REJECTED) receipt.reject();
-            else throw new IllegalArgumentException("Choose RELEASED, OBSERVED or REJECTED");
+            applyReviewDecision(receipt, target);
         } catch (IllegalStateException ex) { throw conflict(ex.getMessage()); }
         repository.saveReceipt(receipt);
         var movement = recorder.record(receipt, null, "REVIEW", BigDecimal.ZERO, receipt.getAvailableAmount(), previous, reason.trim(), null);
@@ -215,6 +211,15 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
     private static void requireText(String text, int max, String field) {
         if (text == null || text.isBlank() || text.trim().length() > max)
             throw new IllegalArgumentException(field + " is required (maximum " + max + " characters)");
+    }
+
+    private void applyReviewDecision(RawMaterialBatch receipt, RawMaterialBatchStatus target) {
+        if (target == RawMaterialBatchStatus.RELEASED) {
+            if (!today().isBefore(receipt.getExpiresOn())) throw conflict("Expired receipt cannot be released");
+            receipt.release();
+        } else if (target == RawMaterialBatchStatus.OBSERVED) receipt.observe();
+        else if (target == RawMaterialBatchStatus.REJECTED) receipt.reject();
+        else throw new IllegalArgumentException("Choose RELEASED, OBSERVED or REJECTED");
     }
 
     private static ApplicationException conflict(String message) {

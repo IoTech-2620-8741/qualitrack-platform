@@ -4,16 +4,30 @@ import com.iotech.qualitrack.platform.inventory.application.internal.outboundser
 import com.iotech.qualitrack.platform.inventory.domain.model.commands.ImportLegacyRawMaterialCommand;
 import com.iotech.qualitrack.platform.inventory.application.commandservices.InventoryImportService;
 
-import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.*;
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.Clock;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.InventoryMovementRecorder;
-import com.iotech.qualitrack.platform.shared.application.result.*;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
+import com.iotech.qualitrack.platform.shared.application.result.Result;
 
+
+/**
+ * Application service responsible for importing legacy raw materials
+ * into the current Inventory bounded context.
+ *
+ * <p>Coordinates the migration of existing laboratory materials
+ * into the inventory model based on raw materials and supplier batches.</p>
+ *
+ * @see InventoryImportService
+ */
 @Service
 @Transactional
 public class InventoryImportServiceImpl implements InventoryImportService {
@@ -29,6 +43,16 @@ public class InventoryImportServiceImpl implements InventoryImportService {
         this.clock = inventoryClock;
     }
 
+    /**
+     * Processes the import of a legacy raw material into Inventory.
+     *
+     * <p>Uses the legacy material information associated with the
+     * requested laboratory and coordinates the registration of the
+     * corresponding inventory records.</p>
+     *
+     * @param command command identifying the legacy material to import
+     * @return the result of the import operation
+     */
     @Override
     public Result<Long, ApplicationError> handle(ImportLegacyRawMaterialCommand command) {
         var lab = command.laboratoryId();
@@ -46,7 +70,7 @@ public class InventoryImportServiceImpl implements InventoryImportService {
             LocalDate expires;
             try {
                 expires = LocalDate.parse(previous.expiresOn());
-            } catch (java.time.format.DateTimeParseException | NullPointerException error) {
+            } catch (DateTimeParseException | NullPointerException error) {
                 throw conflict("Legacy expiry date requires reconciliation before import");
             }
             // The opening date is the import date (or expiry for an already expired balance), not a fabricated original receipt date.

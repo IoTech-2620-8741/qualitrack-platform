@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Laboratory (laboratory) and Compliance & Alerting (ca): the unused compliance ACL service of Laboratory and the low stock method of the CA facade; the low stock reaches CA through its integration event (#14).
 
+### Fixed
+
+- Identity & Access (iam): the password recovery is locked while a wrong code is counted, so wrong codes sent at the same time can no longer exceed the limit of 5 attempts.
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

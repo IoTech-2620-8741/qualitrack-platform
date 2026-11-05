@@ -21,7 +21,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -107,6 +111,29 @@ class AccountRecoveryIntegrationTests {
         var code = code(sentTo(account.email()));
         for (var attempt = 0; attempt < 5; attempt++) {
             assertThat(reset(account.email(), wrong(code), "NewPassword456").statusCode()).isEqualTo(400);
+        }
+        assertThat(reset(account.email(), code, "NewPassword456").statusCode()).isEqualTo(400);
+        assertThat(signIn(account.username(), "TestPassword123!").statusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void wrongCodesSentAtTheSameTimeStillRevokeTheCode() throws Exception {
+        var account = account();
+        assertThat(call("POST", "/authentication/password-recovery-requests", null,
+                "{\"account\":\"" + account.username() + "\"}").statusCode()).isEqualTo(202);
+        var code = code(sentTo(account.email()));
+        var guesses = 20;
+        try (var pool = Executors.newFixedThreadPool(guesses)) {
+            var start = new CountDownLatch(1);
+            var answers = new ArrayList<Future<HttpResponse<String>>>();
+            for (var guess = 0; guess < guesses; guess++) {
+                answers.add(pool.submit(() -> {
+                    start.await();
+                    return reset(account.email(), wrong(code), "NewPassword456");
+                }));
+            }
+            start.countDown();
+            for (var answer : answers) assertThat(answer.get().statusCode()).isEqualTo(400);
         }
         assertThat(reset(account.email(), code, "NewPassword456").statusCode()).isEqualTo(400);
         assertThat(signIn(account.username(), "TestPassword123!").statusCode()).isEqualTo(200);

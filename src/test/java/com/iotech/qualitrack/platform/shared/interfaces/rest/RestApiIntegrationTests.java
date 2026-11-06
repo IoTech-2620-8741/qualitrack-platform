@@ -35,7 +35,7 @@ class RestApiIntegrationTests {
     @Autowired SubscriptionRepository subscriptions;
     @Autowired DeviationAlertRepository alerts;
     private final HttpClient http = HttpClient.newHttpClient();
-    private static final AtomicLong ruc = new AtomicLong(20970000000L);
+    private static final AtomicLong ruc = new AtomicLong(20940000000L);
 
     private record Account(Long id, String token) { }
 

@@ -49,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Identity & Access (iam): the password recovery is locked while a wrong code is counted, so wrong codes sent at the same time can no longer exceed the limit of 5 attempts.
 
+- Shared (shared): the REST API integration tests use their own RUC range, so they no longer collide with the profile tests depending on the order the test classes run in.
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

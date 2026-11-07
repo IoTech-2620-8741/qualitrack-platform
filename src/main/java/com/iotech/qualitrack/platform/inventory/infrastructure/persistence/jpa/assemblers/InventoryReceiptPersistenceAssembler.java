@@ -21,12 +21,46 @@ public final class InventoryReceiptPersistenceAssembler {
      * @return reconstructed raw material batch
      */
     public static RawMaterialBatch toDomainFromPersistence(InventoryReceiptPersistenceEntity entity) {
-        return new RawMaterialBatch(entity.getId(), entity.getLaboratoryId(), entity.getMaterialId(), entity.getSupplier(),
-            entity.getBatchNumber(), entity.getUnit(), entity.getInitialAmount(), entity.getAvailableAmount(),
-            entity.getReceivedOn(), entity.getExpiresOn(), entity.getStatus(),
-            entity.getContainerMonitorId() == null ? null : new ContainerAssignment(entity.getContainerMonitorId(),
-                entity.getContainerEnvironmentId(), entity.getContainerAssignedBy(), entity.getContainerAssignedAt()));
+
+        return new RawMaterialBatch(
+                entity.getId(),
+                entity.getLaboratoryId(),
+                entity.getMaterialId(),
+                entity.getSupplier(),
+                entity.getBatchNumber(),
+                entity.getUnit(),
+                entity.getInitialAmount(),
+                entity.getAvailableAmount(),
+                entity.getReceivedOn(),
+                entity.getExpiresOn(),
+                entity.getStatus(),
+                toContainerAssignment(entity)
+        );
     }
+
+
+    /**
+     * Reconstructs the monitored container assignment of a batch.
+     *
+     * <p>Returns null when the batch has no assigned container,
+     * preserving the optional assignment behavior.</p>
+     *
+     * @param entity persisted supplier batch
+     * @return reconstructed container assignment, or null
+     */
+    private static ContainerAssignment toContainerAssignment(InventoryReceiptPersistenceEntity entity) {
+
+        if (entity.getContainerMonitorId() == null) return null;
+
+        return new ContainerAssignment(
+                entity.getContainerMonitorId(),
+                entity.getContainerEnvironmentId(),
+                entity.getContainerAssignedBy(),
+                entity.getContainerAssignedAt()
+        );
+    }
+
+
 
     /**
      * Converts a raw material batch into a persistence entity.

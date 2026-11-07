@@ -87,6 +87,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the specified environment
      *                              cannot be found
      */
+    @Override
     public List<MaterialStockSummary> handle(GetEnvironmentRawMaterialsQuery query) {
         requireEnvironment(query.laboratoryId(), query.environmentId());
         LocalDate referenceDate = LocalDate.now(clock);
@@ -109,6 +110,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @return an optional containing the material stock summary,
      *         or an empty optional when no matching material exists
      */
+    @Override
     public Optional<MaterialStockSummary> handle(GetEnvironmentRawMaterialByIdQuery query) {
         LocalDate referenceDate = LocalDate.now(clock);
         return repository.material(query.laboratoryId(), query.rawMaterialId(), false)
@@ -129,6 +131,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment or raw
      *                              material cannot be found
      */
+    @Override
     public List<RawMaterialBatch> handle(GetRawMaterialBatchesQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         return repository.receipts(query.laboratoryId(), query.rawMaterialId());
@@ -147,6 +150,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment or raw
      *                              material cannot be found
      */
+    @Override
     public Optional<RawMaterialBatch> handle(GetRawMaterialBatchByIdQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         return repository.receipt(query.laboratoryId(), query.rawMaterialBatchId(), false)
@@ -162,6 +166,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment or raw
      *                              material cannot be found
      */
+    @Override
     public List<InventoryMovement> handle(GetRawMaterialMovementsQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         return repository.movements(query.laboratoryId(), query.rawMaterialId());
@@ -181,6 +186,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the specified environment
      *                              cannot be found
      */
+    @Override
     public List<RawMaterialBatch> handle(GetEnvironmentRawMaterialBatchesQuery query) {
         requireEnvironment(query.laboratoryId(), query.environmentId());
         var period = query.withinDays() == null ? nearExpiryPeriod : new NearExpiryPeriod(query.withinDays());
@@ -208,6 +214,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment, raw material
      *                              or supplier batch cannot be found
      */
+    @Override
     public Optional<RawMaterialBatchContainer> handle(GetRawMaterialBatchContainerQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         var receipt = repository.receipt(query.laboratoryId(), query.rawMaterialBatchId(), false)

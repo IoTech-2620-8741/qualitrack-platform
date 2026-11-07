@@ -2,26 +2,37 @@ package com.iotech.qualitrack.platform.inventory.application.internal.queryservi
 
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalEquipmentService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
+import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
+import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialBatchesQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialByIdQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialsQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetPendingLegacyMaterialsQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchByIdQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchContainerQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchesQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialMovementsQuery;
-import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.*;
-import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
-import com.iotech.qualitrack.platform.inventory.domain.model.queries.*;
-import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
-import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.ExpirationStatus;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.NearExpiryPeriod;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchStatus;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
-import com.iotech.qualitrack.platform.shared.application.result.*;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
 
 /**
  * Application service responsible for handling inventory queries

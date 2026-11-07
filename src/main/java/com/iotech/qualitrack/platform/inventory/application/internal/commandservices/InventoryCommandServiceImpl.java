@@ -55,8 +55,8 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         var minimumStock = command.minimumStock();
 
         requireEnvironment(lab, environment);
-        requireText(code, 50, "Code");
-        requireText(name, 150, "Name");
+        code = requireText(code, 50, "Code");
+        name = requireText(name, 150, "Name");
         Long legacy = null;
         if (id != null) {
             var previous = materialInEnvironment(lab, environment, id, true);
@@ -84,8 +84,8 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
 
         requireEnvironment(lab, command.environmentId());
         var material = materialInEnvironment(lab, command.environmentId(), materialId, true);
-        requireText(supplier, 150, "Supplier");
-        requireText(number, 50, "Batch number");
+        supplier = requireText(supplier, 150, "Supplier");
+        number = requireText(number, 50, "Batch number");
         StockUnit.requireSame(material.getUnit(), unit);
         if (received == null || received.isAfter(today())) throw new IllegalArgumentException("Receipt date cannot be in the future");
         if (repository.receiptExists(lab, materialId, supplier.trim(), number.trim())) throw conflict("Supplier receipt already exists");
@@ -101,7 +101,7 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
         var target = command.status();
         var reason = command.reason();
 
-        requireText(reason, 500, "Review reason");
+        reason = requireText(reason, 500, "Review reason");
         requireEnvironment(lab, command.environmentId());
         materialInEnvironment(lab, command.environmentId(), command.materialId(), false);
         var receipt = receipt(lab, receiptId, true);
@@ -208,9 +208,11 @@ public class InventoryCommandServiceImpl implements InventoryCommandService {
 
     private LocalDate today() { return LocalDate.now(clock); }
 
-    private static void requireText(String text, int max, String field) {
+    private static String requireText(String text, int max, String field) {
         if (text == null || text.isBlank() || text.trim().length() > max)
             throw new IllegalArgumentException(field + " is required (maximum " + max + " characters)");
+
+        return text.trim();
     }
 
     private void applyReviewDecision(RawMaterialBatch receipt, RawMaterialBatchStatus target) {

@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Shared (shared): error responses in Spanish for `Accept-Language: es`, with the details kept; English responses do not change (#16).
 
+- Product Batch (batch): tests for the batch list of the laboratory, the validation of batch, release and rejection requests, the rejection kept in the traceability, the batch commands, and the creation, release, rejection and storage of a batch.
+
 ### Changed
 
 - Reporting & Audit (ra): the batch report, the equipment log report and the operational counts of the indicators read the other bounded contexts through their facades instead of their repositories (#12).
@@ -40,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inventory (inventory) and Laboratory (laboratory): the legacy import and the laboratory onboarding return a `Result`; the JPA entities of Inventory are named `*PersistenceEntity` (#16).
 
 - Tests: organized in the package of the bounded context and layer they cover; the shared helpers are in the `testing` package (#18).
+
+- Product Batch (batch): the API documentation of the laboratory batch list describes its response, the 400 answered when the laboratory identifier is not a number and the 403 answered for another laboratory.
 
 ### Removed
 

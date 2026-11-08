@@ -1,18 +1,22 @@
 package com.iotech.qualitrack.platform.inventory.application.queryservices;
 
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
+import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialBatchesQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialByIdQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialsQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetPendingLegacyMaterialsQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchByIdQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchContainerQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchesQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialMovementsQuery;
-import java.util.Optional;import com.iotech.qualitrack.platform.inventory.domain.model.queries.*;
-import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
-import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
 import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
+
 import java.util.List;
-import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
+import java.util.Optional;
+
 
 /**
  * Defines the read operations available within the Inventory

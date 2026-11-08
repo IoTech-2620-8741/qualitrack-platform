@@ -2,26 +2,37 @@ package com.iotech.qualitrack.platform.inventory.application.internal.queryservi
 
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalEquipmentService;
 import com.iotech.qualitrack.platform.inventory.application.internal.outboundservices.acl.InventoryExternalLaboratoryService;
+import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
 import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterial;
+import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
+import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialBatchesQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialByIdQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetEnvironmentRawMaterialsQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetPendingLegacyMaterialsQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchByIdQuery;
+import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchContainerQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialBatchesQuery;
 import com.iotech.qualitrack.platform.inventory.domain.model.queries.GetRawMaterialMovementsQuery;
-import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.*;
-import com.iotech.qualitrack.platform.inventory.application.queryservices.InventoryQueryService;
-import com.iotech.qualitrack.platform.inventory.domain.model.queries.*;
-import com.iotech.qualitrack.platform.inventory.domain.model.aggregates.RawMaterialBatch;
-import com.iotech.qualitrack.platform.inventory.domain.model.entities.InventoryMovement;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.ExpirationStatus;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.LegacyRawMaterial;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.MaterialStockSummary;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.NearExpiryPeriod;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchContainer;
+import com.iotech.qualitrack.platform.inventory.domain.model.valueobjects.RawMaterialBatchStatus;
 import com.iotech.qualitrack.platform.inventory.domain.repositories.InventoryRepository;
-import com.iotech.qualitrack.platform.shared.application.result.*;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
+import com.iotech.qualitrack.platform.shared.application.result.ApplicationException;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
-import java.time.*;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
 
 /**
  * Application service responsible for handling inventory queries
@@ -76,6 +87,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the specified environment
      *                              cannot be found
      */
+    @Override
     public List<MaterialStockSummary> handle(GetEnvironmentRawMaterialsQuery query) {
         requireEnvironment(query.laboratoryId(), query.environmentId());
         LocalDate referenceDate = LocalDate.now(clock);
@@ -98,6 +110,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @return an optional containing the material stock summary,
      *         or an empty optional when no matching material exists
      */
+    @Override
     public Optional<MaterialStockSummary> handle(GetEnvironmentRawMaterialByIdQuery query) {
         LocalDate referenceDate = LocalDate.now(clock);
         return repository.material(query.laboratoryId(), query.rawMaterialId(), false)
@@ -118,6 +131,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment or raw
      *                              material cannot be found
      */
+    @Override
     public List<RawMaterialBatch> handle(GetRawMaterialBatchesQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         return repository.receipts(query.laboratoryId(), query.rawMaterialId());
@@ -136,6 +150,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment or raw
      *                              material cannot be found
      */
+    @Override
     public Optional<RawMaterialBatch> handle(GetRawMaterialBatchByIdQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         return repository.receipt(query.laboratoryId(), query.rawMaterialBatchId(), false)
@@ -151,6 +166,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment or raw
      *                              material cannot be found
      */
+    @Override
     public List<InventoryMovement> handle(GetRawMaterialMovementsQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         return repository.movements(query.laboratoryId(), query.rawMaterialId());
@@ -170,6 +186,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the specified environment
      *                              cannot be found
      */
+    @Override
     public List<RawMaterialBatch> handle(GetEnvironmentRawMaterialBatchesQuery query) {
         requireEnvironment(query.laboratoryId(), query.environmentId());
         var period = query.withinDays() == null ? nearExpiryPeriod : new NearExpiryPeriod(query.withinDays());
@@ -197,6 +214,7 @@ public class InventoryQueryServiceImpl implements InventoryQueryService {
      * @throws ApplicationException when the environment, raw material
      *                              or supplier batch cannot be found
      */
+    @Override
     public Optional<RawMaterialBatchContainer> handle(GetRawMaterialBatchContainerQuery query) {
         requireMaterialInEnvironment(query.laboratoryId(), query.environmentId(), query.rawMaterialId());
         var receipt = repository.receipt(query.laboratoryId(), query.rawMaterialBatchId(), false)

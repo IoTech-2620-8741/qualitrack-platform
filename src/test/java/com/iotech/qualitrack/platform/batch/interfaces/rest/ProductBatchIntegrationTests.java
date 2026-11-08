@@ -281,6 +281,91 @@ class ProductBatchIntegrationTests {
                 .statusCode()).isEqualTo(404);
     }
 
+    @Test
+    void laboratoryListShowsTheBatchesOfEveryProductOfTheLaboratoryOnly() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var list = "/laboratories/" + plant.lab() + "/batches";
+        assertThat(call("GET", list, token, null).body()).isEqualTo("[]");
+
+        var tablets = plant.products() + "/" + id(call("POST", plant.products(), token, product("PRD-LIST-T", "Listed tablets"))) + "/batches";
+        long liquids = environment(plant, "PROD-LIQ");
+        var liquidProducts = "/laboratories/" + plant.lab() + "/environments/" + liquids + "/products";
+        var syrups = liquidProducts + "/" + id(call("POST", liquidProducts, token, product("PRD-LIST-S", "Listed syrup"))) + "/batches";
+        assertThat(call("POST", tablets, token, batch("PB-LIST-T", "2026-10-01")).statusCode()).isEqualTo(201);
+        assertThat(call("POST", syrups, token, batch("PB-LIST-S", "2026-10-02")).statusCode()).isEqualTo(201);
+
+        var listed = call("GET", list, operatorOf(plant).token(), null);
+        assertThat(listed.statusCode()).withFailMessage(listed.body()).isEqualTo(200);
+        assertThat(JsonPath.<List<String>>read(listed.body(), "$[*].batchNumber")).containsExactlyInAnyOrder("PB-LIST-T", "PB-LIST-S");
+        assertThat(JsonPath.<List<Integer>>read(listed.body(), "$[*].environmentId"))
+                .containsExactlyInAnyOrder((int) plant.production(), (int) liquids);
+
+        var auditor = TestStaff.register(this::call, plant.lab(), token, "List auditor", "AUDITOR");
+        assertThat(call("GET", list, auditor.token(), null).statusCode()).isEqualTo(200);
+        assertThat(call("POST", tablets, auditor.token(), batch("PB-LIST-A", "2026-10-03")).statusCode()).isEqualTo(403);
+
+        var outsider = plant();
+        assertThat(call("GET", list, outsider.manager().token(), null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", "/laboratories/" + outsider.lab() + "/batches", outsider.manager().token(), null).body()).isEqualTo("[]");
+        assertThat(call("GET", "/laboratories/not-a-number/batches", token, null).statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    void invalidBatchRequestsAreRejectedWithoutSavingAnything() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var batches = plant.products() + "/" + id(call("POST", plant.products(), token, product("PRD-V", "Validated product"))) + "/batches";
+        var invalid = List.of(
+                "{\"batchNumber\":\"PB-ZERO\",\"quantity\":0,\"unit\":\"units\",\"startDate\":\"2026-10-01\"}",
+                "{\"batchNumber\":\"PB-NEGATIVE\",\"quantity\":-5,\"unit\":\"units\",\"startDate\":\"2026-10-01\"}",
+                "{\"batchNumber\":\"" + "B".repeat(51) + "\",\"quantity\":10,\"unit\":\"units\",\"startDate\":\"2026-10-01\"}",
+                "{\"batchNumber\":\"PB-BOXES\",\"quantity\":10,\"unit\":\"boxes\",\"startDate\":\"2026-10-01\"}",
+                "{\"batchNumber\":\"PB-FEB-30\",\"quantity\":10,\"unit\":\"units\",\"startDate\":\"2026-02-30\"}",
+                "{\"batchNumber\":\"PB-NO-DATE\",\"quantity\":10,\"unit\":\"units\"}",
+                "{\"batchNumber\":\"PB-NOTES\",\"quantity\":10,\"unit\":\"units\",\"startDate\":\"2026-10-01\",\"notes\":\""
+                        + "N".repeat(501) + "\"}");
+        for (var body : invalid) {
+            var response = call("POST", batches, token, body);
+            assertThat(response.statusCode()).withFailMessage("%s -> %s", body, response.body()).isEqualTo(400);
+        }
+
+        long batchId = id(call("POST", batches, token, batch("PB-VALID", "2026-10-01")));
+        var batch = batches + "/" + batchId;
+        assertThat(call("POST", batch + "/releases", token, "{\"releaseDate\":\"2026-10-05\",\"notes\":\" \"}").statusCode()).isEqualTo(400);
+        assertThat(call("POST", batch + "/releases", token, "{\"releaseDate\":\"05/10/2026\",\"notes\":\"Approved\"}").statusCode()).isEqualTo(400);
+        assertThat(call("POST", batch + "/rejections", token, "{\"rejectionDate\":\"2026-10-05\"}").statusCode()).isEqualTo(400);
+        assertThat(call("POST", batch + "/rejections", token, "{\"rejectionDate\":\"2026-13-01\",\"reason\":\"Contamination\"}")
+                .statusCode()).isEqualTo(400);
+
+        assertThat(JsonPath.<List<String>>read(call("GET", batches, token, null).body(), "$[*].batchNumber")).containsExactly("PB-VALID");
+        assertThat(call("GET", batch, token, null).body()).contains("\"status\":\"PENDING\"");
+    }
+
+    @Test
+    void traceabilityKeepsTheRejectionAndStaysInTheLaboratory() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var batches = plant.products() + "/" + id(call("POST", plant.products(), token, product("PRD-TR", "Rejected product"))) + "/batches";
+        long batchId = id(call("POST", batches, token, batch("PB-TR-REJ", "2026-10-01")));
+        var traceability = batches + "/" + batchId + "/traceability";
+        var rejected = call("POST", batches + "/" + batchId + "/rejections", token,
+                "{\"rejectionDate\":\"2026-10-06\",\"reason\":\"  Out of specification  \"}");
+        assertThat(rejected.statusCode()).withFailMessage(rejected.body()).isEqualTo(201);
+
+        var traced = call("GET", traceability, token, null);
+        assertThat(traced.statusCode()).withFailMessage(traced.body()).isEqualTo(200);
+        assertThat(JsonPath.<String>read(traced.body(), "$.batch.status")).isEqualTo("REJECTED");
+        assertThat(JsonPath.<String>read(traced.body(), "$.rejection.rejectionDate")).isEqualTo("2026-10-06");
+        assertThat(JsonPath.<String>read(traced.body(), "$.rejection.reason")).isEqualTo("Out of specification");
+        assertThat(traced.body()).contains("\"release\":null");
+
+        var auditor = TestStaff.register(this::call, plant.lab(), token, "Traceability auditor", "AUDITOR");
+        assertThat(call("GET", traceability, auditor.token(), null).statusCode()).isEqualTo(200);
+        var outsider = plant();
+        assertThat(call("GET", traceability, outsider.manager().token(), null).statusCode()).isEqualTo(403);
+    }
+
     private long equipment(Plant plant, String name) throws Exception {
         var created = call("POST", "/laboratories/" + plant.lab() + "/equipments", plant.manager().token(), """
                 {"name":"%s","type":"PRODUCTION","model":"M-1","serialNumber":"SN-%s"}

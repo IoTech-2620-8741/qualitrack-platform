@@ -215,6 +215,48 @@ class EquipmentIntegrationTests {
     }
 
     @Test
+    void environmentListsOnlyItsOwnEquipmentAndIotDevices() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var devices = "/laboratories/" + plant.lab() + "/devices";
+        var storage = plant.environment(plant.storage());
+        assertThat(call("GET", storage + "/equipments", token, null).body()).isEqualTo("[]");
+
+        long press = located(plant, plant.storage(), "Tablet press");
+        long spaceMonitor = id(call("POST", devices + "/environmental-devices", token, device("Space monitor", "ENV-" + suffix())));
+        long containerMonitor = id(call("POST", devices + "/container-monitors", token, device("Cold cabinet monitor", "CNT-" + suffix())));
+        assertThat(call("POST", storage + "/environmental-devices", token, "{\"deviceId\":" + spaceMonitor + "}").statusCode()).isEqualTo(201);
+        assertThat(call("POST", storage + "/container-monitors", token, "{\"deviceId\":" + containerMonitor + "}").statusCode()).isEqualTo(201);
+
+        long production = environment(plant, "PROD-" + suffix());
+        long productionMonitor = id(call("POST", devices + "/container-monitors", token, device("Production monitor", "CNT-" + suffix())));
+        assertThat(call("POST", plant.environment(production) + "/container-monitors", token, "{\"deviceId\":" + productionMonitor + "}")
+                .statusCode()).isEqualTo(201);
+        id(call("POST", plant.equipment(), token, equipment("Unlocated mixer", "SN-" + suffix())));
+
+        var listed = call("GET", storage + "/equipments", operatorOf(plant).token(), null);
+        assertThat(listed.statusCode()).withFailMessage(listed.body()).isEqualTo(200);
+        assertThat(JsonPath.<List<String>>read(listed.body(), "$[*].name"))
+                .containsExactly("Cold cabinet monitor", "Space monitor", "Tablet press");
+        assertThat(JsonPath.<List<Integer>>read(listed.body(), "$[*].environmentId")).containsOnly((int) plant.storage());
+
+        var nodes = call("GET", storage + "/equipments?iot=true", token, null);
+        assertThat(nodes.statusCode()).isEqualTo(200);
+        assertThat(JsonPath.<List<Integer>>read(nodes.body(), "$[*].id"))
+                .containsExactlyInAnyOrder((int) spaceMonitor, (int) containerMonitor)
+                .doesNotContain((int) press, (int) productionMonitor);
+        assertThat(JsonPath.<List<String>>read(nodes.body(), "$[*].sensorExternalId")).doesNotContainNull();
+
+        assertThat(JsonPath.<List<Integer>>read(call("GET", plant.environment(production) + "/equipments?iot=true", token, null).body(),
+                "$[*].id")).containsExactly((int) productionMonitor);
+
+        var foreign = plant();
+        assertThat(call("GET", plant.environment(foreign.storage()) + "/equipments", token, null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", plant.environment(999999999L) + "/equipments", token, null).statusCode()).isEqualTo(403);
+        assertThat(call("GET", foreign.environment(foreign.storage()) + "/equipments", token, null).statusCode()).isEqualTo(403);
+    }
+
+    @Test
     void deviceTelemetryStatusTellsWhetherTheDeviceIsCommunicating() throws Exception {
         var plant = plant();
         var token = plant.manager().token();

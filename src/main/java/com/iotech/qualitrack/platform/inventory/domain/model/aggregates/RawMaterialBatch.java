@@ -29,7 +29,8 @@ import java.util.Optional;
  *
  * <p>A supplier lot is distinct from a manufactured
  * product batch.</p>
- */@Getter
+ */
+@Getter
 public class RawMaterialBatch extends AbstractDomainAggregateRoot<RawMaterialBatch> {
     private final Long id;
     private final Long laboratoryId;

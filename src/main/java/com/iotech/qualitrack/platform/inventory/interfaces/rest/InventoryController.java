@@ -7,7 +7,6 @@ import com.iotech.qualitrack.platform.inventory.interfaces.rest.transform.Legacy
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +25,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/laboratories/{laboratoryId}/inventory")
 @PreAuthorize("@tenantAccess.allows('laboratoryId', #laboratoryId)")
-@Tag(name = "Inventory Management", description = "Endpoints for retrieving legacy raw material record pending import into laboratory inventory environments.")
 public class InventoryController {
     private final InventoryQueryService queries;
 

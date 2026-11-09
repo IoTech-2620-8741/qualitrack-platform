@@ -247,6 +247,7 @@ package "iam.domain.repositories" {
   interface PasswordRecoveryRepository {
     + save(recovery: PasswordRecovery): PasswordRecovery
     + findLatestByUserId(userId: Long): Optional<PasswordRecovery>
+    + findLatestByUserIdForUpdate(userId: Long): Optional<PasswordRecovery>
   }
 
   interface RoleRepository {

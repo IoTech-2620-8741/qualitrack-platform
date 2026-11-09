@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-09
+
 ### Added
 
 - CHANGELOG.md with the history of the platform since version 0.1.0 (#11).

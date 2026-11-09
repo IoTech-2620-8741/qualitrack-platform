@@ -102,7 +102,7 @@ package "subscription.domain.model.commands" {
 
   class RecordStripePaymentCommand <<record>> {
     +subscriptionId: Long
-    +stripePaymentIntentId: String
+    +providerPaymentId: String
     +stripeCheckoutSessionId: String
     +amount: BigDecimal
     +currency: String
@@ -182,7 +182,7 @@ package "subscription.domain.model.entities" {
     -amount: Money
     -status: PaymentStatus
     -paidAt: String
-    +stripePayment(subscriptionId: Long, stripePaymentIntentId: String, stripeCheckoutSessionId: String, amount: Money, status: PaymentStatus, paidAt: String): SubscriptionPayment
+    +stripePayment(subscriptionId: Long, providerPaymentId: String, stripeCheckoutSessionId: String, amount: Money, status: PaymentStatus, paidAt: String): SubscriptionPayment
     +isPaid(): boolean
   }
 }
@@ -298,6 +298,11 @@ package "subscription.application.queryservices" {
 package "subscription.application.internal.commandservices" {
   class SubscriptionCommandServiceImpl
   class SubscriptionPlanCommandServiceImpl
+  class StripeWebhookService {
+    +fulfill(session: StripeSession): void
+    +synchronize(stripeSubscriptionId: String): void
+    +recordRenewalPayment(invoice: StripeInvoice): void
+  }
 }
 
 package "subscription.application.internal.queryservices" {
@@ -598,6 +603,7 @@ package "subscription.interfaces.rest" {
 package "external.stripe" {
   class StripeSession
   class StripeSubscription
+  class StripeInvoice
   class Webhook
 }
 
@@ -736,13 +742,25 @@ note bottom of SubscriptionController
   currentPeriodEnd and Stripe ends it then (US23); 409 when not active or already cancelled.
 end note
 
-StripeWebhookController --> SubscriptionCommandService
-StripeWebhookController --> SubscriptionQueryService
-StripeWebhookController --> ExternalStripeService
-StripeWebhookController ..> ActivateSubscriptionCommand
-StripeWebhookController ..> RecordStripePaymentCommand
+StripeWebhookController --> StripeWebhookService
 StripeWebhookController ..> Webhook
 StripeWebhookController ..> StripeSession
+StripeWebhookController ..> StripeSubscription
+StripeWebhookController ..> StripeInvoice
+StripeWebhookService --> SubscriptionCommandService
+StripeWebhookService --> SubscriptionRepository
+StripeWebhookService --> SubscriptionPaymentRepository
+StripeWebhookService --> ExternalStripeService
+StripeWebhookService --> SubscriptionExternalIamService : locks the account
+StripeWebhookService ..> ActivateSubscriptionCommand
+StripeWebhookService ..> RecordStripePaymentCommand
+note bottom of StripeWebhookService
+  checkout.session.completed / async_payment_succeeded: fulfill activates the
+  subscription and records the first payment (checkout session).
+  customer.subscription.updated / deleted: synchronize keeps period, status and renewal.
+  invoice.paid with billing_reason subscription_cycle: recordRenewalPayment records
+  the renewal once per invoice (providerPaymentId = invoice id), dated status_transitions.paid_at.
+end note
 
 CreateCheckoutSessionCommandFromResourceAssembler ..> CreateCheckoutSessionResource
 CreateCheckoutSessionCommandFromResourceAssembler ..> CreateCheckoutSessionCommand

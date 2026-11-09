@@ -29,6 +29,20 @@ package "spring" <<External>> {
 }
 
 package "iam.domain.model.valueobjects" {
+  class AccountSubscription <<record>> {
+    + subscriptionId: Long
+    + active: boolean
+  }
+
+  class UserOnboarding <<record>> {
+    + userId: Long
+    + laboratoryId: Long
+    + subscriptionId: Long
+    + subscriptionStatus: String
+    + passwordChangeRequired: boolean
+    + nextStep(): String
+  }
+
   class Username <<record>> {
     + value: String
   }
@@ -233,6 +247,7 @@ package "iam.domain.repositories" {
   interface PasswordRecoveryRepository {
     + save(recovery: PasswordRecovery): PasswordRecovery
     + findLatestByUserId(userId: Long): Optional<PasswordRecovery>
+    + findLatestByUserIdForUpdate(userId: Long): Optional<PasswordRecovery>
   }
 
   interface RoleRepository {
@@ -324,6 +339,10 @@ package "iam.application.queryservices" {
     + handle(query: GetRoleByNameQuery): Optional<Role>
     + handle(query: GetAllRolesQuery): List<Role>
   }
+
+  interface UserOnboardingQueryService {
+    + handle(query: GetUserOnboardingQuery): UserOnboarding
+  }
 }
 
 UserQueryService --> User
@@ -410,7 +429,30 @@ RoleCommandServiceImpl --> RoleRepository
 package "iam.application.internal.queryservices" {
   class UserQueryServiceImpl
   class RoleQueryServiceImpl
+  class UserOnboardingQueryServiceImpl
 }
+
+package "subscription.interfaces.acl" <<External>> {
+  class SubscriptionContextFacade
+}
+
+package "iam.application.internal.outboundservices.acl" {
+  class IamExternalSubscriptionService {
+    + findSubscription(userId: Long, laboratoryId: Long): AccountSubscription
+  }
+}
+
+UserOnboardingQueryServiceImpl ..|> UserOnboardingQueryService
+UserOnboardingQueryServiceImpl --> UserRepository
+UserOnboardingQueryServiceImpl --> IamExternalSubscriptionService
+UserOnboardingQueryServiceImpl ..> UserOnboarding
+IamExternalSubscriptionService --> SubscriptionContextFacade
+IamExternalSubscriptionService ..> AccountSubscription
+note bottom of IamExternalSubscriptionService
+  The access depends on the end of the subscription period, which only
+  Payments & Subscriptions keeps; the laboratory of the account is the one
+  Laboratory Management associated with it.
+end note
 
 UserQueryServiceImpl ..|> UserQueryService
 UserQueryServiceImpl --> UserRepository
@@ -442,8 +484,12 @@ end note
 ApplicationReadyEventHandler --> RoleCommandService
 ApplicationReadyEventHandler ..> SeedRolesCommand
 
+package "iam.application.acl" {
+  class IamContextFacadeImpl
+}
+
 package "iam.interfaces.acl" {
-  class IamContextFacade {
+  interface IamContextFacade {
     + existsUserById(userId: Long): boolean
     + getLaboratoryIdByUserId(userId: Long): Long
     + getUsernameByUserId(userId: Long): String
@@ -452,6 +498,8 @@ package "iam.interfaces.acl" {
     + createStaffAccount(laboratoryId, email, fullName, auditor): StaffAccountReference
     + existsUsername(username: String): boolean
     + deactivateUser(userId: Long): void
+    + lockLaboratoryAssociation(userId: Long): Long
+    + assignLaboratory(userId: Long, laboratoryId: Long): void
     + findAccount(userId: Long): Optional<AccountReference>
     + findActiveAccounts(laboratoryId: Long): List<AccountReference>
   }
@@ -466,11 +514,11 @@ package "iam.interfaces.acl" {
   }
 }
 
+IamContextFacadeImpl ..|> IamContextFacade
 IamContextFacade ..> AccountReference
-IamContextFacade --> UserRepository
-
-IamContextFacade --> UserQueryService
-IamContextFacade --> UserCommandService
+IamContextFacadeImpl --> UserRepository
+IamContextFacadeImpl --> UserQueryService
+IamContextFacadeImpl --> UserCommandService
 
 package "iam.infrastructure.hashing.bcrypt" {
   class BCryptHashingService {

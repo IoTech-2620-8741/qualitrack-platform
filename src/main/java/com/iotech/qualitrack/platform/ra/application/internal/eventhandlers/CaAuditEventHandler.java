@@ -6,7 +6,8 @@ import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertEscalat
 import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertResolvedIntegrationEvent;
 import com.iotech.qualitrack.platform.ca.interfaces.events.NotificationPreferenceUpdatedIntegrationEvent;
 import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.AuditAction;
-import com.iotech.qualitrack.platform.ra.interfaces.acl.RaContextFacade;
+import com.iotech.qualitrack.platform.ra.application.commandservices.AuditLogCommandService;
+import com.iotech.qualitrack.platform.ra.domain.model.commands.RecordAuditLogEntryCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -20,76 +21,76 @@ public class CaAuditEventHandler {
 
     private final com.iotech.qualitrack.platform.shared.application.security.CurrentUser currentUser;
 
-    private final RaContextFacade raContextFacade;
+    private final AuditLogCommandService auditLogCommandService;
 
-    public CaAuditEventHandler(RaContextFacade raContextFacade,
+    public CaAuditEventHandler(AuditLogCommandService auditLogCommandService,
             com.iotech.qualitrack.platform.shared.application.security.CurrentUser currentUser) {
         this.currentUser = currentUser;
-        this.raContextFacade = raContextFacade;
+        this.auditLogCommandService = auditLogCommandService;
     }
 
     @EventListener(DeviationAlertCreatedIntegrationEvent.class)
     public void on(DeviationAlertCreatedIntegrationEvent event) {
         log.info("RA received deviation alert created event: {}", event);
 
-        raContextFacade.recordAuditLog(
+        auditLogCommandService.handle(new RecordAuditLogEntryCommand(
                 AuditAction.REGISTER,
                 "DEVIATION_ALERT",
                 event.alertId(),
                 currentUser.userId(),
                 event.toString()
-        );
+        ));
     }
 
     @EventListener(DeviationAlertEscalatedIntegrationEvent.class)
     public void on(DeviationAlertEscalatedIntegrationEvent event) {
         log.info("RA received deviation alert escalated event: {}", event);
 
-        raContextFacade.recordAuditLog(
+        auditLogCommandService.handle(new RecordAuditLogEntryCommand(
                 AuditAction.UPDATE,
                 "DEVIATION_ALERT",
                 event.alertId(),
                 currentUser.userId(),
                 event.toString()
-        );
+        ));
     }
 
     @EventListener(DeviationAlertAcknowledgedIntegrationEvent.class)
     public void on(DeviationAlertAcknowledgedIntegrationEvent event) {
         log.info("RA received deviation alert acknowledged event: {}", event);
 
-        raContextFacade.recordAuditLog(
+        auditLogCommandService.handle(new RecordAuditLogEntryCommand(
                 AuditAction.UPDATE,
                 "DEVIATION_ALERT",
                 event.alertId(),
                 currentUser.userId(),
                 event.toString()
-        );
+        ));
     }
 
     @EventListener(DeviationAlertResolvedIntegrationEvent.class)
     public void on(DeviationAlertResolvedIntegrationEvent event) {
         log.info("RA received deviation alert resolved event: {}", event);
 
-        raContextFacade.recordAuditLog(
+        auditLogCommandService.handle(new RecordAuditLogEntryCommand(
                 AuditAction.UPDATE,
                 "DEVIATION_ALERT",
                 event.alertId(),
                 currentUser.userId(),
                 event.toString()
-        );
+        ));
     }
 
     @EventListener(NotificationPreferenceUpdatedIntegrationEvent.class)
     public void on(NotificationPreferenceUpdatedIntegrationEvent event) {
         log.info("RA received notification preference updated event: {}", event);
 
-        raContextFacade.recordAuditLog(
+        auditLogCommandService.handle(new RecordAuditLogEntryCommand(
                 AuditAction.UPDATE,
                 "NOTIFICATION_PREFERENCE",
                 event.preferenceId(),
                 currentUser.userId(),
                 event.toString()
-        );
+        ));
     }
 }

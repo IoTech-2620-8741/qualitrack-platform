@@ -38,4 +38,6 @@ public interface EquipmentPersistenceRepository extends JpaRepository<EquipmentP
     boolean existsBySensorExternalId(String sensorExternalId);
 
     boolean existsByEnvironmentIdAndDeviceTypeAndIdNot(Long environmentId, IotDeviceType deviceType, Long id);
+
+    boolean existsByEnvironmentIdAndTypeAndIdNot(Long environmentId, String type, Long equipmentId);
 }

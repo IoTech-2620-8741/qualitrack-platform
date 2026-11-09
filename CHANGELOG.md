@@ -19,11 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Shared (shared): error responses in Spanish for `Accept-Language: es`, with the details kept; English responses do not change (#16).
 
-- Product Batch (batch): tests for the batch list of the laboratory, the validation of batch, release and rejection requests, the rejection kept in the traceability, the batch commands, and the creation, release, rejection and storage of a batch.
+- Product Batch (batch): tests for the batch list of the laboratory, the validation of batch, release and rejection requests, the rejection kept in the traceability, the batch commands, and the creation, release, rejection and storage of a batch (#23).
 
-- Equipment (equipment): `GET /laboratories/{laboratoryId}/environments/{environmentId}/equipments` lists the equipment located in one environment, and `?iot=true` keeps only its IoT devices, so the Edge of the environment reads its own nodes instead of the devices of the whole laboratory; an environment of another laboratory, or one that does not exist, is refused with 403. The laboratory list does not change.
+- Equipment (equipment): `GET /laboratories/{laboratoryId}/environments/{environmentId}/equipments` lists the equipment located in one environment, and `?iot=true` keeps only its IoT devices, so the Edge of the environment reads its own nodes instead of the devices of the whole laboratory; an environment of another laboratory, or one that does not exist, is refused with 403. The laboratory list does not change (#25).
 
-- Equipment (equipment): Javadoc for the value objects, persistence converters, status change repository and tenant lookup that did not have it.
+- Equipment (equipment): Javadoc for the value objects, persistence converters, status change repository and tenant lookup that did not have it (#25).
 
 ### Changed
 
@@ -47,7 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tests: organized in the package of the bounded context and layer they cover; the shared helpers are in the `testing` package (#18).
 
-- Product Batch (batch): the API documentation of the laboratory batch list describes its response, the 400 answered when the laboratory identifier is not a number and the 403 answered for another laboratory.
+- Product Batch (batch): the API documentation of the laboratory batch list describes its response, the 400 answered when the laboratory identifier is not a number and the 403 answered for another laboratory (#23).
+
+- Inventory (inventory): the stock summaries of one request share a single reference date, and the repository, query service, commands and aggregates of Inventory have Javadoc (#22, #24).
 
 ### Removed
 
@@ -55,9 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Identity & Access (iam): the password recovery is locked while a wrong code is counted, so wrong codes sent at the same time can no longer exceed the limit of 5 attempts.
+- Identity & Access (iam): the password recovery is locked while a wrong code is counted, so wrong codes sent at the same time can no longer exceed the limit of 5 attempts (#19).
 
-- Shared (shared): the REST API integration tests use their own RUC range, so they no longer collide with the profile tests depending on the order the test classes run in.
+- Shared (shared): the REST API integration tests use their own RUC range, so they no longer collide with the profile tests depending on the order the test classes run in (#21).
 
 ## [1.0.1] - 2026-10-08
 

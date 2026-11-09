@@ -61,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Shared (shared): the REST API integration tests use their own RUC range, so they no longer collide with the profile tests depending on the order the test classes run in (#21).
 
+- Payments & Subscriptions (subscription): the payment of each renewal reaches the payment history. Stripe charges every period after the first through an invoice, and only the payment of the checkout was recorded; `invoice.paid` now records each renewal once per invoice, dated when Stripe was paid (#27).
+
 ## [1.0.1] - 2026-10-08
 
 ### Changed

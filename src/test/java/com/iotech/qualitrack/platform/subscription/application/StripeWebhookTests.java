@@ -94,6 +94,74 @@ class StripeWebhookTests {
         assertThat(subscription.grantsAccess()).isFalse();
     }
 
+    @Test void renewalInvoiceRecordsItsPaymentWhenStripeWasPaid() {
+        when(subscriptions.findByStripeSubscriptionId("sub_test")).thenReturn(Optional.of(subscription()));
+        when(payments.findByProviderPaymentId("in_renewal")).thenReturn(Optional.empty());
+        when(commands.handle(any(RecordStripePaymentCommand.class))).thenReturn(Result.success(82L));
+        service.recordRenewalPayment(invoice("subscription_cycle"));
+        verify(users).lockLaboratoryAssociation(27L);
+        verify(commands).handle(argThat((RecordStripePaymentCommand command) -> command.subscriptionId().equals(73L)
+                && "in_renewal".equals(command.providerPaymentId()) && command.stripeCheckoutSessionId() == null
+                && command.amount().compareTo(new java.math.BigDecimal("199.00")) == 0 && "USD".equals(command.currency())
+                && OffsetDateTime.parse(command.paidAt()).toInstant().equals(RENEWAL_PAID_AT)));
+    }
+
+    @Test void repeatedRenewalInvoiceIsRecordedOnce() {
+        when(subscriptions.findByStripeSubscriptionId("sub_test")).thenReturn(Optional.of(subscription()));
+        when(payments.findByProviderPaymentId("in_renewal")).thenReturn(Optional.of(
+                mock(com.iotech.qualitrack.platform.subscription.domain.model.entities.SubscriptionPayment.class)));
+        service.recordRenewalPayment(invoice("subscription_cycle"));
+        verifyNoInteractions(commands);
+    }
+
+    @Test void firstInvoiceIsLeftToTheCheckout() {
+        service.recordRenewalPayment(invoice("subscription_create"));
+        verifyNoInteractions(commands, subscriptions, payments, users);
+    }
+
+    @Test void unpaidRenewalInvoiceIsNotRecorded() {
+        var invoice = invoice("subscription_cycle");
+        invoice.setStatus("open");
+        service.recordRenewalPayment(invoice);
+        verifyNoInteractions(commands, subscriptions, payments, users);
+    }
+
+    @Test void invoiceOfAnUnknownSubscriptionIsIgnored() {
+        when(subscriptions.findByStripeSubscriptionId("sub_test")).thenReturn(Optional.empty());
+        service.recordRenewalPayment(invoice("subscription_cycle"));
+        verifyNoInteractions(commands, payments, users);
+    }
+
+    private static final java.time.Instant RENEWAL_PAID_AT = java.time.Instant.parse("2026-11-04T23:51:30Z");
+
+    private Subscription subscription() {
+        return new Subscription(73L, 27L, 42L,
+                com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.PlanCode.BASIC,
+                com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.BillingCycle.MONTHLY,
+                com.iotech.qualitrack.platform.subscription.domain.model.valueobjects.SubscriptionStatus.ACTIVE,
+                "cus_test", "sub_test", "cs_test", OffsetDateTime.now().toString(),
+                OffsetDateTime.now().plusMonths(1).toString(), null, null, false);
+    }
+
+    private com.stripe.model.Invoice invoice(String billingReason) {
+        var details = new com.stripe.model.Invoice.Parent.SubscriptionDetails();
+        details.setSubscription("sub_test");
+        var parent = new com.stripe.model.Invoice.Parent();
+        parent.setType("subscription_details");
+        parent.setSubscriptionDetails(details);
+        var transitions = new com.stripe.model.Invoice.StatusTransitions();
+        transitions.setPaidAt(RENEWAL_PAID_AT.getEpochSecond());
+        var invoice = new com.stripe.model.Invoice();
+        invoice.setId("in_renewal");
+        invoice.setBillingReason(billingReason);
+        invoice.setStatus("paid");
+        invoice.setAmountPaid(19900L);
+        invoice.setCurrency("usd");
+        invoice.setParent(parent);
+        invoice.setStatusTransitions(transitions);
+        return invoice;
+    }
+
     private StripeSubscriptionDetails details(String status) {
         return details(status, false);
     }

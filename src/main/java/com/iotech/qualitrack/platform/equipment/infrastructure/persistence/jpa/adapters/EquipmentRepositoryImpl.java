@@ -93,4 +93,9 @@ public class EquipmentRepositoryImpl implements EquipmentRepository {
     public void deleteById(Long id) {
         repository.deleteById(id);
     }
+
+    @Override
+    public boolean existsOtherEdgeGatewayInEnvironment(Long environmentId, Long equipmentId) {
+        return repository.existsByEnvironmentIdAndTypeAndIdNot(environmentId, "EDGE_GATEWAY", equipmentId);
+    }
 }

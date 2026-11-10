@@ -19,6 +19,37 @@ public interface EquipmentContextFacade {
     Optional<EquipmentReference> findEquipment(Long laboratoryId, Long equipmentId);
 
     /**
+     * Finds an Edge Gateway registered within a laboratory.
+     *
+     * <p>Only equipment classified as EDGE_GATEWAY with
+     * a valid external identifier is returned.</p>
+     *
+     * @param laboratoryId laboratory that owns the Gateway
+     * @param equipmentId Gateway equipment identifier
+     * @return the Gateway reference, or empty when not found
+     *         or when the equipment is not an Edge Gateway
+     */
+    Optional<EdgeGatewayReference> findEdgeGateway(
+            Long laboratoryId,
+            Long equipmentId
+    );
+
+    /**
+     * Finds an Edge Gateway using its unique external identifier.
+     *
+     * <p>This operation is intended for machine authentication
+     * without requiring the Gateway to provide its laboratory
+     * or numeric equipment identifier.</p>
+     *
+     * @param sensorExternalId unique external Gateway identifier
+     * @return the Gateway reference, or empty when not found
+     *         or when the equipment is not an Edge Gateway
+     */
+    Optional<EdgeGatewayReference> findEdgeGatewayByExternalId(
+            String sensorExternalId
+    );
+
+    /**
      * Finds an IoT device (environmental device or container monitor) located in an environment.
      *
      * @param laboratoryId the laboratory that must own the device
@@ -93,6 +124,39 @@ public interface EquipmentContextFacade {
         public boolean isAvailable() {
             return "OPERATIONAL".equals(status);
         }
+    }
+
+    /**
+     * Edge Gateway information exposed to other bounded contexts.
+     *
+     * <p>This reference contains the information required
+     * to identify a Gateway and determine its current
+     * laboratory, environment and operational status.</p>
+     *
+     * <p>Authentication credentials are not included because
+     * they are managed exclusively by IAM.</p>
+     *
+     * @param equipmentId Gateway equipment identifier
+     * @param laboratoryId owning laboratory identifier
+     * @param environmentId assigned environment, or null if unassigned
+     * @param sensorExternalId unique external Gateway identifier
+     * @param status current operational status
+     */
+    record EdgeGatewayReference(Long equipmentId, Long laboratoryId, Long environmentId, String sensorExternalId, String status) {
+
+        /**
+         * Determines whether the Gateway is operational.
+         *
+         * @return true when the Gateway is operational
+         */
+        public boolean isOperational() {return "OPERATIONAL".equals(status);}
+
+        /**
+         * Determines whether the Gateway has an assigned environment.
+         *
+         * @return true when an environment is assigned
+         */
+        public boolean isAssigned() {return environmentId != null;}
     }
 
     /**

@@ -10,6 +10,7 @@ import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmen
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetMaintenanceByEquipmentIdQuery;
 import com.iotech.qualitrack.platform.equipment.domain.model.valueobjects.IotDeviceType;
 import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
+import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByDeviceIdQuery;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -39,6 +40,73 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
         if (laboratoryId <= 0) return Optional.empty();
         return equipmentQueryService.handle(new GetEquipmentByIdQuery(laboratoryId, equipmentId))
                 .map(EquipmentContextFacadeImpl::toReference);
+    }
+
+    /**
+     * Retrieves an Edge Gateway belonging to the specified laboratory.
+     *
+     * <p>Reuses the existing Equipment query service and verifies
+     * that the resulting equipment represents an Edge Gateway.</p>
+     *
+     * @param laboratoryId owning laboratory identifier
+     * @param equipmentId Gateway equipment identifier
+     * @return the Gateway reference, or an empty Optional
+     */
+    @Override
+    public Optional<EdgeGatewayReference> findEdgeGateway(
+            Long laboratoryId,
+            Long equipmentId) {
+
+        if (laboratoryId == null || laboratoryId <= 0
+                || equipmentId == null || equipmentId <= 0) {
+            return Optional.empty();
+        }
+
+        return equipmentQueryService.handle(
+                        new GetEquipmentByIdQuery(laboratoryId, equipmentId)
+                )
+                .filter(EquipmentContextFacadeImpl::isEdgeGateway)
+                .map(EquipmentContextFacadeImpl::toEdgeGatewayReference);
+    }
+
+    /**
+     * Retrieves an Edge Gateway by its unique external identifier.
+     *
+     * <p>This lookup does not require a laboratory identifier,
+     * allowing IAM to resolve the Gateway during authentication.</p>
+     *
+     * @param sensorExternalId unique Gateway identifier
+     * @return the Gateway reference, or an empty Optional
+     */
+    @Override
+    public Optional<EdgeGatewayReference> findEdgeGatewayByExternalId(String sensorExternalId) {
+
+        if (sensorExternalId == null || sensorExternalId.isBlank()) {
+            return Optional.empty();
+        }
+
+        return equipmentQueryService.handle(new GetEquipmentByDeviceIdQuery(sensorExternalId))
+                .filter(EquipmentContextFacadeImpl::isEdgeGateway)
+                .map(EquipmentContextFacadeImpl::toEdgeGatewayReference);
+    }
+
+    /**
+     * Converts an Equipment aggregate into an Edge Gateway reference.
+     *
+     * <p>Exposes only the information required by other bounded
+     * contexts without leaking the Equipment aggregate.</p>
+     *
+     * @param equipment validated Edge Gateway aggregate
+     * @return immutable Edge Gateway reference
+     */
+    private static EdgeGatewayReference toEdgeGatewayReference(Equipment equipment) {
+
+        return new EdgeGatewayReference(
+                equipment.getId(),
+                equipment.getLabId(),
+                equipment.getEnvironmentId(),
+                equipment.getSensorExternalId().value(),
+                equipment.getStatus() == null ? null : equipment.getStatus().name());
     }
 
     @Override
@@ -74,6 +142,24 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
     private static EquipmentReference toReference(Equipment equipment) {
         return new EquipmentReference(equipment.getId(), equipment.getLabId(), equipment.getName(),
                 equipment.getSerialNumber(), equipment.getStatus() == null ? null : equipment.getStatus().name());
+    }
+
+    /**
+     * Determines whether equipment represents an Edge Gateway.
+     *
+     * <p>Gateways must have the EDGE_GATEWAY category and
+     * an external identifier. They must not be classified
+     * as environmental devices or container monitors.</p>
+     *
+     * @param equipment equipment to validate
+     * @return true when the equipment represents an Edge Gateway
+     */
+    private static boolean isEdgeGateway(Equipment equipment) {
+
+        return equipment.getType() != null
+                && "EDGE_GATEWAY".equals(equipment.getType().name())
+                && !equipment.isIotDevice()
+                && equipment.getSensorExternalId() != null;
     }
 
     @Override

@@ -136,6 +136,16 @@ public class WebSecurityConfiguration {
                                 HttpMethod.POST,
                                 "/api/v1/edge-gateways/*/iot-devices/*/telemetry-measurements"
                         ).hasAuthority("ROLE_EDGE_GATEWAY")
+                        // Allow the Gateway to retrieve profiles of its assigned IoT devices.
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/edge-gateways/*/iot-devices/*/environmental-profile"
+                        ).hasAuthority("ROLE_EDGE_GATEWAY")
+                        // Allow authenticated Gateways to synchronize actuation events.
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/edge-gateways/*/iot-devices/*/actuation-events"
+                        ).hasAuthority("ROLE_EDGE_GATEWAY")
                         .anyRequest().denyAll()
                 )
                 .addFilterBefore(

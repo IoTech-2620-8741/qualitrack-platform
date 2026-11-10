@@ -7,6 +7,10 @@ import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.RecordM
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.MeasurementResourceFromEntityAssembler;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.RecordMeasurementCommandFromResourceAssembler;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.TelemetryResponseAssembler;
+import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.ActuationEventResource;
+import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.RecordActuationEventResource;
+import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.ActuationEventResourceFromEntityAssembler;
+import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.RecordActuationEventCommandFromResourceAssembler;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -211,6 +215,127 @@ public class EdgeGatewayTelemetryController {
         return TelemetryResponseAssembler.toRecordedResponse(
                 trackingCommandService.handle(command),
                 MeasurementResourceFromEntityAssembler::toResourceFromEntity
+        );
+    }
+
+    /**
+     * Records an actuation event reported by an authenticated Edge Gateway.
+     *
+     * <p>Only container monitors assigned to the Gateway's current
+     * laboratory and environment are allowed to report events.</p>
+     *
+     * <p>Delegates event persistence and idempotency to the existing
+     * Tracking command service.</p>
+     *
+     * @param gatewayId external Gateway identifier
+     * @param iotDeviceId container monitor Equipment identifier
+     * @param authenticatedGatewayId authenticated Gateway identifier
+     * @param laboratoryId laboratory obtained from Gateway authentication
+     * @param environmentId environment obtained from Gateway authentication
+     * @param resource actuation event request
+     * @return recorded event or corresponding error response
+     */
+    @PostMapping(
+            value = "/{gatewayId}/iot-devices/{iotDeviceId}/actuation-events",
+            consumes = APPLICATION_JSON_VALUE
+    )
+    @Operation(
+            summary = "Record Edge Gateway actuation event",
+            description = "Records an actuation event executed by a "
+                    + "container monitor assigned to the authenticated "
+                    + "Edge Gateway's environment.",
+            parameters = {
+                    @Parameter(
+                            name = "X-API-Key",
+                            in = ParameterIn.HEADER,
+                            required = true,
+                            description = "API key issued to the Edge Gateway",
+                            schema = @Schema(
+                                    type = "string",
+                                    format = "password"
+                            )
+                    )
+            }
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Actuation event recorded",
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = ActuationEventResource.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Actuation event already registered",
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = ActuationEventResource.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid actuation event"
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Missing or invalid Gateway API key"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Container monitor not authorized for this Gateway"
+            )
+    })
+    public ResponseEntity<?> recordActuationEvent(
+            @PathVariable String gatewayId,
+            @PathVariable Long iotDeviceId,
+
+            @AuthenticationPrincipal(expression = "deviceId()")
+            String authenticatedGatewayId,
+
+            @AuthenticationPrincipal(expression = "laboratoryId()")
+            Long laboratoryId,
+
+            @AuthenticationPrincipal(expression = "environmentId()")
+            Long environmentId,
+
+            @Valid @RequestBody RecordActuationEventResource resource) {
+
+        // Verify the Gateway identity and its current assignment.
+        if (!gatewayId.equals(authenticatedGatewayId)
+                || laboratoryId == null
+                || environmentId == null) {
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Verify that the target is a container monitor
+        // belonging to the authenticated Gateway's environment.
+        var containerMonitor = equipmentService.findContainerMonitor(
+                laboratoryId,
+                environmentId,
+                iotDeviceId
+        );
+
+        if (containerMonitor.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        // Reuse the existing Tracking command and validation rules.
+        var command = RecordActuationEventCommandFromResourceAssembler
+                .toCommandFromResource(
+                        laboratoryId,
+                        environmentId,
+                        iotDeviceId,
+                        resource
+                );
+
+        return TelemetryResponseAssembler.toRecordedResponse(
+                trackingCommandService.handle(command),
+                ActuationEventResourceFromEntityAssembler::toResourceFromEntity
         );
     }
 }

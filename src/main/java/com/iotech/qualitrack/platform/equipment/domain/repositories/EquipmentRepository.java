@@ -44,14 +44,4 @@ public interface EquipmentRepository {
     boolean existsOtherDeviceInEnvironment(Long environmentId, IotDeviceType deviceType, Long equipmentId);
 
     void deleteById(Long id);
-
-    /**
-     * Checks whether another Edge Gateway is already assigned
-     * to the specified environment.
-     *
-     * @param environmentId target environment
-     * @param equipmentId Gateway excluded from the check
-     * @return true if another Gateway occupies the environment
-     */
-    boolean existsOtherEdgeGatewayInEnvironment(Long environmentId, Long equipmentId);
 }

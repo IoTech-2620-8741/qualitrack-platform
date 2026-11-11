@@ -344,6 +344,35 @@ class EquipmentIntegrationTests {
                 .statusCode()).isEqualTo(403);
     }
 
+    @Test
+    void secondEdgeGatewayOfTheEnvironmentServesTheDevicesLeftByTheFirst() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        var monitors = containerMonitors(plant, plant.storage(), 20).stream().map(Long::intValue).toList();
+        var firstIdentity = "EDGE-" + suffix();
+        var secondIdentity = "EDGE-" + suffix();
+        long first = edgeGateway(plant, firstIdentity);
+        long second = edgeGateway(plant, secondIdentity);
+        for (long gateway : List.of(first, second)) {
+            var assigned = call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}");
+            assertThat(assigned.statusCode()).withFailMessage(assigned.body()).isEqualTo(201);
+        }
+
+        var firstDevices = gatewayDevices(firstIdentity, apiKey(plant, first));
+        var secondDevices = gatewayDevices(secondIdentity, apiKey(plant, second));
+        assertThat(JsonPath.<List<Integer>>read(firstDevices.body(), "$[*].id"))
+                .containsExactlyInAnyOrderElementsOf(monitors.subList(0, 15));
+        assertThat(JsonPath.<List<Integer>>read(secondDevices.body(), "$[*].id"))
+                .containsExactlyInAnyOrderElementsOf(monitors.subList(15, 20));
+
+        var coverage = call("GET", storage + "/edge-gateway-coverage", token, null);
+        assertThat(coverage.body()).contains("\"deviceCount\":20").contains("\"uncoveredDeviceCount\":0");
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].equipmentId"))
+                .containsExactly((int) first, (int) second);
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].deviceCount")).containsExactly(15, 5);
+    }
+
     private long edgeGateway(Plant plant, String identity) throws Exception {
         var registered = call("POST", "/laboratories/" + plant.lab() + "/edge-gateways", plant.manager().token(), """
                 {"name":"Edge Gateway %1$s","sensorExternalId":"%1$s","serialNumber":"RPI-%2$s","model":"Raspberry Pi 4"}

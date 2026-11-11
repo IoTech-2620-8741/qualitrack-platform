@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Equipment (equipment): `GET /edge-gateways/{deviceId}/iot-devices` answers only the devices the Gateway serves (15 at most) instead of every device of its environment, and reads them with the environment query instead of filtering the laboratory. The response does not change.
 
+- Equipment (equipment): an environment admits several Edge Gateways. Locating a second Gateway in an environment no longer answers 409; the devices beyond the first 15 go to the next Gateway.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added

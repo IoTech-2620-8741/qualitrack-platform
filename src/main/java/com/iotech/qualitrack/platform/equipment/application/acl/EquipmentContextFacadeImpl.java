@@ -157,7 +157,7 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
     private static boolean isEdgeGateway(Equipment equipment) {
 
         return equipment.getType() != null
-                && "EDGE_GATEWAY".equals(equipment.getType().name())
+                && equipment.isEdgeGateway()
                 && !equipment.isIotDevice()
                 && equipment.getSensorExternalId() != null;
     }

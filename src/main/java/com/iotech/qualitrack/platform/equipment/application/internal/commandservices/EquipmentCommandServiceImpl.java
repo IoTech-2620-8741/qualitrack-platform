@@ -142,13 +142,6 @@ public class EquipmentCommandServiceImpl implements EquipmentCommandService {
             return Result.failure(ApplicationError.conflict("Environment",
                     "Environment %d already has an environmental device".formatted(command.environmentId())));
         }
-        if ("EDGE_GATEWAY".equals(equipment.getType().name())
-                && equipmentRepository.existsOtherEdgeGatewayInEnvironment(command.environmentId(), equipment.getId())) {
-
-            return Result.failure(
-                    ApplicationError.conflict("Environment", "Environment %d already has an Edge Gateway".formatted(command.environmentId()))
-            );
-        }
         var previousEnvironmentId = equipment.getEnvironmentId();
         equipment.assignToEnvironment(command.environmentId());
         var located = equipmentRepository.save(equipment);

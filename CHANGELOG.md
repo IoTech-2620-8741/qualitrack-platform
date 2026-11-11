@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Equipment (equipment) and IAM (iam): an Edge Gateway is registered as equipment of the laboratory with `POST /laboratories/{laboratoryId}/edge-gateways`, located in an environment like any equipment, and receives its API key once from `POST /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key`. The Edge authenticates with its identifier and the `X-API-Key` header, and reads its IoT devices from `GET /edge-gateways/{deviceId}/iot-devices` (#30).
+
+- Tracking & Telemetry (tracking): telemetry, device profiles and actuation results synchronized by an authenticated Edge Gateway (#30).
+
+- Equipment (equipment): an Edge Gateway serves 15 IoT devices at most. The devices of an environment are distributed among its Gateways by identifier, like a queue (20 devices and two Gateways: 15 and 5), without the user linking each device to a Gateway. `GET /laboratories/{laboratoryId}/environments/{environmentId}/edge-gateway-coverage` tells how many devices each Gateway serves and how many are left without one.
+
+- IAM (iam): `GET /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key` tells whether the Gateway already has an API key, without returning it.
+
+- Equipment (equipment): tests for the distribution of devices among Edge Gateways, the device registry read with an API key, the coverage of an environment and the API key status.
+
+### Changed
+
+- Equipment (equipment): `GET /edge-gateways/{deviceId}/iot-devices` answers only the devices the Gateway serves (15 at most) instead of every device of its environment, and reads them with the environment query instead of filtering the laboratory. The response does not change.
+
 ## [1.1.0] - 2026-11-09
 
 ### Added

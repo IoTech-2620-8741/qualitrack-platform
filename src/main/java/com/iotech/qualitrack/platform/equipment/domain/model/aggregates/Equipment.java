@@ -24,6 +24,9 @@ import java.util.Objects;
 @Getter
 public class Equipment extends AbstractDomainAggregateRoot<Equipment> {
 
+    /** Category that identifies an Edge Gateway among the equipment of a laboratory. */
+    public static final String EDGE_GATEWAY_TYPE = "EDGE_GATEWAY";
+
     /**
      * The unique numeric identifier for the equipment.
      */
@@ -158,7 +161,7 @@ public class Equipment extends AbstractDomainAggregateRoot<Equipment> {
     public Equipment(RegisterEdgeGatewayCommand command) {
         this.labId = command.laboratoryId();
         this.name = command.name();
-        this.type = new EquipmentType("EDGE_GATEWAY");
+        this.type = new EquipmentType(EDGE_GATEWAY_TYPE);
         this.model = command.model();
         this.serialNumber = command.serialNumber();
         this.sensorExternalId = new DeviceId(command.sensorExternalId());
@@ -172,6 +175,13 @@ public class Equipment extends AbstractDomainAggregateRoot<Equipment> {
      */
     public boolean isIotDevice() {
         return deviceType != null;
+    }
+
+    /**
+     * Whether this equipment is an Edge Gateway, which serves the IoT devices of its environment.
+     */
+    public boolean isEdgeGateway() {
+        return type != null && EDGE_GATEWAY_TYPE.equals(type.name());
     }
 
     public boolean isDeviceOfType(IotDeviceType expected) {

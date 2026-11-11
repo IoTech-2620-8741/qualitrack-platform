@@ -2,7 +2,8 @@ package com.iotech.qualitrack.platform.equipment.interfaces.rest;
 
 import com.iotech.qualitrack.platform.equipment.application.queryservices.EquipmentQueryService;
 import com.iotech.qualitrack.platform.equipment.domain.model.aggregates.Equipment;
-import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByLabIdQuery;
+import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByEnvironmentIdQuery;
+import com.iotech.qualitrack.platform.equipment.domain.services.EdgeGatewayAllocation;
 import com.iotech.qualitrack.platform.equipment.interfaces.rest.resources.EdgeGatewayIotDeviceResource;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,14 +27,17 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
  * REST controller for Edge Gateway device registry synchronization.
  *
- * <p>Exposes only the IoT devices assigned to the environment
- * of the authenticated Edge Gateway.</p>
+ * <p>Exposes only the IoT devices that the authenticated Edge
+ * Gateway serves: its share of the devices of its environment,
+ * {@value EdgeGatewayAllocation#MAX_DEVICES_PER_EDGE_GATEWAY} at most
+ * (see {@link EdgeGatewayAllocation}).</p>
  *
  * <p>The laboratory and environment identifiers are obtained
  * from the authenticated Gateway principal instead of
@@ -60,8 +64,13 @@ public class EdgeGatewayDevicesController {
     }
 
     /**
-     * Retrieves the IoT devices assigned to the authenticated
-     * Edge Gateway environment.
+     * Retrieves the IoT devices that the authenticated Edge
+     * Gateway serves in its environment.
+     *
+     * <p>Only the equipment of the environment is read. When the
+     * environment has several Gateways, or more devices than one
+     * Gateway can serve, each Gateway receives its own share and
+     * never the devices of another Gateway.</p>
      *
      * <p>The response includes environmental devices and
      * container monitors, excluding ordinary equipment and
@@ -74,14 +83,16 @@ public class EdgeGatewayDevicesController {
      * @param authenticatedDeviceId authenticated Gateway identifier
      * @param laboratoryId laboratory of the authenticated Gateway
      * @param environmentId environment assigned to the Gateway
-     * @return IoT devices belonging to the Gateway environment
+     * @return IoT devices served by the Gateway, by external identifier
      */
     @GetMapping("/{deviceId}/iot-devices")
     @Operation(
             summary = "Get Edge Gateway IoT devices",
-            description = "Retrieves environmental devices and container "
-                    + "monitors assigned to the authenticated Gateway's "
-                    + "current environment.",
+            description = "Retrieves the environmental devices and container "
+                    + "monitors that the authenticated Gateway serves in its "
+                    + "current environment: 15 at most. With several Gateways "
+                    + "in the environment, each one receives the next 15 devices "
+                    + "by identifier.",
             parameters = {
                     @Parameter(
                             name = "X-API-Key",
@@ -114,7 +125,8 @@ public class EdgeGatewayDevicesController {
             ),
             @ApiResponse(
                     responseCode = "403",
-                    description = "Gateway is not authorized for this resource"
+                    description = "Gateway is not authorized for this resource, "
+                            + "or is no longer located in its environment"
             )
     })
     public List<EdgeGatewayIotDeviceResource> getAssignedDevices(
@@ -139,19 +151,37 @@ public class EdgeGatewayDevicesController {
             );
         }
 
-        return equipmentQueryService.handle(
-                        new GetEquipmentByLabIdQuery(laboratoryId)
-                )
-                .stream()
-                .filter(Equipment::isIotDevice)
-                .filter(equipment ->
-                        equipment.isLocatedIn(
+        var environmentEquipment = equipmentQueryService.handle(
+                        new GetEquipmentByEnvironmentIdQuery(
                                 laboratoryId,
-                                environmentId
+                                environmentId,
+                                false
                         )
                 )
+                .orElseGet(List::of);
+
+        var gateway = environmentEquipment.stream()
+                .filter(Equipment::isEdgeGateway)
                 .filter(equipment ->
                         equipment.getSensorExternalId() != null
+                                && deviceId.equals(
+                                equipment.getSensorExternalId().value())
+                )
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "Gateway is not authorized for this environment"
+                ));
+
+        // The Gateway serves only its share of the environment (15 devices at most).
+        var ownDeviceIds = Set.copyOf(
+                EdgeGatewayAllocation.ofEnvironment(environmentEquipment)
+                        .deviceIdsOf(gateway.getId())
+        );
+
+        return environmentEquipment.stream()
+                .filter(equipment ->
+                        ownDeviceIds.contains(equipment.getId())
                 )
                 .sorted(
                         Comparator.comparing(

@@ -117,6 +117,35 @@ public class EdgeGatewayApiKeyService {
     }
 
     /**
+     * Tells whether an API key has already been generated for an Edge Gateway.
+     *
+     * <p>Clients use it to offer or hide the generation of the key, which is shown only once. Neither the key
+     * nor its hash is returned.</p>
+     *
+     * @param laboratoryId owning laboratory identifier
+     * @param equipmentId Edge Gateway equipment identifier
+     * @return true when the Gateway already has an API key
+     * @throws ApplicationException if the Gateway is not found in the laboratory
+     */
+    @Transactional(readOnly = true)
+    public boolean isProvisioned(
+            Long laboratoryId,
+            Long equipmentId) {
+
+        var gateway = equipmentFacade.findEdgeGateway(
+                laboratoryId,
+                equipmentId
+        ).orElseThrow(() -> new ApplicationException(
+                ApplicationError.notFound(
+                        "EdgeGateway",
+                        equipmentId
+                )
+        ));
+
+        return apiKeyStore.existsByEquipmentId(gateway.equipmentId());
+    }
+
+    /**
      * Builds the conflict raised when credentials already exist.
      *
      * @return API key provisioning conflict

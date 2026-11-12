@@ -1,14 +1,14 @@
 package com.iotech.qualitrack.platform.ra.application.internal.commandservices;
 
-import com.iotech.qualitrack.platform.iam.interfaces.acl.IamContextFacade;
 import com.iotech.qualitrack.platform.ra.application.commandservices.RaCommandService;
-import com.iotech.qualitrack.platform.laboratory.interfaces.acl.LaboratoryContextFacade;
+import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.BatchReportData;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.ComplianceReportData;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.InventoryReportData;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.ReportDocumentWriter;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalBatchService;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalComplianceService;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalEquipmentService;
+import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalIamService;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalInventoryService;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalLaboratoryService;
 import com.iotech.qualitrack.platform.ra.application.internal.outboundservices.acl.RaExternalTrackingService;
@@ -44,7 +44,7 @@ public class RaCommandServiceImpl implements RaCommandService {
     private final RaOperationalDataService data;
     private final ReportDocumentWriter writer;
     private final CurrentUser currentUser;
-    private final IamContextFacade users;
+    private final RaExternalIamService users;
     private final RaExternalLaboratoryService laboratories;
     private final RaExternalTrackingService tracking;
     private final RaExternalComplianceService compliance;
@@ -55,7 +55,7 @@ public class RaCommandServiceImpl implements RaCommandService {
 
     public RaCommandServiceImpl(AuditReportRepository reports, AuditLogRepository audit,
             RaOperationalDataService data, ReportDocumentWriter writer, CurrentUser currentUser,
-            IamContextFacade users, ReportDocumentRepository documents, RaExternalLaboratoryService laboratories,
+            RaExternalIamService users, ReportDocumentRepository documents, RaExternalLaboratoryService laboratories,
             RaExternalTrackingService tracking, RaExternalComplianceService compliance,
             RaExternalEquipmentService equipment, Clock reportingClock, RaExternalInventoryService inventory,
             RaExternalBatchService batches) {
@@ -78,19 +78,20 @@ public class RaCommandServiceImpl implements RaCommandService {
     @Override
     public Result<AuditReport, ApplicationError> handle(GenerateBatchReportCommand command) {
         return execute("BatchReport", () -> {
-            var batch = data.batch(command.batchId());
-            var recordedAlerts = command.includeDeviations() ? data.batchAlerts(batch.getId())
-                    : List.<com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert>of();
-            var traceability = batches.findTraceability(batch.getId());
+            var batch = batches.findBatch(command.batchId())
+                    .orElseThrow(() -> new IllegalArgumentException("Batch does not exist"));
+            var deviations = command.includeDeviations() ? data.batchDeviations(batch.id())
+                    : List.<BatchReportData.Deviation>of();
+            var traceability = batches.findTraceability(batch.id());
             var rows = new ArrayList<List<String>>();
-            row(rows, "Batch ID", batch.getId());
-            row(rows, "Batch number", batch.getBatchNumber());
-            row(rows, "Product", batch.getProductName());
-            row(rows, "Quantity", batch.getQuantity() + " " + batch.getUnit());
-            row(rows, "Status", batch.getStatus());
-            row(rows, "Started", batch.getStartDate());
-            row(rows, "Finished", batch.getEndDate());
-            row(rows, "Notes", batch.getNotes());
+            row(rows, "Batch ID", batch.id());
+            row(rows, "Batch number", batch.batchNumber());
+            row(rows, "Product", batch.productName());
+            row(rows, "Quantity", batch.quantity() + " " + batch.unit());
+            row(rows, "Status", batch.status());
+            row(rows, "Started", batch.startDate());
+            row(rows, "Finished", batch.endDate());
+            row(rows, "Notes", batch.notes());
             traceability.ifPresent(trace -> {
                 row(rows, "Raw materials used", trace.materials().size());
                 trace.materials().forEach(item -> row(rows, "Material " + item.name(), item.quantity() + " " + item.unit()
@@ -108,15 +109,15 @@ public class RaCommandServiceImpl implements RaCommandService {
                         : trace.rejection().rejectionDate() + " | " + trace.rejection().reason());
             });
             if (command.includeDeviations()) {
-                row(rows, "Recorded deviations", recordedAlerts.size());
-                recordedAlerts.forEach(alert -> row(rows, "Alert " + alert.getId(),
-                        alert.getTimestamp() + " | " + alert.getParameterName() + " | "
-                        + alert.getRecordedValue() + " " + alert.getUnit() + " | " + alert.getStatus()));
+                row(rows, "Recorded deviations", deviations.size());
+                deviations.forEach(deviation -> row(rows, "Alert " + deviation.id(),
+                        deviation.recordedAt() + " | " + deviation.parameter() + " | "
+                        + deviation.value() + " " + deviation.unit() + " | " + deviation.status()));
             }
-            return report(ReportType.BATCH_TRACEABILITY, command.format(), batch.getLabId(),
-                    batch.getId(), null, command.requestedBy(), batch.getStartDate(), batch.getEndDate(), rows,
+            return report(ReportType.BATCH_TRACEABILITY, command.format(), batch.laboratoryId(),
+                    batch.id(), null, command.requestedBy(), batch.startDate(), batch.endDate(), rows,
                     command.format() == ReportFormat.PDF ? (name, at) -> writer.writeBatchPdf(
-                            data.batchReport(batch, recordedAlerts, command.includeDeviations(), traceability, name, at))
+                            data.batchReport(batch, deviations, command.includeDeviations(), traceability, name, at))
                             : null);
         });
     }
@@ -137,7 +138,7 @@ public class RaCommandServiceImpl implements RaCommandService {
             return report(ReportType.COMPLIANCE_PERIOD, command.format(), command.laboratoryId(),
                     null, null, command.requestedBy(), command.startDate(), command.endDate(), new ArrayList<>(),
                     (name, at) -> writer.writeCompliance(command.format(), new ComplianceReportData(command.laboratoryId(),
-                            data.laboratoryName(command.laboratoryId()), command.startDate(), command.endDate(), sections,
+                            laboratories.laboratoryName(command.laboratoryId()), command.startDate(), command.endDate(), sections,
                             name, at)));
         });
     }
@@ -146,7 +147,7 @@ public class RaCommandServiceImpl implements RaCommandService {
      * Indicators, alerts and actions of one environment in the period, from the records of Tracking and Compliance.
      */
     private ComplianceReportData.EnvironmentSection environmentSection(Long laboratoryId,
-            LaboratoryContextFacade.EnvironmentReference environment, ReportingPeriod period, Map<Long, String> devices) {
+            ReportEnvironment environment, ReportingPeriod period, Map<Long, String> devices) {
         var readings = tracking.findReadings(laboratoryId, environment.id(), period);
         var trends = new HashMap<List<Object>, DeviationTrend>();
         readings.stream().filter(EnvironmentalReading::isNumeric)
@@ -178,21 +179,17 @@ public class RaCommandServiceImpl implements RaCommandService {
 
     @Override
     public Result<AuditReport, ApplicationError> handle(ExportEquipmentLogCommand command) {
-        com.iotech.qualitrack.platform.equipment.domain.model.aggregates.Equipment device;
-        try {
-            device = data.equipment(command.equipmentId());
-        } catch (IllegalArgumentException exception) {
+        var located = equipment.findEquipmentLog(command.laboratoryId(), command.environmentId(), command.equipmentId());
+        if (located.isEmpty()) {
             return Result.failure(ApplicationError.notFound("Equipment", command.equipmentId()));
         }
-        if (!device.isLocatedIn(command.laboratoryId(), command.environmentId())) {
-            return Result.failure(ApplicationError.notFound("Equipment", command.equipmentId()));
-        }
+        var device = located.get();
         return execute("EquipmentLog", () -> {
             validatePeriod(command.startDate(), command.endDate());
-            var entries = audit.findAllByEquipmentId(device.getId()).stream()
+            var entries = audit.findAllByEquipmentId(device.id()).stream()
                     .filter(entry -> inPeriod(entry.getTimestamp(), command.startDate(), command.endDate())).toList();
-            return report(ReportType.EQUIPMENT_LOG, command.format(), device.getLabId(),
-                    null, device.getId(), command.requestedBy(), command.startDate(), command.endDate(), new ArrayList<>(),
+            return report(ReportType.EQUIPMENT_LOG, command.format(), device.laboratoryId(),
+                    null, device.id(), command.requestedBy(), command.startDate(), command.endDate(), new ArrayList<>(),
                     (name, at) -> writer.writeEquipment(command.format(), data.equipmentReport(device,
                             command.startDate(), command.endDate(), entries, name, at)));
         });
@@ -224,7 +221,7 @@ public class RaCommandServiceImpl implements RaCommandService {
             return report(ReportType.INVENTORY, command.format(), command.laboratoryId(), null, null,
                     command.requestedBy(), businessDate, businessDate, new ArrayList<>(),
                     (name, at) -> writer.writeInventory(command.format(), new InventoryReportData(command.laboratoryId(),
-                            data.laboratoryName(command.laboratoryId()), businessDate, sections, name, at)));
+                            laboratories.laboratoryName(command.laboratoryId()), businessDate, sections, name, at)));
         });
     }
 
@@ -246,7 +243,7 @@ public class RaCommandServiceImpl implements RaCommandService {
         }
         var generatedAt = Instant.now();
         row(rows, "Generated at", generatedAt);
-        var name = users.getUsernameByUserId(actor);
+        var name = users.username(actor);
         row(rows, "Generated by", name);
         var bytes = customRenderer == null ? writer.write(format, "QualiTrack - " + type, rows)
                 : customRenderer.apply(name, generatedAt);

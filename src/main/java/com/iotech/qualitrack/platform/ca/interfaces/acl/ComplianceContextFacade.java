@@ -4,13 +4,11 @@ import java.math.BigDecimal;
 
 import com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert;
 import com.iotech.qualitrack.platform.ca.domain.model.entities.ComplianceEvent;
-import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventSubject;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventType;
 import com.iotech.qualitrack.platform.ca.domain.repositories.ComplianceEventRepository;
 import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepository;
 import org.springframework.stereotype.Service;
 
-import java.time.Clock;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -26,21 +24,17 @@ public class ComplianceContextFacade {
 
     private final ComplianceEventRepository complianceEventRepository;
     private final DeviationAlertRepository deviationAlertRepository;
-    private final Clock complianceClock;
 
     /**
      * Creates a new ComplianceContextFacade.
      *
      * @param complianceEventRepository compliance event repository
      * @param deviationAlertRepository deviation alert repository
-     * @param complianceClock clock that dates the compliance events
      */
     public ComplianceContextFacade(ComplianceEventRepository complianceEventRepository,
-                                   DeviationAlertRepository deviationAlertRepository,
-                                   Clock complianceClock) {
+                                   DeviationAlertRepository deviationAlertRepository) {
         this.complianceEventRepository = complianceEventRepository;
         this.deviationAlertRepository = deviationAlertRepository;
-        this.complianceClock = complianceClock;
     }
 
     /**
@@ -107,7 +101,7 @@ public class ComplianceContextFacade {
                 ComplianceEventType.RAW_MATERIAL_LOW_STOCK,
                 "Raw material '%s' from laboratory ID %d is below minimum stock. Current stock: %s, minimum threshold: %s."
                         .formatted(materialName, laboratoryId, currentStock, minimumThreshold),
-                Instant.now(complianceClock).toString(),
+                Instant.now().toString(),
                 null
         ));
     }
@@ -128,7 +122,8 @@ public class ComplianceContextFacade {
         }
 
         return complianceEventRepository.findAllByRelatedEntityId(batchId).stream()
-                .filter(event -> event.getEventType().subject() == ComplianceEventSubject.BATCH)
+                .filter(event -> event.getEventType().subject()
+                        == com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventSubject.BATCH)
                 .noneMatch(event -> !event.isResolved());
     }
 }

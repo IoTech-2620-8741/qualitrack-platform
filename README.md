@@ -65,6 +65,8 @@ mvn test
 
 ### Docker
 
+Copy `.env.example` to `.env` and set its values first.
+
 ```bash
 docker build -t qualitrack-platform .
 docker run -p 8080:8080 --env-file .env qualitrack-platform
@@ -74,7 +76,7 @@ The image runs with `SPRING_PROFILES_ACTIVE=prod`.
 
 ## Configuration
 
-Profiles live in `src/main/resources`: `application.properties` (shared), `application-dev.properties` and `application-prod.properties`.
+Profiles live in `src/main/resources`: `application.properties` (shared), `application-dev.properties` and `application-prod.properties`. `.env.example` lists every variable with an example value.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -107,3 +109,8 @@ Pushes to `main` trigger the workflow in `.github/workflows/deploy.yml`, which r
 - `main`: production
 - `develop`: integration
 - `feature/*`, `hotfix/*`, `release/*`: short-lived branches merged by pull request
+
+## Changelog and license
+
+- [CHANGELOG.md](CHANGELOG.md) lists the changes of every version, following Keep a Changelog.
+- QualiTrack is proprietary software of IoTech; see [LICENSE.md](LICENSE.md).

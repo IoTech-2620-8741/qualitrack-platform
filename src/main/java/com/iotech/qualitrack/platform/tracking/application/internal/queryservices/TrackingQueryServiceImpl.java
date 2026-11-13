@@ -26,6 +26,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+/**
+ * Implementation of the Tracking &amp; Telemetry queries.
+ *
+ * <p>Every query first checks with Equipment Management that the device belongs to the laboratory and environment
+ * of the request; otherwise the result is empty.</p>
+ */
 @Service
 public class TrackingQueryServiceImpl implements TrackingQueryService {
     private final EnvironmentalProfileRepository profileRepository;

@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-13
+
+### Added
+
+- Equipment (equipment) and IAM (iam): an Edge Gateway is registered as equipment of the laboratory with `POST /laboratories/{laboratoryId}/edge-gateways`, located in an environment like any equipment, and receives its API key once from `POST /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key`. The Edge authenticates with its identifier and the `X-API-Key` header, and reads its IoT devices from `GET /edge-gateways/{deviceId}/iot-devices` (#30).
+
+- Tracking & Telemetry (tracking): telemetry, device profiles and actuation results synchronized by an authenticated Edge Gateway (#30).
+
+- Equipment (equipment): an Edge Gateway serves 15 IoT devices at most. The devices of an environment are distributed among its Gateways by identifier, like a queue (20 devices and two Gateways: 15 and 5), without the user linking each device to a Gateway. `GET /laboratories/{laboratoryId}/environments/{environmentId}/edge-gateway-coverage` tells how many devices each Gateway serves and how many are left without one (#31).
+
+- IAM (iam): `GET /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key` tells whether the Gateway already has an API key, without returning it (#31).
+
+- Equipment (equipment): tests for the distribution of devices among Edge Gateways, the device registry read with an API key, the coverage of an environment and the API key status (#31).
+
+- Compliance & Alerting (ca): tests for the lifecycle of a deviation alert and for the commands that create, acknowledge and resolve it (#33).
+
+- Release: the production database keeps `ddl-auto=none`, so the table of the Edge Gateway API keys and the two indexes of the deviation alerts are not created by the platform. **Create them on the production database before this release is deployed** (#34).
+
+### Changed
+
+- Equipment (equipment): `GET /edge-gateways/{deviceId}/iot-devices` answers only the devices the Gateway serves (15 at most) instead of every device of its environment, and reads them with the environment query instead of filtering the laboratory. The response does not change (#31).
+
+- Equipment (equipment): an environment admits several Edge Gateways. Locating a second Gateway in an environment no longer answers 409; the devices beyond the first 15 go to the next Gateway (#31).
+
+- Equipment (equipment): only operational Edge Gateways receive devices. A Gateway in maintenance or out of service serves none, so another operational Gateway of the environment takes its devices, or the coverage counts them without a Gateway (#34).
+
+- Compliance & Alerting (ca): compliance events and alert dates come from the shared clock, the deviation alerts have indexes for the open incident of a device and for the alerts of an environment, and the controllers document their responses in Swagger (#33).
+
+- IAM (iam): the API key and authentication services read the Edge Gateways through `IamExternalEquipmentService`, the anti-corruption service of IAM, instead of the Equipment facade (#34).
+
+- Tracking & Telemetry (tracking): the telemetry, profile and actuation endpoints, those of the Edge Gateway included, document their fields, examples and responses in Swagger, and the tracking classes have Javadoc. The API does not change (#36).
+
+### Fixed
+
+- Tracking & Telemetry (tracking): an Edge Gateway synchronizes telemetry, actuation results and profiles only for the devices it serves; a device of the environment that another Gateway serves is refused with 403 (#34).
+
+- Compliance & Alerting (ca): a deviation event with invalid data is logged and ignored instead of failing the reading Tracking is storing, and a resolution note longer than 500 characters, a variable longer than 100 or a unit longer than 20 are refused (#33).
+
+### Removed
+
+- The Swagger `@Tag` annotations of ten controllers, which the root resource tags always replaced; the Swagger groups do not change (#34).
+
 ## [1.1.0] - 2026-11-09
 
 ### Added

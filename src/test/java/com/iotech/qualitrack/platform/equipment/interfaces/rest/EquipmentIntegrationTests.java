@@ -23,6 +23,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -287,6 +288,184 @@ class EquipmentIntegrationTests {
         long otherEnvironment = environment(plant, "QC-" + suffix());
         assertThat(call("GET", plant.environment(otherEnvironment) + "/devices/" + monitor + "/telemetry-status", token, null)
                 .statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void edgeGatewayReadsOnlyTheFifteenDevicesItServes() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        var gatewayIdentity = "EDGE-" + suffix();
+        long gateway = edgeGateway(plant, gatewayIdentity);
+        var apiKeyPath = "/laboratories/" + plant.lab() + "/edge-gateways/" + gateway + "/api-key";
+        assertThat(call("GET", apiKeyPath, token, null).body()).contains("\"issued\":false");
+        assertThat(call("POST", apiKeyPath, token, null).statusCode()).isEqualTo(409);
+
+        assertThat(call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}").statusCode()).isEqualTo(201);
+        var issued = call("POST", apiKeyPath, token, null);
+        assertThat(issued.statusCode()).withFailMessage(issued.body()).isEqualTo(201);
+        var apiKey = JsonPath.<String>read(issued.body(), "$.apiKey");
+        var status = call("GET", apiKeyPath, token, null);
+        assertThat(status.statusCode()).isEqualTo(200);
+        assertThat(status.body()).contains("\"issued\":true").doesNotContain(apiKey);
+        assertThat(call("GET", apiKeyPath, operatorOf(plant).token(), null).statusCode()).isEqualTo(403);
+        long press = located(plant, plant.storage(), "Tablet press");
+        assertThat(call("GET", "/laboratories/" + plant.lab() + "/edge-gateways/" + press + "/api-key", token, null).statusCode())
+                .isEqualTo(404);
+        assertThat(call("GET", "/laboratories/" + plant.lab() + "/edge-gateways/999999999/api-key", token, null).statusCode())
+                .isEqualTo(403);
+
+        var monitors = containerMonitors(plant, plant.storage(), 20);
+        long otherEnvironment = environment(plant, "QC-" + suffix());
+        containerMonitors(plant, otherEnvironment, 1);
+
+        var served = gatewayDevices(gatewayIdentity, apiKey);
+        assertThat(served.statusCode()).withFailMessage(served.body()).isEqualTo(200);
+        assertThat(JsonPath.<List<Integer>>read(served.body(), "$[*].id"))
+                .containsExactlyInAnyOrderElementsOf(monitors.subList(0, 15).stream().map(Long::intValue).toList());
+        assertThat(JsonPath.<List<Integer>>read(served.body(), "$[*].environmentId")).containsOnly((int) plant.storage());
+        assertThat(gatewayDevices(gatewayIdentity, "not-the-key").statusCode()).isEqualTo(401);
+
+        var coverage = call("GET", storage + "/edge-gateway-coverage", operatorOf(plant).token(), null);
+        assertThat(coverage.statusCode()).withFailMessage(coverage.body()).isEqualTo(200);
+        assertThat(coverage.body()).contains("\"maxDevicesPerGateway\":15").contains("\"deviceCount\":20")
+                .contains("\"uncoveredDeviceCount\":5");
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].equipmentId")).containsExactly((int) gateway);
+        assertThat(JsonPath.<Integer>read(coverage.body(), "$.gateways[0].deviceCount")).isEqualTo(15);
+        assertThat(JsonPath.<String>read(coverage.body(), "$.gateways[0].sensorExternalId")).isEqualTo(gatewayIdentity);
+
+        var uncovered = call("GET", plant.environment(otherEnvironment) + "/edge-gateway-coverage", token, null);
+        assertThat(uncovered.body()).contains("\"deviceCount\":1").contains("\"uncoveredDeviceCount\":1").contains("\"gateways\":[]");
+
+        var foreign = plant();
+        assertThat(call("GET", foreign.environment(foreign.storage()) + "/edge-gateway-coverage", token, null).statusCode())
+                .isEqualTo(403);
+        assertThat(call("GET", "/laboratories/" + foreign.lab() + "/edge-gateways/" + gateway + "/api-key", token, null)
+                .statusCode()).isEqualTo(403);
+    }
+
+    @Test
+    void secondEdgeGatewayOfTheEnvironmentServesTheDevicesLeftByTheFirst() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        var monitors = containerMonitors(plant, plant.storage(), 20).stream().map(Long::intValue).toList();
+        var firstIdentity = "EDGE-" + suffix();
+        var secondIdentity = "EDGE-" + suffix();
+        long first = edgeGateway(plant, firstIdentity);
+        long second = edgeGateway(plant, secondIdentity);
+        for (long gateway : List.of(first, second)) {
+            var assigned = call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}");
+            assertThat(assigned.statusCode()).withFailMessage(assigned.body()).isEqualTo(201);
+        }
+
+        var firstDevices = gatewayDevices(firstIdentity, apiKey(plant, first));
+        var secondDevices = gatewayDevices(secondIdentity, apiKey(plant, second));
+        assertThat(JsonPath.<List<Integer>>read(firstDevices.body(), "$[*].id"))
+                .containsExactlyInAnyOrderElementsOf(monitors.subList(0, 15));
+        assertThat(JsonPath.<List<Integer>>read(secondDevices.body(), "$[*].id"))
+                .containsExactlyInAnyOrderElementsOf(monitors.subList(15, 20));
+
+        var coverage = call("GET", storage + "/edge-gateway-coverage", token, null);
+        assertThat(coverage.body()).contains("\"deviceCount\":20").contains("\"uncoveredDeviceCount\":0");
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].equipmentId"))
+                .containsExactly((int) first, (int) second);
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].deviceCount")).containsExactly(15, 5);
+    }
+
+    @Test
+    void edgeGatewaySynchronizesOnlyTheDevicesItServes() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        var monitors = containerMonitors(plant, plant.storage(), 16);
+        var firstIdentity = "EDGE-" + suffix();
+        var secondIdentity = "EDGE-" + suffix();
+        long first = edgeGateway(plant, firstIdentity);
+        long second = edgeGateway(plant, secondIdentity);
+        for (long gateway : List.of(first, second)) {
+            var assigned = call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}");
+            assertThat(assigned.statusCode()).withFailMessage(assigned.body()).isEqualTo(201);
+        }
+        var firstKey = apiKey(plant, first);
+        var secondKey = apiKey(plant, second);
+        long servedByFirst = monitors.get(0);
+        long servedBySecond = monitors.get(15);
+
+        var own = gatewayMeasurement(firstIdentity, firstKey, servedByFirst);
+        assertThat(own.statusCode()).withFailMessage(own.body()).isEqualTo(201);
+        assertThat(gatewayMeasurement(secondIdentity, secondKey, servedBySecond).statusCode()).isEqualTo(201);
+        // A device of the same environment that the other Gateway serves is refused.
+        assertThat(gatewayMeasurement(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(403);
+        assertThat(gatewayMeasurement(firstIdentity, firstKey, servedBySecond).statusCode()).isEqualTo(403);
+        assertThat(gatewayProfile(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(403);
+
+        // A Gateway out of service serves no device: the next operational one takes its devices.
+        var outOfService = call("POST", storage + "/equipments/" + first + "/status-changes", token,
+                "{\"status\":\"out_of_service\",\"reason\":\"Replaced by another Gateway\"}");
+        assertThat(outOfService.statusCode()).withFailMessage(outOfService.body()).isEqualTo(201);
+        assertThat(gatewayMeasurement(firstIdentity, firstKey, servedByFirst).statusCode()).isEqualTo(401);
+        assertThat(gatewayMeasurement(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(201);
+        var coverage = call("GET", storage + "/edge-gateway-coverage", token, null);
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].equipmentId"))
+                .containsExactly((int) first, (int) second);
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].deviceCount")).containsExactly(0, 15);
+        assertThat(coverage.body()).contains("\"uncoveredDeviceCount\":1");
+    }
+
+    private long edgeGateway(Plant plant, String identity) throws Exception {
+        var registered = call("POST", "/laboratories/" + plant.lab() + "/edge-gateways", plant.manager().token(), """
+                {"name":"Edge Gateway %1$s","sensorExternalId":"%1$s","serialNumber":"RPI-%2$s","model":"Raspberry Pi 4"}
+                """.formatted(identity, suffix()));
+        assertThat(registered.statusCode()).withFailMessage(registered.body()).isEqualTo(201);
+        return id(registered);
+    }
+
+    private String apiKey(Plant plant, long gateway) throws Exception {
+        var issued = call("POST", "/laboratories/" + plant.lab() + "/edge-gateways/" + gateway + "/api-key",
+                plant.manager().token(), null);
+        assertThat(issued.statusCode()).withFailMessage(issued.body()).isEqualTo(201);
+        return JsonPath.read(issued.body(), "$.apiKey");
+    }
+
+    /** Registers container monitors and locates them in the environment; returns their ids in registration order. */
+    private List<Long> containerMonitors(Plant plant, long environmentId, int count) throws Exception {
+        var token = plant.manager().token();
+        var ids = new ArrayList<Long>();
+        for (int number = 1; number <= count; number++) {
+            long monitor = id(call("POST", "/laboratories/" + plant.lab() + "/devices/container-monitors", token,
+                    device("Container monitor " + number, "CNT-" + suffix())));
+            var located = call("POST", plant.environment(environmentId) + "/container-monitors", token,
+                    "{\"deviceId\":" + monitor + "}");
+            assertThat(located.statusCode()).withFailMessage(located.body()).isEqualTo(201);
+            ids.add(monitor);
+        }
+        return ids;
+    }
+
+    /** Reads the device registry the way the Edge does: with the Gateway identity and its API key. */
+    private HttpResponse<String> gatewayDevices(String gatewayIdentity, String apiKey) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
+                + gatewayIdentity + "/iot-devices")).header("X-API-Key", apiKey).GET();
+        return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Sends a reading of a device the way the Edge does: with the Gateway identity and its API key. */
+    private HttpResponse<String> gatewayMeasurement(String gatewayIdentity, String apiKey, long deviceId) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
+                        + gatewayIdentity + "/iot-devices/" + deviceId + "/telemetry-measurements"))
+                .header("X-API-Key", apiKey).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("""
+                        {"metric":"TEMPERATURE","value":5.2,"measuredAt":"%s"}
+                        """.formatted(OffsetDateTime.now())));
+        return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Reads the profile of a device the way the Edge does. */
+    private HttpResponse<String> gatewayProfile(String gatewayIdentity, String apiKey, long deviceId) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
+                + gatewayIdentity + "/iot-devices/" + deviceId + "/environmental-profile")).header("X-API-Key", apiKey).GET();
+        return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
     }
 
     private long located(Plant plant, long environmentId, String name) throws Exception {

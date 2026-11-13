@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Compliance & Alerting (ca): tests for the lifecycle of a deviation alert and for the commands that create, acknowledge and resolve it (#33).
 
-- Release: `docs/migrations/2026-11-13-01-edge-gateway-api-keys.sql` creates the table of the Edge Gateway API keys and the two indexes of the deviation alerts on a database with `ddl-auto=none`. **Run it on the production database before this release is deployed**; it can run more than once (#34).
+- Release: the production database keeps `ddl-auto=none`, so the table of the Edge Gateway API keys and the two indexes of the deviation alerts are not created by the platform. **Create them on the production database before this release is deployed** (#34).
 
 ### Changed
 

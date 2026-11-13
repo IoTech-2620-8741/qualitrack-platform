@@ -50,6 +50,20 @@ public interface EquipmentContextFacade {
     );
 
     /**
+     * Whether an Edge Gateway serves an IoT device of its environment.
+     *
+     * <p>The devices of an environment are distributed among its operational Gateways, 15 at most each, so a Gateway
+     * serves only its share of them, the same devices it reads from its device registry.</p>
+     *
+     * @param laboratoryId the laboratory of the Gateway
+     * @param environmentId the environment where the Gateway is located
+     * @param gatewayEquipmentId the equipment identifier of the Gateway
+     * @param deviceId the device (equipment) identifier
+     * @return true when the device is among the ones the Gateway serves
+     */
+    boolean isServedByEdgeGateway(Long laboratoryId, Long environmentId, Long gatewayEquipmentId, Long deviceId);
+
+    /**
      * Finds an IoT device (environmental device or container monitor) located in an environment.
      *
      * @param laboratoryId the laboratory that must own the device

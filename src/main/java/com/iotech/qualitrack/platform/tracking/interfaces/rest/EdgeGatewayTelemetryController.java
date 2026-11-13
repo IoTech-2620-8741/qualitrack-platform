@@ -145,6 +145,9 @@ public class EdgeGatewayTelemetryController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -161,14 +164,15 @@ public class EdgeGatewayTelemetryController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        // Verify that the IoT device belongs to this Gateway environment.
+        // Verify that the IoT device is one of the devices this Gateway serves in its environment.
         var device = equipmentService.findDevice(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (device.isEmpty()) {
+        if (device.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -291,6 +295,9 @@ public class EdgeGatewayTelemetryController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -308,14 +315,15 @@ public class EdgeGatewayTelemetryController {
         }
 
         // Verify that the target is a container monitor
-        // belonging to the authenticated Gateway's environment.
+        // that the authenticated Gateway serves in its environment.
         var containerMonitor = equipmentService.findContainerMonitor(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (containerMonitor.isEmpty()) {
+        if (containerMonitor.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

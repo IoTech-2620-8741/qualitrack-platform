@@ -5,10 +5,12 @@ import com.iotech.qualitrack.platform.equipment.application.queryservices.Equipm
 import com.iotech.qualitrack.platform.equipment.application.queryservices.MaintenanceQueryService;
 import com.iotech.qualitrack.platform.equipment.domain.model.aggregates.Equipment;
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetBpmParameterConfigsByEquipmentIdQuery;
+import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByEnvironmentIdQuery;
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByIdQuery;
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByLabIdQuery;
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetMaintenanceByEquipmentIdQuery;
 import com.iotech.qualitrack.platform.equipment.domain.model.valueobjects.IotDeviceType;
+import com.iotech.qualitrack.platform.equipment.domain.services.EdgeGatewayAllocation;
 import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
 import com.iotech.qualitrack.platform.equipment.domain.model.queries.GetEquipmentByDeviceIdQuery;
 import org.springframework.stereotype.Service;
@@ -88,6 +90,22 @@ public class EquipmentContextFacadeImpl implements EquipmentContextFacade {
         return equipmentQueryService.handle(new GetEquipmentByDeviceIdQuery(sensorExternalId))
                 .filter(EquipmentContextFacadeImpl::isEdgeGateway)
                 .map(EquipmentContextFacadeImpl::toEdgeGatewayReference);
+    }
+
+    /**
+     * Tells whether a device is among the share of its environment that the distribution gives to a Gateway, the
+     * same share the Gateway reads from its device registry.
+     */
+    @Override
+    public boolean isServedByEdgeGateway(Long laboratoryId, Long environmentId, Long gatewayEquipmentId,
+                                         Long deviceId) {
+        if (laboratoryId == null || environmentId == null || gatewayEquipmentId == null || deviceId == null) {
+            return false;
+        }
+        var environmentEquipment = equipmentQueryService.handle(
+                new GetEquipmentByEnvironmentIdQuery(laboratoryId, environmentId, false)).orElseGet(List::of);
+        return EdgeGatewayAllocation.ofEnvironment(environmentEquipment).deviceIdsOf(gatewayEquipmentId)
+                .contains(deviceId);
     }
 
     /**

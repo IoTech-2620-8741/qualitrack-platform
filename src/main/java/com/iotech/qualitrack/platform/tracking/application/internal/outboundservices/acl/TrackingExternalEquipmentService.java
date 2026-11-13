@@ -41,6 +41,15 @@ public class TrackingExternalEquipmentService {
         return findDevice(laboratoryId, environmentId, deviceId).filter(MonitoredDevice::isContainerMonitor);
     }
 
+    /**
+     * Whether an Edge Gateway serves a device of its environment: a Gateway synchronizes only its share of the
+     * devices, the same ones it reads from its device registry.
+     */
+    public boolean isServedByEdgeGateway(Long laboratoryId, Long environmentId, Long gatewayEquipmentId,
+                                         Long deviceId) {
+        return equipmentContextFacade.isServedByEdgeGateway(laboratoryId, environmentId, gatewayEquipmentId, deviceId);
+    }
+
     private static MonitoredDevice toMonitoredDevice(EquipmentContextFacade.DeviceReference device) {
         return new MonitoredDevice(device.id(), device.deviceType());
     }

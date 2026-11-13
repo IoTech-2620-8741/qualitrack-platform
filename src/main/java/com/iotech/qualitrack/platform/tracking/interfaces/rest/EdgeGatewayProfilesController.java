@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +30,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @RestController
 @RequestMapping(value = "/api/v1/edge-gateways", produces = APPLICATION_JSON_VALUE)
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(name = "Edge Gateway Profiles", description = "Environmental configuration synchronization for Edge Gateways")
 public class EdgeGatewayProfilesController {
 
     private final TrackingQueryService trackingQueryService;

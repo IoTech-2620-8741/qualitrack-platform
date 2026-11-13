@@ -19,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
@@ -51,10 +50,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         produces = APPLICATION_JSON_VALUE
 )
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(
-        name = "Edge Gateway Telemetry",
-        description = "Telemetry synchronization from authenticated Edge Gateways"
-)
 public class EdgeGatewayTelemetryController {
 
     private final TrackingCommandService trackingCommandService;

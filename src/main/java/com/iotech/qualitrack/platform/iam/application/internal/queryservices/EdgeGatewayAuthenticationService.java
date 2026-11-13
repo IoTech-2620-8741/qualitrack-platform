@@ -1,8 +1,9 @@
 package com.iotech.qualitrack.platform.iam.application.internal.queryservices;
 
-import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
+import com.iotech.qualitrack.platform.iam.application.internal.outboundservices.acl.IamExternalEquipmentService;
 import com.iotech.qualitrack.platform.iam.application.internal.outboundservices.credentials.EdgeGatewayApiKeyStore;
 import com.iotech.qualitrack.platform.iam.application.internal.outboundservices.hashing.HashingService;
+import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.EdgeGatewayIdentity;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,16 +21,16 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class EdgeGatewayAuthenticationService {
 
-    private final EquipmentContextFacade equipmentFacade;
+    private final IamExternalEquipmentService equipmentService;
     private final EdgeGatewayApiKeyStore apiKeyStore;
     private final HashingService hashingService;
 
     public EdgeGatewayAuthenticationService(
-            EquipmentContextFacade equipmentFacade,
+            IamExternalEquipmentService equipmentService,
             EdgeGatewayApiKeyStore apiKeyStore,
             HashingService hashingService) {
 
-        this.equipmentFacade = equipmentFacade;
+        this.equipmentService = equipmentService;
         this.apiKeyStore = apiKeyStore;
         this.hashingService = hashingService;
     }
@@ -54,11 +55,8 @@ public class EdgeGatewayAuthenticationService {
             return Optional.empty();
         }
 
-        return equipmentFacade.findEdgeGatewayByExternalId(deviceId)
-                .filter(gateway ->
-                        gateway.isOperational()
-                                && gateway.isAssigned()
-                )
+        return equipmentService.findEdgeGatewayByExternalId(deviceId)
+                .filter(EdgeGatewayIdentity::canConnect)
                 .flatMap(gateway ->
                         apiKeyStore.findApiKeyHashByEquipmentId(
                                         gateway.equipmentId()

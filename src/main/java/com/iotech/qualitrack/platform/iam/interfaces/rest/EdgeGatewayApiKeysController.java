@@ -10,7 +10,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -37,11 +36,6 @@ import org.springframework.web.bind.annotation.RestController;
 @PreAuthorize(
         "@tenantAccess.allows('laboratoryId', #laboratoryId) "
                 + "and hasAnyAuthority('ROLE_QA_MANAGER', 'ROLE_ADMIN')"
-)
-@Tag(
-        name = "Edge Gateway API Keys",
-        description = "Provisioning of authentication credentials "
-                + "for Edge Gateways"
 )
 public class EdgeGatewayApiKeysController {
 

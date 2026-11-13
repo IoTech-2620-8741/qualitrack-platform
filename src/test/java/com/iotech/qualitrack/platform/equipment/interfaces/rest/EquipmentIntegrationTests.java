@@ -373,6 +373,46 @@ class EquipmentIntegrationTests {
         assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].deviceCount")).containsExactly(15, 5);
     }
 
+    @Test
+    void edgeGatewaySynchronizesOnlyTheDevicesItServes() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        var monitors = containerMonitors(plant, plant.storage(), 16);
+        var firstIdentity = "EDGE-" + suffix();
+        var secondIdentity = "EDGE-" + suffix();
+        long first = edgeGateway(plant, firstIdentity);
+        long second = edgeGateway(plant, secondIdentity);
+        for (long gateway : List.of(first, second)) {
+            var assigned = call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}");
+            assertThat(assigned.statusCode()).withFailMessage(assigned.body()).isEqualTo(201);
+        }
+        var firstKey = apiKey(plant, first);
+        var secondKey = apiKey(plant, second);
+        long servedByFirst = monitors.get(0);
+        long servedBySecond = monitors.get(15);
+
+        var own = gatewayMeasurement(firstIdentity, firstKey, servedByFirst);
+        assertThat(own.statusCode()).withFailMessage(own.body()).isEqualTo(201);
+        assertThat(gatewayMeasurement(secondIdentity, secondKey, servedBySecond).statusCode()).isEqualTo(201);
+        // A device of the same environment that the other Gateway serves is refused.
+        assertThat(gatewayMeasurement(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(403);
+        assertThat(gatewayMeasurement(firstIdentity, firstKey, servedBySecond).statusCode()).isEqualTo(403);
+        assertThat(gatewayProfile(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(403);
+
+        // A Gateway out of service serves no device: the next operational one takes its devices.
+        var outOfService = call("POST", storage + "/equipments/" + first + "/status-changes", token,
+                "{\"status\":\"out_of_service\",\"reason\":\"Replaced by another Gateway\"}");
+        assertThat(outOfService.statusCode()).withFailMessage(outOfService.body()).isEqualTo(201);
+        assertThat(gatewayMeasurement(firstIdentity, firstKey, servedByFirst).statusCode()).isEqualTo(401);
+        assertThat(gatewayMeasurement(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(201);
+        var coverage = call("GET", storage + "/edge-gateway-coverage", token, null);
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].equipmentId"))
+                .containsExactly((int) first, (int) second);
+        assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].deviceCount")).containsExactly(0, 15);
+        assertThat(coverage.body()).contains("\"uncoveredDeviceCount\":1");
+    }
+
     private long edgeGateway(Plant plant, String identity) throws Exception {
         var registered = call("POST", "/laboratories/" + plant.lab() + "/edge-gateways", plant.manager().token(), """
                 {"name":"Edge Gateway %1$s","sensorExternalId":"%1$s","serialNumber":"RPI-%2$s","model":"Raspberry Pi 4"}
@@ -407,6 +447,24 @@ class EquipmentIntegrationTests {
     private HttpResponse<String> gatewayDevices(String gatewayIdentity, String apiKey) throws Exception {
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
                 + gatewayIdentity + "/iot-devices")).header("X-API-Key", apiKey).GET();
+        return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Sends a reading of a device the way the Edge does: with the Gateway identity and its API key. */
+    private HttpResponse<String> gatewayMeasurement(String gatewayIdentity, String apiKey, long deviceId) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
+                        + gatewayIdentity + "/iot-devices/" + deviceId + "/telemetry-measurements"))
+                .header("X-API-Key", apiKey).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("""
+                        {"metric":"TEMPERATURE","value":5.2,"measuredAt":"%s"}
+                        """.formatted(OffsetDateTime.now())));
+        return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** Reads the profile of a device the way the Edge does. */
+    private HttpResponse<String> gatewayProfile(String gatewayIdentity, String apiKey, long deviceId) throws Exception {
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
+                + gatewayIdentity + "/iot-devices/" + deviceId + "/environmental-profile")).header("X-API-Key", apiKey).GET();
         return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
     }
 

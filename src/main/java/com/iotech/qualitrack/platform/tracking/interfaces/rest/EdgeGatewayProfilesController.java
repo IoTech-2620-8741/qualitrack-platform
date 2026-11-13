@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,12 +31,11 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  *
  * <p>The Gateway authenticates with its API key ({@code X-API-Key}) and gets the {@code ROLE_EDGE_GATEWAY}
  * authority. The laboratory and environment are obtained from the authenticated Gateway, never from user-supplied
- * parameters, so a Gateway can only read the profiles of the devices of its own environment.</p>
+ * parameters, so a Gateway can only read the profiles of the devices it serves in its own environment.</p>
  */
 @RestController
 @RequestMapping(value = "/api/v1/edge-gateways", produces = APPLICATION_JSON_VALUE)
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(name = "Edge Gateway Profiles", description = "Environmental configuration synchronization for Edge Gateways")
 public class EdgeGatewayProfilesController {
 
     private final TrackingQueryService trackingQueryService;
@@ -60,10 +58,11 @@ public class EdgeGatewayProfilesController {
      * @param gatewayId external Gateway identifier
      * @param iotDeviceId numeric Equipment identifier
      * @param authenticatedGatewayId authenticated Gateway identifier
+     * @param gatewayEquipmentId Equipment identifier of the authenticated Gateway
      * @param laboratoryId authenticated laboratory
      * @param environmentId authenticated environment
      * @return 200 with the profile, 404 when no profile exists, or 403 when the Gateway in the path is not the
-     *         authenticated one, it has no current assignment or the device is not located in its environment
+     *         authenticated one, it has no current assignment or it does not serve the device in its environment
      */
     @GetMapping("/{gatewayId}/iot-devices/{iotDeviceId}/environmental-profile")
     @Operation(summary = "Get IoT environmental profile",
@@ -96,6 +95,9 @@ public class EdgeGatewayProfilesController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -109,13 +111,15 @@ public class EdgeGatewayProfilesController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        // Only the profile of a device this Gateway serves in its environment.
         var device = equipmentService.findDevice(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (device.isEmpty()) {
+        if (device.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

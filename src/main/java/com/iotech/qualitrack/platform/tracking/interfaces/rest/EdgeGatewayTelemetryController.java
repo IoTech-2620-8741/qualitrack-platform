@@ -19,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
@@ -40,7 +39,8 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
  *
  * <p>The Gateway authenticates with its API key ({@code X-API-Key}) and gets the {@code ROLE_EDGE_GATEWAY}
  * authority. The laboratory and environment come from the authenticated Gateway, never from the request, and are
- * used to check that the IoT device is located in that environment; otherwise the request is rejected with 403.</p>
+ * used to check that the IoT device is located in that environment and served by that Gateway; otherwise the
+ * request is rejected with 403.</p>
  *
  * <p>The records are processed through the same Tracking command service used by the laboratory endpoints,
  * preserving validation, idempotency and environmental threshold evaluation.</p>
@@ -51,10 +51,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         produces = APPLICATION_JSON_VALUE
 )
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(
-        name = "Edge Gateway Telemetry",
-        description = "Telemetry synchronization from authenticated Edge Gateways"
-)
 public class EdgeGatewayTelemetryController {
 
     private final TrackingCommandService trackingCommandService;
@@ -71,8 +67,8 @@ public class EdgeGatewayTelemetryController {
     /**
      * Records a measurement sent by an authenticated Gateway.
      *
-     * <p>The Gateway can only report measurements for IoT devices
-     * currently assigned to its laboratory and environment.</p>
+     * <p>The Gateway can only report measurements for the IoT devices
+     * it serves in its current laboratory and environment.</p>
      *
      * <p>The external Gateway ID must match the authenticated
      * principal. Environmental readings use the environment's
@@ -82,6 +78,7 @@ public class EdgeGatewayTelemetryController {
      * @param gatewayId Gateway external identifier from the URL
      * @param iotDeviceId numeric Equipment identifier of the ESP32
      * @param authenticatedGatewayId authenticated Gateway identifier
+     * @param gatewayEquipmentId Equipment identifier of the authenticated Gateway
      * @param laboratoryId laboratory from Gateway authentication
      * @param environmentId environment from Gateway authentication
      * @param resource measurement received from Edge Service
@@ -150,6 +147,9 @@ public class EdgeGatewayTelemetryController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -166,14 +166,15 @@ public class EdgeGatewayTelemetryController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        // Verify that the IoT device belongs to this Gateway environment.
+        // Verify that the IoT device is one of the devices this Gateway serves in its environment.
         var device = equipmentService.findDevice(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (device.isEmpty()) {
+        if (device.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -221,7 +222,7 @@ public class EdgeGatewayTelemetryController {
     /**
      * Records an actuation event reported by an authenticated Edge Gateway.
      *
-     * <p>Only container monitors assigned to the Gateway's current
+     * <p>Only the container monitors the Gateway serves in its current
      * laboratory and environment are allowed to report events.</p>
      *
      * <p>Delegates event persistence and idempotency to the existing
@@ -230,6 +231,7 @@ public class EdgeGatewayTelemetryController {
      * @param gatewayId external Gateway identifier
      * @param iotDeviceId container monitor Equipment identifier
      * @param authenticatedGatewayId authenticated Gateway identifier
+     * @param gatewayEquipmentId Equipment identifier of the authenticated Gateway
      * @param laboratoryId laboratory obtained from Gateway authentication
      * @param environmentId environment obtained from Gateway authentication
      * @param resource actuation event request
@@ -296,6 +298,9 @@ public class EdgeGatewayTelemetryController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -313,14 +318,15 @@ public class EdgeGatewayTelemetryController {
         }
 
         // Verify that the target is a container monitor
-        // belonging to the authenticated Gateway's environment.
+        // that the authenticated Gateway serves in its environment.
         var containerMonitor = equipmentService.findContainerMonitor(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (containerMonitor.isEmpty()) {
+        if (containerMonitor.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

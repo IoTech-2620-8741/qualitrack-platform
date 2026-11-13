@@ -34,6 +34,16 @@ package "iam.domain.model.valueobjects" {
     + active: boolean
   }
 
+  class EdgeGatewayIdentity <<record>> {
+    + equipmentId: Long
+    + laboratoryId: Long
+    + environmentId: Long
+    + sensorExternalId: String
+    + operational: boolean
+    + isLocated(): boolean
+    + canConnect(): boolean
+  }
+
   class UserOnboarding <<record>> {
     + userId: Long
     + laboratoryId: Long
@@ -352,6 +362,10 @@ package "iam.application.internal.commandservices" {
   class UserCommandServiceImpl
   class RoleCommandServiceImpl
   class PasswordRecoveryCommandServiceImpl
+  class EdgeGatewayApiKeyService {
+    + provision(laboratoryId: Long, equipmentId: Long): IssuedApiKey
+    + isProvisioned(laboratoryId: Long, equipmentId: Long): boolean
+  }
 }
 
 UserCommandServiceImpl ..|> UserCommandService
@@ -369,6 +383,11 @@ package "iam.application.internal.outboundservices.credentials" {
   }
   interface RecoveryCodeGenerator {
     + generate(): String
+  }
+  interface EdgeGatewayApiKeyStore {
+    + existsByEquipmentId(equipmentId: Long): boolean
+    + findApiKeyHashByEquipmentId(equipmentId: Long): Optional<String>
+    + create(equipmentId: Long, apiKeyHash: String): void
   }
 }
 
@@ -430,15 +449,26 @@ package "iam.application.internal.queryservices" {
   class UserQueryServiceImpl
   class RoleQueryServiceImpl
   class UserOnboardingQueryServiceImpl
+  class EdgeGatewayAuthenticationService {
+    + authenticate(deviceId: String, apiKey: String): Optional<AuthenticatedGateway>
+  }
 }
 
 package "subscription.interfaces.acl" <<External>> {
   class SubscriptionContextFacade
 }
 
+package "equipment.interfaces.acl" <<External>> {
+  class EquipmentContextFacade
+}
+
 package "iam.application.internal.outboundservices.acl" {
   class IamExternalSubscriptionService {
     + findSubscription(userId: Long, laboratoryId: Long): AccountSubscription
+  }
+  class IamExternalEquipmentService {
+    + findEdgeGateway(laboratoryId: Long, equipmentId: Long): Optional<EdgeGatewayIdentity>
+    + findEdgeGatewayByExternalId(sensorExternalId: String): Optional<EdgeGatewayIdentity>
   }
 }
 
@@ -580,6 +610,7 @@ UserDetailsServiceImpl ..> UserDetailsImpl
 
 package "iam.infrastructure.authorization.sfs.pipeline" {
   class BearerAuthorizationRequestFilter
+  class EdgeGatewayApiKeyAuthenticationFilter
   class UnauthorizedRequestHandlerEntryPoint
 }
 
@@ -617,6 +648,10 @@ WebSecurityConfiguration --> ForbiddenRequestHandler
 WebSecurityConfiguration --> ReadOnlyAuditorAuthorizationManager
 
 package "iam.infrastructure.persistence.jpa.entities" {
+  class EdgeGatewayApiKeyPersistenceEntity {
+    - equipmentId: Long
+    - apiKeyHash: String
+  }
   class UserPersistenceEntity {
     - username: String
     - email: String
@@ -651,6 +686,7 @@ UserPersistenceEntity "*" -- "*" RolePersistenceEntity
 RolePersistenceEntity --> Roles
 
 package "iam.infrastructure.persistence.jpa.repositories" {
+  interface EdgeGatewayApiKeyPersistenceRepository
   interface UserPersistenceRepository {
     + findByUsername(username: String): Optional<UserPersistenceEntity>
     + existsByUsername(username: String): boolean
@@ -690,6 +726,7 @@ RolePersistenceAssembler ..> Role
 RolePersistenceAssembler ..> RolePersistenceEntity
 
 package "iam.infrastructure.persistence.jpa.adapters" {
+  class EdgeGatewayApiKeyStoreImpl
   class UserRepositoryImpl
   class RoleRepositoryImpl
   class PasswordRecoveryRepositoryImpl
@@ -718,6 +755,8 @@ RolesPersistenceConverter ..> Roles
 UserStatusPersistenceConverter ..> UserStatus
 
 package "iam.interfaces.rest.resources" {
+  class EdgeGatewayApiKeyStatusResource <<record>>
+  class IssuedEdgeGatewayApiKeyResource <<record>>
   class SignInResource <<record>>
   class SignUpResource <<record>>
   class AuthenticatedUserResource <<record>>
@@ -764,6 +803,7 @@ RoleResourceFromEntityAssembler ..> Role
 RoleResourceFromEntityAssembler ..> RoleResource
 
 package "iam.interfaces.rest" {
+  class EdgeGatewayApiKeysController
   class AuthenticationController
   class PasswordRecoveryController
   class UsersController
@@ -812,5 +852,32 @@ UsersController ..> ResponseEntityAssembler
 
 RolesController --> RoleQueryService
 RolesController ..> RoleResourceFromEntityAssembler
+
+EdgeGatewayApiKeyService --> IamExternalEquipmentService
+EdgeGatewayApiKeyService --> EdgeGatewayApiKeyStore
+EdgeGatewayApiKeyService --> HashingService
+EdgeGatewayAuthenticationService --> IamExternalEquipmentService
+EdgeGatewayAuthenticationService --> EdgeGatewayApiKeyStore
+EdgeGatewayAuthenticationService --> HashingService
+IamExternalEquipmentService --> EquipmentContextFacade
+IamExternalEquipmentService ..> EdgeGatewayIdentity
+EdgeGatewayApiKeyStoreImpl ..|> EdgeGatewayApiKeyStore
+EdgeGatewayApiKeyStoreImpl --> EdgeGatewayApiKeyPersistenceRepository
+EdgeGatewayApiKeyPersistenceRepository ..> EdgeGatewayApiKeyPersistenceEntity
+EdgeGatewayApiKeyAuthenticationFilter --> EdgeGatewayAuthenticationService
+WebSecurityConfiguration ..> EdgeGatewayApiKeyAuthenticationFilter : edge-gateways chain
+EdgeGatewayApiKeysController --> EdgeGatewayApiKeyService
+EdgeGatewayApiKeysController ..> EdgeGatewayApiKeyStatusResource
+EdgeGatewayApiKeysController ..> IssuedEdgeGatewayApiKeyResource
+note bottom of EdgeGatewayApiKeyService
+  POST /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key: a quality
+  manager issues the key of an operational, located Gateway once (32 random bytes);
+  only its BCrypt hash is kept. GET of the same path tells whether it was issued.
+end note
+note bottom of EdgeGatewayApiKeyAuthenticationFilter
+  /api/v1/edge-gateways/{deviceId}/** has its own stateless chain: the Gateway signs with
+  its identifier in the path and the X-API-Key header, gets ROLE_EDGE_GATEWAY, and any
+  other route of the chain is denied. The JWT, onboarding and tenant checks do not apply.
+end note
 
 @enduml

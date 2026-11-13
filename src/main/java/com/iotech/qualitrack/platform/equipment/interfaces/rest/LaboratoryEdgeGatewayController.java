@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
@@ -36,7 +35,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @RestController
 @RequestMapping(value = "/api/v1/laboratories/{laboratoryId}/edge-gateways", produces = APPLICATION_JSON_VALUE)
 @PreAuthorize("@tenantAccess.allows('laboratoryId', #laboratoryId) " + "and hasAnyAuthority('ROLE_QA_MANAGER', 'ROLE_ADMIN')")
-@Tag(name = "Edge Gateways", description = "Registration of Edge Gateways within laboratories")
 public class LaboratoryEdgeGatewayController {
 
     private final EquipmentCommandService equipmentCommandService;

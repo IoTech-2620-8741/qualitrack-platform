@@ -257,6 +257,12 @@ package "equipment.domain.services" {
 }
 
 EdgeGatewayAllocation ..> Equipment : distributes IoT devices\namong Edge Gateways
+note bottom of EdgeGatewayAllocation
+  Only operational Gateways receive devices: a Gateway in maintenance or out of
+  service cannot connect, so its devices go to the next operational one or are
+  left without a Gateway. The device registry of the Edge and the tracking
+  endpoints of the Edge accept only the share of the Gateway.
+end note
 
 package "equipment.domain.repositories" {
   interface EquipmentRepository {
@@ -385,6 +391,7 @@ package "equipment.interfaces.acl" {
     + findEquipmentLog(laboratoryId, environmentId, equipmentId): Optional<EquipmentLogReference>
     + findEdgeGateway(laboratoryId, equipmentId): Optional<EdgeGatewayReference>
     + findEdgeGatewayByExternalId(sensorExternalId): Optional<EdgeGatewayReference>
+    + isServedByEdgeGateway(laboratoryId, environmentId, gatewayEquipmentId, deviceId): boolean
   }
   class EdgeGatewayReference <<record>>
   class EquipmentReference <<record>>

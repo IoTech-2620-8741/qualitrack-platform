@@ -26,6 +26,7 @@ package "equipment.interfaces.acl" <<External>> {
   interface EquipmentContextFacade {
     + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
+    + isServedByEdgeGateway(laboratoryId, environmentId, gatewayEquipmentId, deviceId): boolean
   }
 }
 
@@ -451,6 +452,7 @@ package "tracking.application.internal.outboundservices.acl" {
     + findDevice(laboratoryId, environmentId, deviceId): Optional<MonitoredDevice>
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<MonitoredDevice>
     + findContainerMonitor(laboratoryId, environmentId, deviceId): Optional<MonitoredDevice>
+    + isServedByEdgeGateway(laboratoryId, environmentId, gatewayEquipmentId, deviceId): boolean
   }
 }
 
@@ -670,6 +672,17 @@ package "tracking.interfaces.rest" {
   class EdgeGatewayProfilesController
 }
 
+EdgeGatewayTelemetryController --> TrackingCommandService
+EdgeGatewayTelemetryController --> TrackingExternalEquipmentService
+EdgeGatewayProfilesController --> TrackingQueryService
+EdgeGatewayProfilesController --> TrackingExternalEquipmentService
+note bottom of EdgeGatewayTelemetryController
+  POST /edge-gateways/{gatewayId}/iot-devices/{iotDeviceId}/telemetry-measurements
+  and .../actuation-events, GET .../environmental-profile: an Edge Gateway signed
+  with its API key (ROLE_EDGE_GATEWAY) synchronizes only the devices it serves in
+  its environment; any other device is refused with 403.
+end note
+
 EnvironmentTelemetryController --> TrackingCommandService
 EnvironmentTelemetryController --> TrackingQueryService
 EnvironmentTelemetryController ..> EnvironmentalProfileCommandFromResourceAssembler
@@ -716,28 +729,11 @@ note bottom of DeviceTrackingController
   GET /environmental-profile   (TS57, profile synchronized by the Edge)
 end note
 
-EdgeGatewayTelemetryController --> TrackingCommandService
-EdgeGatewayTelemetryController --> TrackingExternalEquipmentService
 EdgeGatewayTelemetryController ..> RecordMeasurementCommandFromResourceAssembler
 EdgeGatewayTelemetryController ..> MeasurementResourceFromEntityAssembler
 EdgeGatewayTelemetryController ..> RecordActuationEventCommandFromResourceAssembler
 EdgeGatewayTelemetryController ..> ActuationEventResourceFromEntityAssembler
 EdgeGatewayTelemetryController ..> TelemetryResponseAssembler
-note bottom of EdgeGatewayTelemetryController
-  /api/v1/edge-gateways/{gatewayId}/iot-devices/{iotDeviceId}
-  POST /telemetry-measurements   (TS54, TS55)
-  POST /actuation-events         (TS56, container monitors only)
-  ROLE_EDGE_GATEWAY (X-API-Key); laboratory and environment come from
-  the authenticated Gateway; a device outside its environment gets 403.
-end note
-
-EdgeGatewayProfilesController --> TrackingQueryService
-EdgeGatewayProfilesController --> TrackingExternalEquipmentService
 EdgeGatewayProfilesController ..> EnvironmentalProfileResourceFromEntityAssembler
-note bottom of EdgeGatewayProfilesController
-  /api/v1/edge-gateways/{gatewayId}/iot-devices/{iotDeviceId}
-  GET /environmental-profile   (TS57, 404 if not configured)
-  ROLE_EDGE_GATEWAY (X-API-Key)
-end note
 
 @enduml

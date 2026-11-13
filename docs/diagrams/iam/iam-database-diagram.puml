@@ -49,4 +49,19 @@ iam_users ||--o{ iam_user_roles : user_id
 iam_users ||--o{ iam_password_recoveries : user_id
 iam_roles ||--o{ iam_user_roles : role_id
 
+entity "iam_edge_gateway_api_keys" {
+  * id : BIGINT PK
+  --
+  created_at : DATETIME NOT NULL
+  updated_at : DATETIME NOT NULL
+  equipment_id : BIGINT NOT NULL UNIQUE
+  api_key_hash : VARCHAR(255) NOT NULL
+}
+note bottom of iam_edge_gateway_api_keys
+  One API key per Edge Gateway; equipment_id is the equipment of Equipment
+  Management (no foreign key across bounded contexts). Only the BCrypt hash
+  is stored. Created on the deployed database by
+  docs/migrations/2026-11-13-01-edge-gateway-api-keys.sql.
+end note
+
 @enduml

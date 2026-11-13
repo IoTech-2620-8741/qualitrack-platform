@@ -36,14 +36,14 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * REST controller for telemetry sent by authenticated Edge Gateways.
+ * REST controller for the readings and actions sent by authenticated Edge Gateways (TS54, TS55, TS56).
  *
- * <p>Uses the Gateway's authenticated laboratory and environment
- * to authorize IoT device measurements.</p>
+ * <p>The Gateway authenticates with its API key ({@code X-API-Key}) and gets the {@code ROLE_EDGE_GATEWAY}
+ * authority. The laboratory and environment come from the authenticated Gateway, never from the request, and are
+ * used to check that the IoT device is located in that environment; otherwise the request is rejected with 403.</p>
  *
- * <p>The measurements are processed through the existing Tracking
- * command service, preserving validation, idempotency and
- * environmental threshold evaluation.</p>
+ * <p>The records are processed through the same Tracking command service used by the laboratory endpoints,
+ * preserving validation, idempotency and environmental threshold evaluation.</p>
  */
 @RestController
 @RequestMapping(

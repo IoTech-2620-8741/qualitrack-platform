@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-13
+
 ### Added
 
 - Equipment (equipment) and IAM (iam): an Edge Gateway is registered as equipment of the laboratory with `POST /laboratories/{laboratoryId}/edge-gateways`, located in an environment like any equipment, and receives its API key once from `POST /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key`. The Edge authenticates with its identifier and the `X-API-Key` header, and reads its IoT devices from `GET /edge-gateways/{deviceId}/iot-devices` (#30).

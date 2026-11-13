@@ -418,6 +418,7 @@ TrackingCommandServiceImpl --> MeasurementRepository
 TrackingCommandServiceImpl --> ActuationEventRepository
 TrackingCommandServiceImpl --> ApplicationEventPublisher
 TrackingCommandServiceImpl --> Clock
+TrackingCommandServiceImpl --> CurrentUser : user that changes a profile
 TrackingCommandServiceImpl ..> MeasurementRecordedEvent
 TrackingCommandServiceImpl ..> EnvironmentalDeviationDetectedEvent
 TrackingCommandServiceImpl ..> EnvironmentalConditionNormalizedEvent : WARNING/CRITICAL -> NORMAL
@@ -684,7 +685,6 @@ end note
 
 EnvironmentTelemetryController --> TrackingCommandService
 EnvironmentTelemetryController --> TrackingQueryService
-EnvironmentTelemetryController ..> CurrentUser
 EnvironmentTelemetryController ..> EnvironmentalProfileCommandFromResourceAssembler
 EnvironmentTelemetryController ..> EnvironmentalProfileResourceFromEntityAssembler
 EnvironmentTelemetryController ..> RecordMeasurementCommandFromResourceAssembler
@@ -700,7 +700,6 @@ end note
 
 ContainerMonitorTelemetryController --> TrackingCommandService
 ContainerMonitorTelemetryController --> TrackingQueryService
-ContainerMonitorTelemetryController ..> CurrentUser
 ContainerMonitorTelemetryController ..> EnvironmentalProfileCommandFromResourceAssembler
 ContainerMonitorTelemetryController ..> EnvironmentalProfileResourceFromEntityAssembler
 ContainerMonitorTelemetryController ..> RecordMeasurementCommandFromResourceAssembler
@@ -729,5 +728,12 @@ note bottom of DeviceTrackingController
   GET /telemetry-status        (TS41)
   GET /environmental-profile   (TS57, profile synchronized by the Edge)
 end note
+
+EdgeGatewayTelemetryController ..> RecordMeasurementCommandFromResourceAssembler
+EdgeGatewayTelemetryController ..> MeasurementResourceFromEntityAssembler
+EdgeGatewayTelemetryController ..> RecordActuationEventCommandFromResourceAssembler
+EdgeGatewayTelemetryController ..> ActuationEventResourceFromEntityAssembler
+EdgeGatewayTelemetryController ..> TelemetryResponseAssembler
+EdgeGatewayProfilesController ..> EnvironmentalProfileResourceFromEntityAssembler
 
 @enduml

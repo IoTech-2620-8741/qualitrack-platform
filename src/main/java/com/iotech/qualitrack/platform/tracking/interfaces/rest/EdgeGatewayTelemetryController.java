@@ -35,14 +35,15 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * REST controller for telemetry sent by authenticated Edge Gateways.
+ * REST controller for the readings and actions sent by authenticated Edge Gateways (TS54, TS55, TS56).
  *
- * <p>Uses the Gateway's authenticated laboratory and environment
- * to authorize IoT device measurements.</p>
+ * <p>The Gateway authenticates with its API key ({@code X-API-Key}) and gets the {@code ROLE_EDGE_GATEWAY}
+ * authority. The laboratory and environment come from the authenticated Gateway, never from the request, and are
+ * used to check that the IoT device is located in that environment and served by that Gateway; otherwise the
+ * request is rejected with 403.</p>
  *
- * <p>The measurements are processed through the existing Tracking
- * command service, preserving validation, idempotency and
- * environmental threshold evaluation.</p>
+ * <p>The records are processed through the same Tracking command service used by the laboratory endpoints,
+ * preserving validation, idempotency and environmental threshold evaluation.</p>
  */
 @RestController
 @RequestMapping(
@@ -66,8 +67,8 @@ public class EdgeGatewayTelemetryController {
     /**
      * Records a measurement sent by an authenticated Gateway.
      *
-     * <p>The Gateway can only report measurements for IoT devices
-     * currently assigned to its laboratory and environment.</p>
+     * <p>The Gateway can only report measurements for the IoT devices
+     * it serves in its current laboratory and environment.</p>
      *
      * <p>The external Gateway ID must match the authenticated
      * principal. Environmental readings use the environment's
@@ -77,6 +78,7 @@ public class EdgeGatewayTelemetryController {
      * @param gatewayId Gateway external identifier from the URL
      * @param iotDeviceId numeric Equipment identifier of the ESP32
      * @param authenticatedGatewayId authenticated Gateway identifier
+     * @param gatewayEquipmentId Equipment identifier of the authenticated Gateway
      * @param laboratoryId laboratory from Gateway authentication
      * @param environmentId environment from Gateway authentication
      * @param resource measurement received from Edge Service
@@ -220,7 +222,7 @@ public class EdgeGatewayTelemetryController {
     /**
      * Records an actuation event reported by an authenticated Edge Gateway.
      *
-     * <p>Only container monitors assigned to the Gateway's current
+     * <p>Only the container monitors the Gateway serves in its current
      * laboratory and environment are allowed to report events.</p>
      *
      * <p>Delegates event persistence and idempotency to the existing
@@ -229,6 +231,7 @@ public class EdgeGatewayTelemetryController {
      * @param gatewayId external Gateway identifier
      * @param iotDeviceId container monitor Equipment identifier
      * @param authenticatedGatewayId authenticated Gateway identifier
+     * @param gatewayEquipmentId Equipment identifier of the authenticated Gateway
      * @param laboratoryId laboratory obtained from Gateway authentication
      * @param environmentId environment obtained from Gateway authentication
      * @param resource actuation event request

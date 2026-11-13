@@ -3,12 +3,16 @@ package com.iotech.qualitrack.platform.tracking.interfaces.rest;
 import com.iotech.qualitrack.platform.tracking.application.queryservices.TrackingQueryService;
 import com.iotech.qualitrack.platform.tracking.application.internal.outboundservices.acl.TrackingExternalEquipmentService;
 import com.iotech.qualitrack.platform.tracking.domain.model.queries.GetDeviceProfileQuery;
+import com.iotech.qualitrack.platform.tracking.interfaces.rest.resources.EnvironmentalProfileResource;
 import com.iotech.qualitrack.platform.tracking.interfaces.rest.transform.EnvironmentalProfileResourceFromEntityAssembler;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
@@ -23,10 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * Exposes IoT environmental profiles to authenticated Edge Gateways.
+ * Exposes IoT environmental profiles to authenticated Edge Gateways, so the Edge applies the same thresholds and
+ * actuation rules the platform uses (TS57).
  *
- * <p>The laboratory and environment are obtained from the
- * authenticated Gateway, never from user-supplied parameters.</p>
+ * <p>The Gateway authenticates with its API key ({@code X-API-Key}) and gets the {@code ROLE_EDGE_GATEWAY}
+ * authority. The laboratory and environment are obtained from the authenticated Gateway, never from user-supplied
+ * parameters, so a Gateway can only read the profiles of the devices of its own environment.</p>
  */
 @RestController
 @RequestMapping(value = "/api/v1/edge-gateways", produces = APPLICATION_JSON_VALUE)
@@ -56,8 +62,8 @@ public class EdgeGatewayProfilesController {
      * @param authenticatedGatewayId authenticated Gateway identifier
      * @param laboratoryId authenticated laboratory
      * @param environmentId authenticated environment
-     * @return 200 with the profile, 404 when no profile exists,
-     *         or 403 when the device does not belong to the Gateway
+     * @return 200 with the profile, 404 when no profile exists, or 403 when the Gateway in the path is not the
+     *         authenticated one, it has no current assignment or the device is not located in its environment
      */
     @GetMapping("/{gatewayId}/iot-devices/{iotDeviceId}/environmental-profile")
     @Operation(summary = "Get IoT environmental profile",
@@ -76,6 +82,13 @@ public class EdgeGatewayProfilesController {
                 )
             }
     )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Profile in force for the device",
+                    content = @Content(schema = @Schema(implementation = EnvironmentalProfileResource.class))),
+            @ApiResponse(responseCode = "401", description = "Missing or invalid Gateway API key"),
+            @ApiResponse(responseCode = "403", description = "Gateway cannot read the profile of this IoT device"),
+            @ApiResponse(responseCode = "404", description = "The device has no profile yet")
+    })
     public ResponseEntity<?> getProfile(
             @PathVariable String gatewayId,
             @PathVariable Long iotDeviceId,

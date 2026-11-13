@@ -26,6 +26,7 @@ package "equipment.interfaces.acl" <<External>> {
   interface EquipmentContextFacade {
     + findDevice(laboratoryId, environmentId, deviceId): Optional<DeviceReference>
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<DeviceReference>
+    + isServedByEdgeGateway(laboratoryId, environmentId, gatewayEquipmentId, deviceId): boolean
   }
 }
 
@@ -450,6 +451,7 @@ package "tracking.application.internal.outboundservices.acl" {
     + findDevice(laboratoryId, environmentId, deviceId): Optional<MonitoredDevice>
     + findEnvironmentalDevice(laboratoryId, environmentId): Optional<MonitoredDevice>
     + findContainerMonitor(laboratoryId, environmentId, deviceId): Optional<MonitoredDevice>
+    + isServedByEdgeGateway(laboratoryId, environmentId, gatewayEquipmentId, deviceId): boolean
   }
 }
 
@@ -665,7 +667,20 @@ package "tracking.interfaces.rest" {
   class EnvironmentTelemetryController
   class ContainerMonitorTelemetryController
   class DeviceTrackingController
+  class EdgeGatewayTelemetryController
+  class EdgeGatewayProfilesController
 }
+
+EdgeGatewayTelemetryController --> TrackingCommandService
+EdgeGatewayTelemetryController --> TrackingExternalEquipmentService
+EdgeGatewayProfilesController --> TrackingQueryService
+EdgeGatewayProfilesController --> TrackingExternalEquipmentService
+note bottom of EdgeGatewayTelemetryController
+  POST /edge-gateways/{gatewayId}/iot-devices/{iotDeviceId}/telemetry-measurements
+  and .../actuation-events, GET .../environmental-profile: an Edge Gateway signed
+  with its API key (ROLE_EDGE_GATEWAY) synchronizes only the devices it serves in
+  its environment; any other device is refused with 403.
+end note
 
 EnvironmentTelemetryController --> TrackingCommandService
 EnvironmentTelemetryController --> TrackingQueryService

@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +31,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         value = "/api/v1/users/me/notification-preferences",
         produces = APPLICATION_JSON_VALUE
 )
-@Tag(name = "Notification Preferences", description = "How and from which severity the authenticated user is notified")
 public class NotificationPreferenceController {
 
     private final CaCommandService caCommandService;

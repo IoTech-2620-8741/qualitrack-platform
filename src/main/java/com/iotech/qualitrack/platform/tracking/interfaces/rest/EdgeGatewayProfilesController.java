@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +30,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @RestController
 @RequestMapping(value = "/api/v1/edge-gateways", produces = APPLICATION_JSON_VALUE)
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(name = "Edge Gateway Profiles", description = "Environmental configuration synchronization for Edge Gateways")
 public class EdgeGatewayProfilesController {
 
     private final TrackingQueryService trackingQueryService;
@@ -83,6 +81,9 @@ public class EdgeGatewayProfilesController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -96,13 +97,15 @@ public class EdgeGatewayProfilesController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        // Only the profile of a device this Gateway serves in its environment.
         var device = equipmentService.findDevice(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (device.isEmpty()) {
+        if (device.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

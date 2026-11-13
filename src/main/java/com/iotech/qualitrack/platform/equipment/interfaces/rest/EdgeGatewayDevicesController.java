@@ -14,7 +14,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,10 +48,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         produces = APPLICATION_JSON_VALUE
 )
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(
-        name = "Edge Gateway Device Registry",
-        description = "IoT devices assigned to authenticated Edge Gateways"
-)
 public class EdgeGatewayDevicesController {
 
     private final EquipmentQueryService equipmentQueryService;

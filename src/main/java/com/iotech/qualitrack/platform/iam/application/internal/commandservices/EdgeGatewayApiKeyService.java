@@ -1,6 +1,6 @@
 package com.iotech.qualitrack.platform.iam.application.internal.commandservices;
 
-import com.iotech.qualitrack.platform.equipment.interfaces.acl.EquipmentContextFacade;
+import com.iotech.qualitrack.platform.iam.application.internal.outboundservices.acl.IamExternalEquipmentService;
 import com.iotech.qualitrack.platform.iam.application.internal.outboundservices.credentials.EdgeGatewayApiKeyStore;
 import com.iotech.qualitrack.platform.iam.application.internal.outboundservices.hashing.HashingService;
 import com.iotech.qualitrack.platform.shared.application.result.ApplicationError;
@@ -18,7 +18,7 @@ import java.util.Base64;
  * API keys for registered Edge Gateways.
  *
  * <p>Verifies gateway eligibility through the Equipment
- * facade and delegates API key persistence to IAM.</p>
+ * ACL service and delegates API key persistence to IAM.</p>
  *
  * <p>Generated API keys are returned once. Only their
  * BCrypt hashes are stored.</p>
@@ -30,16 +30,16 @@ public class EdgeGatewayApiKeyService {
 
     private static final int API_KEY_SIZE_BYTES = 32;
 
-    private final EquipmentContextFacade equipmentFacade;
+    private final IamExternalEquipmentService equipmentService;
     private final EdgeGatewayApiKeyStore apiKeyStore;
     private final HashingService hashingService;
 
     public EdgeGatewayApiKeyService(
-            EquipmentContextFacade equipmentFacade,
+            IamExternalEquipmentService equipmentService,
             EdgeGatewayApiKeyStore apiKeyStore,
             HashingService hashingService) {
 
-        this.equipmentFacade = equipmentFacade;
+        this.equipmentService = equipmentService;
         this.apiKeyStore = apiKeyStore;
         this.hashingService = hashingService;
     }
@@ -65,7 +65,7 @@ public class EdgeGatewayApiKeyService {
             Long laboratoryId,
             Long equipmentId) {
 
-        var gateway = equipmentFacade.findEdgeGateway(
+        var gateway = equipmentService.findEdgeGateway(
                 laboratoryId,
                 equipmentId
         ).orElseThrow(() -> new ApplicationException(
@@ -75,7 +75,7 @@ public class EdgeGatewayApiKeyService {
                 )
         ));
 
-        if (!gateway.isOperational() || !gateway.isAssigned()) {
+        if (!gateway.canConnect()) {
             throw new ApplicationException(
                     ApplicationError.conflict(
                             "EdgeGateway",
@@ -132,7 +132,7 @@ public class EdgeGatewayApiKeyService {
             Long laboratoryId,
             Long equipmentId) {
 
-        var gateway = equipmentFacade.findEdgeGateway(
+        var gateway = equipmentService.findEdgeGateway(
                 laboratoryId,
                 equipmentId
         ).orElseThrow(() -> new ApplicationException(

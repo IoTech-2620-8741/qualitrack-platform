@@ -19,7 +19,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
 
 import jakarta.validation.Valid;
 
@@ -51,10 +50,6 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
         produces = APPLICATION_JSON_VALUE
 )
 @PreAuthorize("hasAuthority('ROLE_EDGE_GATEWAY')")
-@Tag(
-        name = "Edge Gateway Telemetry",
-        description = "Telemetry synchronization from authenticated Edge Gateways"
-)
 public class EdgeGatewayTelemetryController {
 
     private final TrackingCommandService trackingCommandService;
@@ -150,6 +145,9 @@ public class EdgeGatewayTelemetryController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -166,14 +164,15 @@ public class EdgeGatewayTelemetryController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        // Verify that the IoT device belongs to this Gateway environment.
+        // Verify that the IoT device is one of the devices this Gateway serves in its environment.
         var device = equipmentService.findDevice(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (device.isEmpty()) {
+        if (device.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -296,6 +295,9 @@ public class EdgeGatewayTelemetryController {
             @AuthenticationPrincipal(expression = "deviceId()")
             String authenticatedGatewayId,
 
+            @AuthenticationPrincipal(expression = "equipmentId()")
+            Long gatewayEquipmentId,
+
             @AuthenticationPrincipal(expression = "laboratoryId()")
             Long laboratoryId,
 
@@ -313,14 +315,15 @@ public class EdgeGatewayTelemetryController {
         }
 
         // Verify that the target is a container monitor
-        // belonging to the authenticated Gateway's environment.
+        // that the authenticated Gateway serves in its environment.
         var containerMonitor = equipmentService.findContainerMonitor(
                 laboratoryId,
                 environmentId,
                 iotDeviceId
         );
 
-        if (containerMonitor.isEmpty()) {
+        if (containerMonitor.isEmpty() || !equipmentService.isServedByEdgeGateway(
+                laboratoryId, environmentId, gatewayEquipmentId, iotDeviceId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 

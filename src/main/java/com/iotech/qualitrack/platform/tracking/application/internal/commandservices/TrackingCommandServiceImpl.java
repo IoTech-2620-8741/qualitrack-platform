@@ -46,7 +46,7 @@ import java.util.function.Consumer;
 @Service
 public class TrackingCommandServiceImpl implements TrackingCommandService {
     /**
-     * Clock difference tolerated between the devices and the platform.
+     * Clock difference tolerated between the devices and the platform; later moments are rejected as future.
      */
     private static final Duration CLOCK_TOLERANCE = Duration.ofMinutes(5);
 
@@ -189,6 +189,11 @@ public class TrackingCommandServiceImpl implements TrackingCommandService {
         }
     }
 
+    /**
+     * Current profile of a container monitor, or a new empty one when it has none yet.
+     *
+     * @return empty when the device is not a container monitor located in the environment
+     */
     private Optional<EnvironmentalProfile> containerMonitorProfile(Long laboratoryId, Long environmentId, Long deviceId) {
         return externalEquipmentService.findContainerMonitor(laboratoryId, environmentId, deviceId)
                 .map(MonitoredDevice::id)
@@ -196,6 +201,11 @@ public class TrackingCommandServiceImpl implements TrackingCommandService {
                         .orElseGet(() -> EnvironmentalProfile.forContainerMonitor(laboratoryId, id)));
     }
 
+    /**
+     * Applies a change to a profile, saves it and publishes {@link EnvironmentalProfileUpdatedEvent}.
+     *
+     * @return the saved profile, or a validation error with the message of the rule the change broke
+     */
     private Result<EnvironmentalProfile, ApplicationError> change(EnvironmentalProfile profile,
                                                                  Consumer<EnvironmentalProfile> change) {
         try {
@@ -210,6 +220,9 @@ public class TrackingCommandServiceImpl implements TrackingCommandService {
         return Result.success(saved);
     }
 
+    /**
+     * Whether a moment reported by a device is later than now plus the clock tolerance.
+     */
     private boolean isFuture(Instant moment) {
         return moment.isAfter(clock.instant().plus(CLOCK_TOLERANCE));
     }

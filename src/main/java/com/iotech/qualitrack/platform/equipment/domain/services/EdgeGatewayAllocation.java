@@ -1,6 +1,7 @@
 package com.iotech.qualitrack.platform.equipment.domain.services;
 
 import com.iotech.qualitrack.platform.equipment.domain.model.aggregates.Equipment;
+import com.iotech.qualitrack.platform.equipment.domain.model.valueobjects.EquipmentStatus;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -49,16 +50,20 @@ public record EdgeGatewayAllocation(Map<Long, List<Long>> deviceIdsByGatewayId, 
     }
 
     /**
-     * Distributes the IoT devices located in an environment among the Edge Gateways located in it.
+     * Distributes the IoT devices located in an environment among the operational Edge Gateways located in it.
      *
      * <p>Ordinary equipment is ignored, and so are the devices without an external identifier, which the Edge
-     * cannot recognize.</p>
+     * cannot recognize. A Gateway in maintenance or out of service cannot connect, so it serves no device: its
+     * devices go to the next operational Gateway, or are left without one.</p>
      *
      * @param environmentEquipment everything located in one environment
-     * @return the devices of each Gateway and the devices without one
+     * @return the devices of each operational Gateway and the devices without one
      */
     public static EdgeGatewayAllocation ofEnvironment(Collection<Equipment> environmentEquipment) {
-        return of(environmentEquipment.stream().filter(Equipment::isEdgeGateway).map(Equipment::getId).toList(),
+        return of(environmentEquipment.stream()
+                        .filter(equipment -> equipment.isEdgeGateway()
+                                && equipment.getStatus() == EquipmentStatus.OPERATIONAL)
+                        .map(Equipment::getId).toList(),
                 environmentEquipment.stream()
                         .filter(equipment -> equipment.isIotDevice() && equipment.getSensorExternalId() != null)
                         .map(Equipment::getId).toList());

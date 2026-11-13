@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - IAM (iam): the API key and authentication services read the Edge Gateways through `IamExternalEquipmentService`, the anti-corruption service of IAM, instead of the Equipment facade (#34).
 
+- Tracking & Telemetry (tracking): the telemetry, profile and actuation endpoints, those of the Edge Gateway included, document their fields, examples and responses in Swagger, and the tracking classes have Javadoc. The API does not change (#36).
+
 ### Fixed
 
 - Tracking & Telemetry (tracking): an Edge Gateway synchronizes telemetry, actuation results and profiles only for the devices it serves; a device of the environment that another Gateway serves is refused with 403 (#34).

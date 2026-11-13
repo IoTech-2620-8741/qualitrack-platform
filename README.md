@@ -104,8 +104,6 @@ CORS is applied by `WebSecurityConfiguration` and reads its origins from `applic
 
 Pushes to `main` trigger the workflow in `.github/workflows/deploy.yml`, which runs the tests, builds the Docker image, pushes it to Azure Container Registry and updates the Azure Container App.
 
-The production profile does not change the database schema (`spring.jpa.hibernate.ddl-auto=none`). When a release adds tables, columns or indexes, its script in [docs/migrations](docs/migrations) runs on the production database before the release reaches `main`; every script can run more than once.
-
 ## Branching
 
 - `main`: production

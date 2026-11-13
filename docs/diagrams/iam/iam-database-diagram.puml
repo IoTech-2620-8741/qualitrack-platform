@@ -60,8 +60,8 @@ entity "iam_edge_gateway_api_keys" {
 note bottom of iam_edge_gateway_api_keys
   One API key per Edge Gateway; equipment_id is the equipment of Equipment
   Management (no foreign key across bounded contexts). Only the BCrypt hash
-  is stored. Created on the deployed database by
-  docs/migrations/2026-11-13-01-edge-gateway-api-keys.sql.
+  is stored. The deployed database (ddl-auto=none) needs it created
+  before the release that brings Edge Gateways.
 end note
 
 @enduml

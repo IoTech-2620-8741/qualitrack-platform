@@ -70,6 +70,10 @@ public class RaExternalLaboratoryService {
                 .map(staff -> java.util.Optional.ofNullable(staff.userId()));
     }
 
+    /**
+     * Maps a Laboratory ACL environment reference to RA's {@link ReportEnvironment}
+     * value object, keeping the ACL boundary explicit.
+     */
     private static ReportEnvironment toReportEnvironment(LaboratoryContextFacade.EnvironmentReference environment) {
         return new ReportEnvironment(environment.id(), environment.code(), environment.name());
     }

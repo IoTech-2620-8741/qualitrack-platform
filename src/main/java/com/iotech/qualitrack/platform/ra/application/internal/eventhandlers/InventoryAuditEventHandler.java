@@ -25,6 +25,14 @@ public class InventoryAuditEventHandler {
         this.currentUser = currentUser;
     }
 
+    /**
+     * Records a creation or update of a raw material in the catalogue.
+     *
+     * <p>The event carries a {@code created} flag; it is mapped to
+     * {@link AuditAction#REGISTER} on creation and {@link AuditAction#UPDATE} otherwise,
+     * so a single handler covers both cases while preserving the correct semantic action
+     * in the audit trail.
+     */
     @EventListener(RawMaterialSavedIntegrationEvent.class)
     public void on(RawMaterialSavedIntegrationEvent event) {
         log.info("RA received raw material saved event: {}", event);
@@ -32,6 +40,15 @@ public class InventoryAuditEventHandler {
                 event.rawMaterialId(), currentUser.userId(), event.toString()));
     }
 
+    /**
+     * Records receipts and reviews of raw-material lots.
+     *
+     * <p>Consumption movements are intentionally ignored here: they are audited by the
+     * Batch context as raw-material usages of the product batch, so auditing them here
+     * would duplicate the fact in the audit trail. Other movement types are audited
+     * under {@code RAW_MATERIAL_BATCH}, with {@link AuditAction#REGISTER} for receipts
+     * and {@link AuditAction#UPDATE} for reviews.
+     */
     @EventListener(InventoryMovementRecordedIntegrationEvent.class)
     public void on(InventoryMovementRecordedIntegrationEvent event) {
         if ("CONSUMPTION".equals(event.type())) return;

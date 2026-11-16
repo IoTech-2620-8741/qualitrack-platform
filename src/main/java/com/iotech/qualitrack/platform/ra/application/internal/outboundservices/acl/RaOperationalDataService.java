@@ -52,6 +52,11 @@ public class RaOperationalDataService {
                         item.status(), item.resolutionNotes())).toList();
     }
 
+    /**
+     * Assembles the batch report snapshot. Traceability short-circuits redundant queries:
+     * materials fall back to {@code findMaterialUses} when traceability is absent,
+     * while equipment/staff default to empty lists to avoid extra calls.
+     */
     public BatchReportData batchReport(BatchContextFacade.BatchReference batch, List<BatchReportData.Deviation> deviations,
             boolean includeDeviations, Optional<BatchContextFacade.TraceabilityReference> traceability,
             String generatedBy, Instant generatedAt) {
@@ -79,10 +84,15 @@ public class RaOperationalDataService {
                 includeDeviations ? deviations : List.of(), generatedBy, generatedAt);
     }
 
+    /** Formats a BigDecimal quantity without trailing zeros; null is preserved (not turned into 0). */
     private static String quantity(BigDecimal value) {
         return value == null ? null : value.stripTrailingZeros().toPlainString();
     }
 
+    /**
+     * Assembles the equipment report snapshot. Maintenance entries are filtered to the
+     * [from, to] window and sorted chronologically, as are audit entries.
+     */
     public EquipmentReportData equipmentReport(EquipmentContextFacade.EquipmentLogReference device, String from, String to,
             List<AuditLogEntry> recordedEntries, String generatedBy, Instant generatedAt) {
         var start = LocalDate.parse(from.substring(0, 10));
@@ -104,6 +114,10 @@ public class RaOperationalDataService {
                 parameters, interventions, entries, generatedBy, generatedAt);
     }
 
+    /**
+     * Assembles the equipment report snapshot. Maintenance entries are filtered to the
+     * [from, to] window and sorted chronologically, as are audit entries.
+     */
     public KpiDashboard dashboard(Long laboratoryId) {
         var devices = equipment.equipmentIds(laboratoryId);
         var lots = batches.findBatches(laboratoryId);
@@ -125,6 +139,7 @@ public class RaOperationalDataService {
         return new KpiDashboard(null, laboratoryId, recordedAt, null, List.copyOf(metrics));
     }
 
+    /** Builds a "count" metric with no target and UNKNOWN status. */
     private KpiMetric count(String name, long value, String at) {
         return new KpiMetric(null, name, (double) value, "count", null, KpiMetricStatus.UNKNOWN, at);
     }

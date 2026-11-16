@@ -32,6 +32,10 @@ public class LaboratoryAuditEventHandler {
         this.auditLogCommandService = auditLogCommandService;
     }
 
+    /**
+     * Records the registration of a laboratory.
+     * Maps to {@link AuditAction#REGISTER} on the {@code LABORATORY} aggregate.
+     */
     @EventListener(LaboratoryRegisteredIntegrationEvent.class)
     public void on(LaboratoryRegisteredIntegrationEvent event) {
         log.info("RA received laboratory registered event: {}", event);
@@ -45,6 +49,15 @@ public class LaboratoryAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the creation of a raw material in the laboratory catalogue.
+     * Maps to {@link AuditAction#REGISTER} on the {@code RAW_MATERIAL} aggregate.
+     *
+     * <p>Note: this event covers creation only. For updates to an existing raw material,
+     * the Inventory context publishes {@code RawMaterialSavedIntegrationEvent}, which is
+     * consumed separately by {@code InventoryAuditEventHandler}. Both handlers intentionally
+     * target the same aggregate type.
+     */
     @EventListener(RawMaterialCreatedIntegrationEvent.class)
     public void on(RawMaterialCreatedIntegrationEvent event) {
         log.info("RA received raw material created event: {}", event);
@@ -58,6 +71,10 @@ public class LaboratoryAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the registration of a staff member.
+     * Maps to {@link AuditAction#REGISTER} on the {@code STAFF_MEMBER} aggregate.
+     */
     @EventListener(StaffRegisteredIntegrationEvent.class)
     public void on(StaffRegisteredIntegrationEvent event) {
         log.info("RA received staff registered event: {}", event);
@@ -71,6 +88,10 @@ public class LaboratoryAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the deactivation of a staff member.
+     * Maps to {@link AuditAction#UPDATE} on the {@code STAFF_MEMBER} aggregate.
+     */
     @EventListener(StaffDeactivatedIntegrationEvent.class)
     public void on(StaffDeactivatedIntegrationEvent event) {
         log.info("RA received staff deactivated event: {}", event);
@@ -83,6 +104,14 @@ public class LaboratoryAuditEventHandler {
                 event.toString()
         ));
     }
+
+    /**
+     * Records a low-stock notification for a raw material.
+     *
+     * <p>Mapped to {@link AuditAction#UPDATE} on the {@code RAW_MATERIAL} aggregate because
+     * the notification reflects a change of operational state, not a new catalogue entry.
+     * May fire multiple times for the same material if it crosses the threshold repeatedly.
+     */
 
     @EventListener(RawMaterialLowStockIntegrationEvent.class)
     public void on(RawMaterialLowStockIntegrationEvent event) {
@@ -97,6 +126,10 @@ public class LaboratoryAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the registration of an environment within the laboratory.
+     * Maps to {@link AuditAction#REGISTER} on the {@code ENVIRONMENT} aggregate.
+     */
     @EventListener(EnvironmentRegisteredIntegrationEvent.class)
     public void on(EnvironmentRegisteredIntegrationEvent event) {
         log.info("RA received environment registered event: {}", event);
@@ -110,6 +143,10 @@ public class LaboratoryAuditEventHandler {
         ));
     }
 
+    /**
+     * Records an update to an environment (name, capacity, type, etc.).
+     * Maps to {@link AuditAction#UPDATE} on the {@code ENVIRONMENT} aggregate.
+     */
     @EventListener(EnvironmentUpdatedIntegrationEvent.class)
     public void on(EnvironmentUpdatedIntegrationEvent event) {
         log.info("RA received environment updated event: {}", event);
@@ -123,6 +160,15 @@ public class LaboratoryAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the assignment of a usage to an environment.
+     *
+     * <p>Unlike the other handlers in this class, the actor is taken from the event payload
+     * ({@code assignedBy}) rather than the security context. Usage assignments can be
+     * triggered by background reconfigurations where the HTTP security context is not
+     * available; the event payload is the reliable source of the actor in that case.
+     * Maps to {@link AuditAction#UPDATE} on the {@code ENVIRONMENT} aggregate.
+     */
     @EventListener(EnvironmentUsageAssignedIntegrationEvent.class)
     public void on(EnvironmentUsageAssignedIntegrationEvent event) {
         log.info("RA received environment usage assigned event: {}", event);

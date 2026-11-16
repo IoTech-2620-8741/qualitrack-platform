@@ -29,6 +29,10 @@ public class CaAuditEventHandler {
         this.auditLogCommandService = auditLogCommandService;
     }
 
+    /**
+     * Records the creation of a deviation alert.
+     * Maps to {@link AuditAction#REGISTER} on the {@code DEVIATION_ALERT} aggregate.
+     */
     @EventListener(DeviationAlertCreatedIntegrationEvent.class)
     public void on(DeviationAlertCreatedIntegrationEvent event) {
         log.info("RA received deviation alert created event: {}", event);
@@ -42,6 +46,10 @@ public class CaAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the escalation of a deviation alert.
+     * Maps to {@link AuditAction#UPDATE} on {@code DEVIATION_ALERT}.
+     */
     @EventListener(DeviationAlertEscalatedIntegrationEvent.class)
     public void on(DeviationAlertEscalatedIntegrationEvent event) {
         log.info("RA received deviation alert escalated event: {}", event);
@@ -55,6 +63,10 @@ public class CaAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the acknowledgment of a deviation alert.
+     * Maps to {@link AuditAction#UPDATE} on {@code DEVIATION_ALERT}.
+     */
     @EventListener(DeviationAlertAcknowledgedIntegrationEvent.class)
     public void on(DeviationAlertAcknowledgedIntegrationEvent event) {
         log.info("RA received deviation alert acknowledged event: {}", event);
@@ -68,6 +80,10 @@ public class CaAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the acknowledgment of a deviation alert.
+     * Maps to {@link AuditAction#UPDATE} on {@code DEVIATION_ALERT}.
+     */
     @EventListener(DeviationAlertResolvedIntegrationEvent.class)
     public void on(DeviationAlertResolvedIntegrationEvent event) {
         log.info("RA received deviation alert resolved event: {}", event);
@@ -81,6 +97,12 @@ public class CaAuditEventHandler {
         ));
     }
 
+    /**
+     * Records the update of a user's notification preferences.
+     * Audited on its own {@code NOTIFICATION_PREFERENCE} aggregate (identified by
+     * {@code preferenceId}) so preference changes remain traceable independently of
+     * the alert lifecycle.
+     */
     @EventListener(NotificationPreferenceUpdatedIntegrationEvent.class)
     public void on(NotificationPreferenceUpdatedIntegrationEvent event) {
         log.info("RA received notification preference updated event: {}", event);

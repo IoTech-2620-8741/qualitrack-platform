@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-15
+
+### Changed
+
+- Reporting & Audit (ra): the controllers, services, event handlers, PDF renderers and persistence classes have Javadoc. The API does not change (#40).
+
 ## [1.2.0] - 2026-11-13
 
 ### Added

@@ -4,36 +4,38 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Quantity reported by an IoT device of a laboratory.
  *
- * <p>The environmental device of an environment reports the air quality and the motion detected in the zone; a
- * container monitor reports the temperature, humidity and luminosity inside the container and the RFID tag it reads.
+ * <p>The environmental device of an environment reports the air quality, the luminosity and the motion detected in the
+ * zone; a container monitor reports the temperature, humidity and luminosity inside the container and the RFID tag it
+ * reads.
  * Each metric has a fixed unit so that the configured thresholds and the measurements are always comparable.</p>
  */
 public enum MonitoredMetric {
     /** Air quality of the environment in parts per million; a higher value means worse air. */
-    AIR_QUALITY("ppm", DeviceKind.ENVIRONMENTAL_DEVICE, Reading.NUMERIC),
+    AIR_QUALITY("ppm", Reading.NUMERIC, DeviceKind.ENVIRONMENTAL_DEVICE),
     /** Motion detected by the environmental device: 1 when detected, 0 when the zone is quiet again. */
-    MOTION("event", DeviceKind.ENVIRONMENTAL_DEVICE, Reading.DETECTION),
+    MOTION("event", Reading.DETECTION, DeviceKind.ENVIRONMENTAL_DEVICE),
     /** Temperature inside the container in degrees Celsius. */
-    TEMPERATURE("°C", DeviceKind.CONTAINER_MONITOR, Reading.NUMERIC),
+    TEMPERATURE("°C", Reading.NUMERIC, DeviceKind.CONTAINER_MONITOR),
     /** Relative humidity in percent. */
-    HUMIDITY("%RH", DeviceKind.CONTAINER_MONITOR, Reading.NUMERIC),
-    /** Light inside the container in lux. */
-    LUMINOSITY("lux", DeviceKind.CONTAINER_MONITOR, Reading.NUMERIC),
+    HUMIDITY("%RH", Reading.NUMERIC, DeviceKind.CONTAINER_MONITOR),
+    /** Light of the environment or inside the container, in lux; the only metric both types of device report. */
+    LUMINOSITY("lux", Reading.NUMERIC, DeviceKind.ENVIRONMENTAL_DEVICE, DeviceKind.CONTAINER_MONITOR),
     /** Identifier of the RFID tag read on the container. */
-    RFID_TAG("tag", DeviceKind.CONTAINER_MONITOR, Reading.TEXT);
+    RFID_TAG("tag", Reading.TEXT, DeviceKind.CONTAINER_MONITOR);
 
     private final String unit;
-    private final DeviceKind deviceKind;
     private final Reading reading;
+    private final Set<DeviceKind> deviceKinds;
 
-    MonitoredMetric(String unit, DeviceKind deviceKind, Reading reading) {
+    MonitoredMetric(String unit, Reading reading, DeviceKind... deviceKinds) {
         this.unit = unit;
-        this.deviceKind = deviceKind;
         this.reading = reading;
+        this.deviceKinds = Set.of(deviceKinds);
     }
 
     /**
@@ -69,7 +71,7 @@ public enum MonitoredMetric {
      * Whether the device type (as named by Equipment Management) reports this metric.
      */
     public boolean isReportedBy(String deviceType) {
-        return deviceKind.name().equals(deviceType);
+        return deviceKinds.stream().anyMatch(kind -> kind.name().equals(deviceType));
     }
 
     /**

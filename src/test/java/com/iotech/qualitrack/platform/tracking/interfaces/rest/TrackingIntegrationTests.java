@@ -235,6 +235,42 @@ class TrackingIntegrationTests {
     }
 
     @Test
+    void theEnvironmentalDeviceReportsLuminosity() throws Exception {
+        var lab = laboratory();
+        var token = lab.manager().token();
+        var readings = lab.environmentPath() + "/telemetry-measurements";
+        var start = Instant.now().minus(5, ChronoUnit.MINUTES).truncatedTo(ChronoUnit.SECONDS);
+
+        var lit = call("POST", readings, token, reading("LUMINOSITY", 300.0, start));
+        assertThat(lit.statusCode()).withFailMessage(lit.body()).isEqualTo(201);
+        assertThat(lit.body()).contains("\"unit\":\"lux\"").contains("\"state\":null");
+        var again = call("POST", readings, token, reading("LUMINOSITY", 300.0, start));
+        assertThat(again.statusCode()).isEqualTo(200);
+        assertThat(id(again)).isEqualTo(id(lit));
+        var dark = call("POST", readings, token, reading("LUMINOSITY", 0.0, start.plusSeconds(60)));
+        assertThat(dark.statusCode()).withFailMessage(dark.body()).isEqualTo(201);
+        assertThat(dark.body()).contains("\"value\":0.0");
+        assertThat(call("POST", readings, token, reading("TEMPERATURE", 20.0, start)).statusCode()).isEqualTo(400);
+        assertThat(call("POST", readings, token, reading("HUMIDITY", 50.0, start)).statusCode()).isEqualTo(400);
+
+        // The container monitor keeps its own luminosity, even at the same moment.
+        var container = call("POST", lab.container() + "/telemetry-measurements", token, reading("LUMINOSITY", 120.0, start));
+        assertThat(container.statusCode()).withFailMessage(container.body()).isEqualTo(201);
+        assertThat(id(container)).isNotEqualTo(id(lit));
+        var history = call("GET", readings + "?metric=LUMINOSITY", token, null);
+        assertThat(JsonPath.<List<Double>>read(history.body(), "$[*].value")).containsExactly(300.0, 0.0);
+
+        var thresholds = call("PUT", lab.environmentPath() + "/environmental-profile/thresholds", token, """
+                {"thresholds":[{"metric":"LUMINOSITY","normalMax":500,"criticalMax":1000}]}
+                """);
+        assertThat(thresholds.statusCode()).withFailMessage(thresholds.body()).isEqualTo(200);
+        var bright = call("POST", readings, token, reading("LUMINOSITY", 1200.0, start.plusSeconds(120)));
+        assertThat(bright.body()).contains("\"state\":\"CRITICAL\"").contains("\"thresholdValue\":1000.0");
+        var alerts = call("GET", lab.environmentPath() + "/deviation-alerts?deviceId=" + lab.spaceMonitor(), token, null);
+        assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].origin")).containsExactly("ENVIRONMENT");
+    }
+
+    @Test
     void containerMonitorsReportTheActionsTheyExecuted() throws Exception {
         var lab = laboratory();
         var token = lab.manager().token();
@@ -263,8 +299,14 @@ class TrackingIntegrationTests {
                 {"action":"FAN_ON","occurredAt":"%s"}
                 """.formatted(start)).statusCode()).isEqualTo(400);
 
+        var byLuminosity = call("POST", events, token, """
+                {"action":"SERVO_OPEN","triggerMetric":"LUMINOSITY","triggerState":"WARNING","occurredAt":"%s"}
+                """.formatted(start.plusSeconds(180)));
+        assertThat(byLuminosity.statusCode()).withFailMessage(byLuminosity.body()).isEqualTo(201);
+
         var listed = call("GET", events, token, null);
-        assertThat(JsonPath.<List<String>>read(listed.body(), "$[*].action")).containsExactly("VENTILATION_ON", "VENTILATION_OFF");
+        assertThat(JsonPath.<List<String>>read(listed.body(), "$[*].action"))
+                .containsExactly("VENTILATION_ON", "VENTILATION_OFF", "SERVO_OPEN");
         var notAContainer = "/laboratories/" + lab.id() + "/environments/" + lab.environment() + "/container-monitors/"
                 + lab.spaceMonitor() + "/actuation-events";
         assertThat(call("GET", notAContainer, token, null).statusCode()).isEqualTo(404);

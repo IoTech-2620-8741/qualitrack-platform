@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tracking & Telemetry (tracking): the environmental device also reports LUMINOSITY (lux), through the Edge Gateway or the environment, and the environment accepts thresholds for it. The container monitor does not change (#43).
+
 ## [2.0.0] - 2026-11-15
 
 ### Changed

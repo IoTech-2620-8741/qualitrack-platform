@@ -41,7 +41,7 @@ package "tracking.domain.model.valueobjects" {
     MOTION (event, ENVIRONMENTAL_DEVICE)
     TEMPERATURE (°C, CONTAINER_MONITOR)
     HUMIDITY (%RH, CONTAINER_MONITOR)
-    LUMINOSITY (lux, CONTAINER_MONITOR)
+    LUMINOSITY (lux, ENVIRONMENTAL_DEVICE and CONTAINER_MONITOR)
     RFID_TAG (tag, CONTAINER_MONITOR)
     + unit(): String
     + hasThresholds(): boolean
@@ -157,7 +157,7 @@ EnvironmentalProfile --> ProfileScope
 EnvironmentalProfile *-- EnvironmentalThreshold
 EnvironmentalProfile *-- ActuationRule
 note right of EnvironmentalProfile
-  ENVIRONMENT: air quality thresholds of the environmental device (TS42).
+  ENVIRONMENT: air quality (TS42) and luminosity thresholds of the environmental device.
   CONTAINER_MONITOR: temperature, humidity (TS43) and luminosity (TS44)
   thresholds and actuation rules (TS45). Every change increases the version.
 end note

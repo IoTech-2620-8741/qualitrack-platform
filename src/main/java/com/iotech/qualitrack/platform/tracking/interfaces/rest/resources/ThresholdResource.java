@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 @Schema(name = "EnvironmentalThreshold",
         description = "NORMAL inside [normalMin, normalMax], WARNING up to the critical limits, CRITICAL beyond them")
 public record ThresholdResource(
-        @Schema(description = "AIR_QUALITY for an environment; TEMPERATURE, HUMIDITY or LUMINOSITY for a container monitor",
+        @Schema(description = "AIR_QUALITY or LUMINOSITY for an environment; TEMPERATURE, HUMIDITY or LUMINOSITY for a container monitor",
                 example = "TEMPERATURE")
         @NotBlank String metric,
         @Schema(description = "Unit of the metric, set by the platform (ppm, °C, %RH, lux)", example = "°C",

@@ -82,7 +82,7 @@ environmental_profiles ||--o{ environmental_profile_thresholds : profile_id
 environmental_profiles ||--o{ environmental_profile_actuation_rules : profile_id
 
 note bottom of environmental_profiles
-  scope ENVIRONMENT: environment_id set (air quality of the environmental device).
+  scope ENVIRONMENT: environment_id set (air quality and luminosity of the environmental device).
   scope CONTAINER_MONITOR: device_id set (thresholds and actuation rules).
   laboratory_id, environment_id and device_id reference other bounded
   contexts by identifier (no foreign key).

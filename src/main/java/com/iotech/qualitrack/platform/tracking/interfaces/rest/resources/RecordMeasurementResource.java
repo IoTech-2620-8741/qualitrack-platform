@@ -9,7 +9,7 @@ import jakarta.validation.constraints.PositiveOrZero;
  */
 @Schema(name = "RecordMeasurementRequest", description = "Reading of the environmental device or of a container monitor")
 public record RecordMeasurementResource(
-        @Schema(description = "AIR_QUALITY or MOTION for the environmental device; TEMPERATURE, HUMIDITY, LUMINOSITY or RFID_TAG for a container monitor",
+        @Schema(description = "AIR_QUALITY, LUMINOSITY or MOTION for the environmental device; TEMPERATURE, HUMIDITY, LUMINOSITY or RFID_TAG for a container monitor",
                 example = "TEMPERATURE")
         @NotBlank String metric,
         @Schema(description = "Numeric value in the unit of the metric; MOTION is 1 when detected and 0 otherwise",

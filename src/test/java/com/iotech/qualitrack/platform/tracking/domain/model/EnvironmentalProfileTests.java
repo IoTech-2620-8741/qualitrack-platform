@@ -69,6 +69,14 @@ class EnvironmentalProfileTests {
     }
 
     @Test
+    void theLuminosityIsTheOnlyMetricBothDevicesReport() {
+        assertThat(MonitoredMetric.reportedBy("ENVIRONMENTAL_DEVICE"))
+                .containsExactly(AIR_QUALITY, MonitoredMetric.MOTION, MonitoredMetric.LUMINOSITY);
+        assertThat(MonitoredMetric.reportedBy("CONTAINER_MONITOR"))
+                .containsExactly(TEMPERATURE, HUMIDITY, MonitoredMetric.LUMINOSITY, MonitoredMetric.RFID_TAG);
+    }
+
+    @Test
     void anEnvironmentOnlyConfiguresTheMetricsOfItsEnvironmentalDevice() {
         var profile = EnvironmentalProfile.forEnvironment(1L, 2L);
         profile.replaceThresholds(List.of(new EnvironmentalThreshold(AIR_QUALITY, null, 400.0, null, 800.0)), 9L, NOW);

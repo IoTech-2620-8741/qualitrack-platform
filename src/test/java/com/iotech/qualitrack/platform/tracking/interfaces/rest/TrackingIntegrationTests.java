@@ -268,6 +268,23 @@ class TrackingIntegrationTests {
         assertThat(bright.body()).contains("\"state\":\"CRITICAL\"").contains("\"thresholdValue\":1000.0");
         var alerts = call("GET", lab.environmentPath() + "/deviation-alerts?deviceId=" + lab.spaceMonitor(), token, null);
         assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].origin")).containsExactly("ENVIRONMENT");
+        assertThat(JsonPath.<List<String>>read(alerts.body(), "$[*].parameterName")).containsExactly("LUMINOSITY");
+
+        // The container monitor still has its own luminosity thresholds and rules.
+        var containerProfile = lab.container() + "/environmental-profile";
+        var containerSaved = call("PUT", containerProfile + "/thresholds", token, """
+                {"thresholds":[{"metric":"LUMINOSITY","normalMax":100,"criticalMax":200}]}
+                """);
+        assertThat(containerSaved.statusCode()).withFailMessage(containerSaved.body()).isEqualTo(200);
+        assertThat(containerSaved.body()).contains("\"version\":1");
+        var containerRules = call("PUT", containerProfile + "/actuation-rules", token, """
+                {"rules":[{"metric":"LUMINOSITY","state":"WARNING","action":"SERVO_OPEN"}]}
+                """);
+        assertThat(containerRules.statusCode()).withFailMessage(containerRules.body()).isEqualTo(200);
+        assertThat(containerRules.body()).contains("\"action\":\"SERVO_OPEN\"");
+        var inContainer = call("POST", lab.container() + "/telemetry-measurements", token,
+                reading("LUMINOSITY", 150.0, start.plusSeconds(120)));
+        assertThat(inContainer.body()).contains("\"state\":\"WARNING\"").contains("\"thresholdValue\":100.0");
     }
 
     @Test

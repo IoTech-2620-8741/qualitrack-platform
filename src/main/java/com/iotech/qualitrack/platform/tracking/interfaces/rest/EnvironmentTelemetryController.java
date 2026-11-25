@@ -61,7 +61,7 @@ public class EnvironmentTelemetryController {
      */
     @GetMapping("/environmental-profile")
     @Operation(summary = "Get the environmental profile of the environment",
-            description = "Air quality thresholds in force and their version.")
+            description = "Air quality and luminosity thresholds in force and their version.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Profile of the environment",
                     content = @Content(schema = @Schema(implementation = EnvironmentalProfileResource.class))),
@@ -78,7 +78,7 @@ public class EnvironmentTelemetryController {
     }
 
     /**
-     * Replaces the air quality thresholds of the environment (TS42).
+     * Replaces the air quality and luminosity thresholds of the environment (TS42).
      *
      * @return 200 with the saved profile, or 400 when the limits are not valid or the environment has no
      * environmental device
@@ -86,7 +86,7 @@ public class EnvironmentTelemetryController {
     @PutMapping(value = "/environmental-profile/thresholds", consumes = APPLICATION_JSON_VALUE)
     @PreAuthorize(QUALITY_ROLES)
     @Operation(summary = "Save the thresholds of the environment",
-            description = "Replaces the air quality thresholds evaluated with the readings of the environmental device. "
+            description = "Replaces the air quality and luminosity thresholds evaluated with the readings of the environmental device. "
                     + "The environment needs an environmental device; each change increases the profile version.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Thresholds saved",
@@ -137,7 +137,7 @@ public class EnvironmentTelemetryController {
      */
     @GetMapping("/telemetry-measurements")
     @Operation(summary = "Get the readings of the environmental device",
-            description = "Air quality and motion readings of the period, oldest first. By default the last 24 hours.")
+            description = "Air quality, luminosity and motion readings of the period, oldest first. By default the last 24 hours.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Readings of the period",
                     content = @Content(array = @ArraySchema(schema = @Schema(implementation = MeasurementResource.class)))),
@@ -150,7 +150,7 @@ public class EnvironmentTelemetryController {
     public ResponseEntity<?> getMeasurements(@PathVariable Long laboratoryId, @PathVariable Long environmentId,
                                              @Parameter(description = "Start of the period (ISO-8601 with offset)") @RequestParam(required = false) String from,
                                              @Parameter(description = "End of the period (ISO-8601 with offset)") @RequestParam(required = false) String to,
-                                             @Parameter(description = "AIR_QUALITY or MOTION") @RequestParam(required = false) String metric) {
+                                             @Parameter(description = "AIR_QUALITY, LUMINOSITY or MOTION") @RequestParam(required = false) String metric) {
         var period = TelemetryResponseAssembler.period(from, to);
         return trackingQueryService.handle(new GetMeasurementsQuery(laboratoryId, environmentId, null,
                         TelemetryResponseAssembler.metric(metric), period[0], period[1]))

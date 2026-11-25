@@ -23,6 +23,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -413,6 +414,40 @@ class EquipmentIntegrationTests {
         assertThat(coverage.body()).contains("\"uncoveredDeviceCount\":1");
     }
 
+    @Test
+    void edgeGatewaySynchronizesTheLuminosityOfTheEnvironmentalDevice() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        long spaceMonitor = id(call("POST", "/laboratories/" + plant.lab() + "/devices/environmental-devices", token,
+                device("Space monitor", "ENV-" + suffix())));
+        var located = call("POST", storage + "/environmental-devices", token, "{\"deviceId\":" + spaceMonitor + "}");
+        assertThat(located.statusCode()).withFailMessage(located.body()).isEqualTo(201);
+        var identity = "EDGE-" + suffix();
+        long gateway = edgeGateway(plant, identity);
+        var assigned = call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}");
+        assertThat(assigned.statusCode()).withFailMessage(assigned.body()).isEqualTo(201);
+        var key = apiKey(plant, gateway);
+        var measuredAt = OffsetDateTime.now().minusMinutes(5).truncatedTo(ChronoUnit.SECONDS);
+
+        var reading = """
+                {"metric":"LUMINOSITY","value":300.0,"textValue":null,"measuredAt":"%s","profileVersion":3}
+                """.formatted(measuredAt);
+        var recorded = gatewayMeasurement(identity, key, spaceMonitor, reading);
+        assertThat(recorded.statusCode()).withFailMessage(recorded.body()).isEqualTo(201);
+        assertThat(recorded.body()).contains("\"unit\":\"lux\"").contains("\"profileVersion\":3");
+        var repeated = gatewayMeasurement(identity, key, spaceMonitor, reading);
+        assertThat(repeated.statusCode()).withFailMessage(repeated.body()).isEqualTo(200);
+        assertThat(id(repeated)).isEqualTo(id(recorded));
+        var dark = gatewayMeasurement(identity, key, spaceMonitor, """
+                {"metric":"LUMINOSITY","value":0.0,"textValue":null,"measuredAt":"%s","profileVersion":null}
+                """.formatted(measuredAt.plusMinutes(1)));
+        assertThat(dark.statusCode()).withFailMessage(dark.body()).isEqualTo(201);
+        assertThat(gatewayMeasurement(identity, key, spaceMonitor, """
+                {"metric":"HUMIDITY","value":50.0,"measuredAt":"%s"}
+                """.formatted(measuredAt)).statusCode()).isEqualTo(400);
+    }
+
     private long edgeGateway(Plant plant, String identity) throws Exception {
         var registered = call("POST", "/laboratories/" + plant.lab() + "/edge-gateways", plant.manager().token(), """
                 {"name":"Edge Gateway %1$s","sensorExternalId":"%1$s","serialNumber":"RPI-%2$s","model":"Raspberry Pi 4"}
@@ -452,12 +487,17 @@ class EquipmentIntegrationTests {
 
     /** Sends a reading of a device the way the Edge does: with the Gateway identity and its API key. */
     private HttpResponse<String> gatewayMeasurement(String gatewayIdentity, String apiKey, long deviceId) throws Exception {
+        return gatewayMeasurement(gatewayIdentity, apiKey, deviceId, """
+                {"metric":"TEMPERATURE","value":5.2,"measuredAt":"%s"}
+                """.formatted(OffsetDateTime.now()));
+    }
+
+    private HttpResponse<String> gatewayMeasurement(String gatewayIdentity, String apiKey, long deviceId, String body)
+            throws Exception {
         var request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/edge-gateways/"
                         + gatewayIdentity + "/iot-devices/" + deviceId + "/telemetry-measurements"))
                 .header("X-API-Key", apiKey).header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("""
-                        {"metric":"TEMPERATURE","value":5.2,"measuredAt":"%s"}
-                        """.formatted(OffsetDateTime.now())));
+                .POST(HttpRequest.BodyPublishers.ofString(body));
         return http.send(request.build(), HttpResponse.BodyHandlers.ofString());
     }
 

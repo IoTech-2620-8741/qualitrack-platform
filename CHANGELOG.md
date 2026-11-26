@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reporting & Audit (ra): the audit log of a batch (`GET /batches/{batchId}/audit-logs`) also lists the raw material the batch consumed, oldest first. The consumptions were already recorded as `RAW_MATERIAL_USAGE` entries of the batch, but the log only read the `BATCH` ones (#46).
+
+- Reporting & Audit (ra): Javadoc that did not match the code: the handler of resolved alerts, the batch report endpoint, the conversion of report errors and two Laboratory audit handlers (#46).
+
 ## [2.1.0] - 2026-11-24
 
 ### Added

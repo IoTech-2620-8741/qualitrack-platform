@@ -189,6 +189,14 @@ class ProductBatchIntegrationTests {
         assertThat(call("POST", usages, operator.token(), usage(lot.id(), "5", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(201);
         var auditLogs = call("GET", "/batches/" + batchId + "/audit-logs", token, null).body();
         assertThat(auditLogs.split("BatchStartedIntegrationEvent", -1)).hasSize(2);
+        assertThat(JsonPath.<List<String>>read(auditLogs, "$[?(@.entityType == 'RAW_MATERIAL_USAGE')].action"))
+                .as("the two consumptions are in the audit log of the batch").containsExactly("REGISTER", "REGISTER");
+        assertThat(JsonPath.<List<Integer>>read(auditLogs, "$[*].id")).as("oldest first").isSorted();
+        var lastConsumption = java.net.URLEncoder.encode(JsonPath.<List<String>>read(auditLogs,
+                "$[?(@.entityType == 'RAW_MATERIAL_USAGE')].timestamp").get(1), java.nio.charset.StandardCharsets.UTF_8);
+        assertThat(JsonPath.<List<String>>read(call("GET", "/batches/" + batchId + "/audit-logs?dateFrom=" + lastConsumption
+                + "&dateTo=" + lastConsumption, token, null).body(), "$[*].entityType"))
+                .as("the period filter keeps the consumptions").contains("RAW_MATERIAL_USAGE");
         assertThat(usableStock(plant, lot)).isEqualTo(65);
 
         assertThat(call("POST", usages, operator.token(), usage(lot.id(), "500", "kg", "op-" + UUID.randomUUID())).statusCode()).isEqualTo(409);

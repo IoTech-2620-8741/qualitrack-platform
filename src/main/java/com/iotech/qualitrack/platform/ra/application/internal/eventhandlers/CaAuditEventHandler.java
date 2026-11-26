@@ -81,7 +81,7 @@ public class CaAuditEventHandler {
     }
 
     /**
-     * Records the acknowledgment of a deviation alert.
+     * Records the resolution of a deviation alert.
      * Maps to {@link AuditAction#UPDATE} on {@code DEVIATION_ALERT}.
      */
     @EventListener(DeviationAlertResolvedIntegrationEvent.class)

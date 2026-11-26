@@ -5,6 +5,7 @@ import com.iotech.qualitrack.platform.ra.infrastructure.persistence.jpa.entities
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -22,6 +23,15 @@ public interface AuditLogEntryPersistenceRepository extends JpaRepository<AuditL
      * @param entityId The affected entity ID.
      */
     List<AuditLogEntryPersistenceEntity> findAllByEntityTypeAndEntityId(String entityType, Long entityId);
+
+    /**
+     * Finds the audit log entries of an entity recorded under any of the given entity types, oldest first.
+     *
+     * @param entityTypes The affected entity types.
+     * @param entityId The affected entity ID.
+     */
+    List<AuditLogEntryPersistenceEntity> findAllByEntityTypeInAndEntityIdOrderByIdAsc(Collection<String> entityTypes,
+                                                                                       Long entityId);
 
     /**
      * Finds all audit log entries performed by a specific actor.
@@ -55,6 +65,22 @@ public interface AuditLogEntryPersistenceRepository extends JpaRepository<AuditL
      */
     List<AuditLogEntryPersistenceEntity> findAllByEntityTypeAndEntityIdAndTimestampBetween(
             String entityType,
+            Long entityId,
+            String dateFrom,
+            String dateTo
+    );
+
+    /**
+     * Finds the audit log entries of an entity recorded under any of the given entity types within a timestamp
+     * range, oldest first.
+     *
+     * @param entityTypes The affected entity types.
+     * @param entityId The affected entity ID.
+     * @param dateFrom Lower timestamp bound.
+     * @param dateTo Upper timestamp bound.
+     */
+    List<AuditLogEntryPersistenceEntity> findAllByEntityTypeInAndEntityIdAndTimestampBetweenOrderByIdAsc(
+            Collection<String> entityTypes,
             Long entityId,
             String dateFrom,
             String dateTo

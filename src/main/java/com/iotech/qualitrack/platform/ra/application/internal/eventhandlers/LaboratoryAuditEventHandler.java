@@ -53,10 +53,9 @@ public class LaboratoryAuditEventHandler {
      * Records the creation of a raw material in the laboratory catalogue.
      * Maps to {@link AuditAction#REGISTER} on the {@code RAW_MATERIAL} aggregate.
      *
-     * <p>Note: this event covers creation only. For updates to an existing raw material,
-     * the Inventory context publishes {@code RawMaterialSavedIntegrationEvent}, which is
-     * consumed separately by {@code InventoryAuditEventHandler}. Both handlers intentionally
-     * target the same aggregate type.
+     * <p>Note: the raw materials of an environment, created and updated through Inventory Management,
+     * publish {@code RawMaterialSavedIntegrationEvent} instead, which {@code InventoryAuditEventHandler}
+     * records on the same aggregate type.
      */
     @EventListener(RawMaterialCreatedIntegrationEvent.class)
     public void on(RawMaterialCreatedIntegrationEvent event) {
@@ -164,9 +163,8 @@ public class LaboratoryAuditEventHandler {
      * Records the assignment of a usage to an environment.
      *
      * <p>Unlike the other handlers in this class, the actor is taken from the event payload
-     * ({@code assignedBy}) rather than the security context. Usage assignments can be
-     * triggered by background reconfigurations where the HTTP security context is not
-     * available; the event payload is the reliable source of the actor in that case.
+     * ({@code assignedBy}), the user the environment recorded with the assignment, rather than
+     * the security context.
      * Maps to {@link AuditAction#UPDATE} on the {@code ENVIRONMENT} aggregate.
      */
     @EventListener(EnvironmentUsageAssignedIntegrationEvent.class)

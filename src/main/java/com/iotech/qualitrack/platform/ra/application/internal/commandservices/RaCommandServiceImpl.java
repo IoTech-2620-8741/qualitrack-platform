@@ -400,8 +400,8 @@ public class RaCommandServiceImpl implements RaCommandService {
 
     /**
      * Wraps an operation that may throw {@link IllegalArgumentException} and converts
-     * it into a  with a validation error,
-     * keeping controller code free of try/catch boilerplate.
+     * it into a failed {@link Result} with a validation error,
+     * keeping the report methods free of try/catch boilerplate.
      * Any other exception is propagated so unexpected failures surface loudly.
      */
     private <T> Result<T, ApplicationError> execute(String entity, Supplier<T> operation) {

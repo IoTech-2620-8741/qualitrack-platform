@@ -51,13 +51,8 @@ public class BatchReportController {
     }
 
     /**
-     * REST endpoints for batch traceability reports (TS84).
-     * <ul>
-     *   <li>{@code POST /api/v1/batches/{batchId}/reports}: requests generating and storing a batch
-     *       report (PDF/CSV) for the authenticated user.</li>
-     *   <li>{@code GET /api/v1/batches/{batchId}/reports}: lists already-generated batch reports.</li>
-     * </ul>
-     * The endpoint returns metadata + Location pointing to the persisted resource.
+     * Generates and stores the traceability report (PDF or CSV) of the batch for the authenticated user.
+     * Responds 201 with the report metadata and a Location pointing to the stored report.
      */
     @PostMapping(consumes = APPLICATION_JSON_VALUE)
     @Operation(summary = "Generate a batch traceability report",

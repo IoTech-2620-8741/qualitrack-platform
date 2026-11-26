@@ -22,7 +22,8 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
     // Discriminator constants used in ENTITY_TYPE/ENTITY_ID columns.
     // Kept as Strings to avoid coupling the persistence package to domain enums.
     private static final String EQUIPMENT_ENTITY_TYPE = "EQUIPMENT";
-    private static final String BATCH_ENTITY_TYPE = "BATCH";
+    // The raw material consumptions of a batch are recorded as RAW_MATERIAL_USAGE with the batch as entity.
+    private static final List<String> BATCH_ENTITY_TYPES = List.of("BATCH", "RAW_MATERIAL_USAGE");
 
     private final AuditLogEntryPersistenceRepository persistenceRepository;
 
@@ -56,11 +57,12 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
 
 
     /**
-     * Search by batch: filters by (ENTITY_TYPE = BATCH, ENTITY_ID = batchId).
+     * Search by batch: filters by (ENTITY_TYPE = BATCH or RAW_MATERIAL_USAGE, ENTITY_ID = batchId), in the order
+     * the entries were recorded.
      */
     @Override
     public List<AuditLogEntry> findAllByBatchId(Long batchId) {
-        return persistenceRepository.findAllByEntityTypeAndEntityId(BATCH_ENTITY_TYPE, batchId).stream()
+        return persistenceRepository.findAllByEntityTypeInAndEntityIdOrderByIdAsc(BATCH_ENTITY_TYPES, batchId).stream()
                 .map(AuditLogEntryPersistenceAssembler::toDomainFromPersistence)
                 .toList();
     }
@@ -106,12 +108,12 @@ public class AuditLogRepositoryImpl implements AuditLogRepository {
                 .toList();
     }
 
-    /** Combined variant: BATCH entity + date range. */
+    /** Combined variant: batch entries (BATCH or RAW_MATERIAL_USAGE) + date range. */
     @Override
     public List<AuditLogEntry> findAllByBatchIdAndDateRange(Long batchId, String dateFrom, String dateTo) {
         return persistenceRepository
-                .findAllByEntityTypeAndEntityIdAndTimestampBetween(
-                        BATCH_ENTITY_TYPE,
+                .findAllByEntityTypeInAndEntityIdAndTimestampBetweenOrderByIdAsc(
+                        BATCH_ENTITY_TYPES,
                         batchId,
                         dateFrom,
                         dateTo

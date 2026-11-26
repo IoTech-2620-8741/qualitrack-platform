@@ -17,10 +17,11 @@ import java.util.List;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 /**
- * Audit log of a production batch (TS80). Entries are recorded by the platform when the batch changes.
+ * Audit log of a production batch (TS80). Entries are recorded by the platform when the batch changes or consumes
+ * raw material.
  *
  * <p>The {@code batchId} in the path is used by {@link GetAuditLogQuery} to filter entries by
- * {@code ENTITY_TYPE = BATCH}. Tenancy is enforced by the security layer, so no explicit
+ * {@code ENTITY_TYPE = BATCH} or {@code RAW_MATERIAL_USAGE}. Tenancy is enforced by the security layer, so no explicit
  * {@code laboratoryId} parameter is needed here.
  */
 @RestController
@@ -40,7 +41,7 @@ public class BatchAuditLogController {
      * recorded activity in the period.
      */
     @GetMapping
-    @Operation(summary = "Get the audit log of a batch", description = "Optional period: dateFrom and dateTo.")
+    @Operation(summary = "Get the audit log of a batch", description = "Changes of the batch and the raw material it consumed, oldest first. Optional period: dateFrom and dateTo.")
     public ResponseEntity<List<AuditLogEntryResource>> getBatchAuditLogs(@PathVariable Long batchId,
                                                                          @RequestParam(required = false) String dateFrom,
                                                                          @RequestParam(required = false) String dateTo) {

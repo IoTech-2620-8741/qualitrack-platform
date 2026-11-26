@@ -38,7 +38,7 @@ public interface AuditLogRepository {
     List<AuditLogEntry> findAllByEquipmentId(Long equipmentId);
 
     /**
-     * Finds all audit log entries related to a specific production batch.
+     * Finds all audit log entries related to a specific production batch, including the raw material it consumed.
      *
      * @param batchId The batch identifier.
      * @return List of audit log entries.
@@ -81,7 +81,7 @@ public interface AuditLogRepository {
     List<AuditLogEntry> findAllByEquipmentIdAndDateRange(Long equipmentId, String dateFrom, String dateTo);
 
     /**
-     * Finds all audit log entries related to a batch within a timestamp range.
+     * Finds all audit log entries related to a batch, including the raw material it consumed, within a timestamp range.
      *
      * @param batchId The batch identifier.
      * @param dateFrom Lower timestamp bound.

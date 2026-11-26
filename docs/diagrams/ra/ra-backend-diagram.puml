@@ -686,7 +686,8 @@ note bottom of StaffAuditLogController
   (quality managers, administrators and auditors).
 end note
 note bottom of EquipmentAuditLogController
-  GET /api/v1/batches/{batchId}/audit-logs (TS80)
+  GET /api/v1/batches/{batchId}/audit-logs (TS80): changes of the batch
+  and its raw material usages, oldest first
   GET /api/v1/laboratories/{laboratoryId}/equipments/{equipmentId}/audit-logs
   Entries are recorded by the platform; there is no POST.
 end note

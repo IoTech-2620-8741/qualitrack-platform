@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-11-26
+
 ### Fixed
 
 - Reporting & Audit (ra): the audit log of a batch (`GET /batches/{batchId}/audit-logs`) also lists the raw material the batch consumed, oldest first. The consumptions were already recorded as `RAW_MATERIAL_USAGE` entries of the batch, but the log only read the `BATCH` ones (#46).

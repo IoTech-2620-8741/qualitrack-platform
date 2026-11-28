@@ -96,6 +96,10 @@ class TrackingIntegrationTests {
         var profilePath = lab.container() + "/environmental-profile";
         var rules = profilePath + "/actuation-rules";
         assertThat(call("PUT", rules, token, ventilateOnWarning()).statusCode()).isEqualTo(400);
+        var empty = call("PUT", profilePath + "/thresholds", token, "{\"thresholds\":[]}");
+        assertThat(empty.statusCode()).isEqualTo(400);
+        assertThat(empty.body()).contains("At least one threshold");
+        assertThat(call("GET", profilePath, token, null).statusCode()).isEqualTo(404);
 
         var saved = call("PUT", profilePath + "/thresholds", token, containerThresholds());
         assertThat(saved.statusCode()).withFailMessage(saved.body()).isEqualTo(200);

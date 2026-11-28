@@ -9,7 +9,7 @@ import java.util.List;
  *
  * @param laboratoryId  laboratory that owns the environment
  * @param environmentId environment to configure
- * @param thresholds    full set of thresholds that replaces the current one; an empty list removes them
+ * @param thresholds    full set of thresholds that replaces the current one, with one threshold at least
  */
 public record UpdateEnvironmentThresholdsCommand(Long laboratoryId, Long environmentId,
                                                  List<EnvironmentalThreshold> thresholds) {

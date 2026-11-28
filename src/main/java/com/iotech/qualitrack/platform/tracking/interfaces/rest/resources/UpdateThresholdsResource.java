@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Full set of thresholds of a profile; it replaces the current one.
  */
-@Schema(name = "UpdateThresholdsRequest", description = "Thresholds that replace the current ones; an empty list removes them")
+@Schema(name = "UpdateThresholdsRequest", description = "Thresholds that replace the current ones; at least one")
 public record UpdateThresholdsResource(@Schema(description = "Full set of thresholds, at most one per metric")
                                        @NotNull List<@Valid @NotNull ThresholdResource> thresholds) {
 }

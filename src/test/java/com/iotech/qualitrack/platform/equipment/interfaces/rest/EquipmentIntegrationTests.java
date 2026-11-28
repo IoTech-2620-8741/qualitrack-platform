@@ -346,6 +346,40 @@ class EquipmentIntegrationTests {
     }
 
     @Test
+    void edgeGatewayKeyIsReplacedAndAGatewayInMaintenanceIsToldWhyItCannotConnect() throws Exception {
+        var plant = plant();
+        var token = plant.manager().token();
+        var storage = plant.environment(plant.storage());
+        var identity = "EDGE-" + suffix();
+        long gateway = edgeGateway(plant, identity);
+        var rotations = "/laboratories/" + plant.lab() + "/edge-gateways/" + gateway + "/api-key/rotations";
+        assertThat(call("POST", storage + "/equipments", token, "{\"equipmentId\":" + gateway + "}").statusCode())
+                .isEqualTo(201);
+        assertThat(call("POST", rotations, token, null).statusCode()).isEqualTo(409);
+        var oldKey = apiKey(plant, gateway);
+
+        assertThat(call("POST", rotations, operatorOf(plant).token(), null).statusCode()).isEqualTo(403);
+        var rotated = call("POST", rotations, token, null);
+        assertThat(rotated.statusCode()).withFailMessage(rotated.body()).isEqualTo(201);
+        assertThat(rotated.headers().firstValue("Cache-Control")).hasValueSatisfying(value -> assertThat(value)
+                .contains("no-store"));
+        assertThat(JsonPath.<String>read(rotated.body(), "$.sensorExternalId")).isEqualTo(identity);
+        var newKey = JsonPath.<String>read(rotated.body(), "$.apiKey");
+        assertThat(newKey).isNotEqualTo(oldKey);
+        assertThat(gatewayDevices(identity, oldKey).statusCode()).isEqualTo(401);
+        assertThat(gatewayDevices(identity, newKey).statusCode()).isEqualTo(200);
+
+        var maintenance = call("POST", storage + "/equipments/" + gateway + "/status-changes", token,
+                "{\"status\":\"maintenance\",\"reason\":\"Station update\"}");
+        assertThat(maintenance.statusCode()).withFailMessage(maintenance.body()).isEqualTo(201);
+        var refused = gatewayDevices(identity, newKey);
+        assertThat(refused.statusCode()).isEqualTo(403);
+        assertThat(refused.body()).contains("MAINTENANCE").contains("only operational Gateways connect");
+        assertThat(gatewayDevices(identity, oldKey).statusCode()).isEqualTo(401);
+        assertThat(call("POST", rotations, token, null).statusCode()).isEqualTo(201);
+    }
+
+    @Test
     void secondEdgeGatewayOfTheEnvironmentServesTheDevicesLeftByTheFirst() throws Exception {
         var plant = plant();
         var token = plant.manager().token();
@@ -405,7 +439,9 @@ class EquipmentIntegrationTests {
         var outOfService = call("POST", storage + "/equipments/" + first + "/status-changes", token,
                 "{\"status\":\"out_of_service\",\"reason\":\"Replaced by another Gateway\"}");
         assertThat(outOfService.statusCode()).withFailMessage(outOfService.body()).isEqualTo(201);
-        assertThat(gatewayMeasurement(firstIdentity, firstKey, servedByFirst).statusCode()).isEqualTo(401);
+        var refused = gatewayMeasurement(firstIdentity, firstKey, servedByFirst);
+        assertThat(refused.statusCode()).isEqualTo(403);
+        assertThat(refused.body()).contains("OUT_OF_SERVICE");
         assertThat(gatewayMeasurement(secondIdentity, secondKey, servedByFirst).statusCode()).isEqualTo(201);
         var coverage = call("GET", storage + "/edge-gateway-coverage", token, null);
         assertThat(JsonPath.<List<Integer>>read(coverage.body(), "$.gateways[*].equipmentId"))

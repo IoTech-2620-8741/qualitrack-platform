@@ -1,7 +1,9 @@
 package com.iotech.qualitrack.platform.subscription.application.acl;
 
 import com.iotech.qualitrack.platform.subscription.application.queryservices.SubscriptionQueryService;
+import com.iotech.qualitrack.platform.subscription.domain.model.entities.SubscriptionPlan;
 import com.iotech.qualitrack.platform.subscription.domain.model.queries.GetActiveSubscriptionByLaboratoryIdQuery;
+import com.iotech.qualitrack.platform.subscription.domain.repositories.SubscriptionPlanRepository;
 import com.iotech.qualitrack.platform.subscription.interfaces.acl.SubscriptionAccess;
 import com.iotech.qualitrack.platform.subscription.interfaces.acl.SubscriptionContextFacade;
 import org.springframework.stereotype.Service;
@@ -14,11 +16,14 @@ public class SubscriptionContextFacadeImpl implements SubscriptionContextFacade 
 
     private final SubscriptionQueryService subscriptionQueryService;
     private final com.iotech.qualitrack.platform.subscription.domain.repositories.SubscriptionRepository repository;
+    private final SubscriptionPlanRepository planRepository;
 
     public SubscriptionContextFacadeImpl(SubscriptionQueryService subscriptionQueryService,
-            com.iotech.qualitrack.platform.subscription.domain.repositories.SubscriptionRepository repository) {
+            com.iotech.qualitrack.platform.subscription.domain.repositories.SubscriptionRepository repository,
+            SubscriptionPlanRepository planRepository) {
         this.subscriptionQueryService = subscriptionQueryService;
         this.repository = repository;
+        this.planRepository = planRepository;
     }
 
     @Override
@@ -60,6 +65,16 @@ public class SubscriptionContextFacadeImpl implements SubscriptionContextFacade 
         return subscriptionQueryService
                 .handle(new GetActiveSubscriptionByLaboratoryIdQuery(laboratoryId))
                 .map(subscription -> subscription.getPlanCode().name())
+                .orElse(null);
+    }
+
+    @Override
+    public Integer getActiveEquipmentLimit(Long laboratoryId) {
+        return subscriptionQueryService
+                .handle(new GetActiveSubscriptionByLaboratoryIdQuery(laboratoryId))
+                .flatMap(subscription -> planRepository.findByCodeAndBillingCycle(subscription.getPlanCode(),
+                        subscription.getBillingCycle()))
+                .map(SubscriptionPlan::getMaxEquipment)
                 .orElse(null);
     }
 }

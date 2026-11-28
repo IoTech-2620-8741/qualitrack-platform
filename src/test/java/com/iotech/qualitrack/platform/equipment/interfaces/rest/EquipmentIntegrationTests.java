@@ -292,8 +292,29 @@ class EquipmentIntegrationTests {
     }
 
     @Test
-    void edgeGatewayReadsOnlyTheFifteenDevicesItServes() throws Exception {
+    void thePlanLimitsTheIotDevicesOfTheLaboratory() throws Exception {
         var plant = plant();
+        var token = plant.manager().token();
+        containerMonitors(plant, plant.storage(), 4);
+        var fifth = call("POST", "/laboratories/" + plant.lab() + "/devices/environmental-devices", token,
+                device("Space monitor", "ENV-" + suffix()));
+        assertThat(fifth.statusCode()).withFailMessage(fifth.body()).isEqualTo(201);
+        assertThat(call("POST", plant.equipment(), token, equipment("Autoclave", "SN-" + suffix())).statusCode())
+                .isEqualTo(201);
+        edgeGateway(plant, "EDGE-" + suffix());
+
+        var sixth = call("POST", "/laboratories/" + plant.lab() + "/devices/container-monitors", token,
+                device("Container 6", "CNT-" + suffix()));
+        assertThat(sixth.statusCode()).isEqualTo(409);
+        assertThat(sixth.body()).contains("allows 5 IoT devices and 5 are already registered");
+
+        var enterprise = plant(PlanCode.ENTERPRISE);
+        assertThat(containerMonitors(enterprise, enterprise.storage(), 6)).hasSize(6);
+    }
+
+    @Test
+    void edgeGatewayReadsOnlyTheFifteenDevicesItServes() throws Exception {
+        var plant = plant(PlanCode.ENTERPRISE);
         var token = plant.manager().token();
         var storage = plant.environment(plant.storage());
         var gatewayIdentity = "EDGE-" + suffix();
@@ -381,7 +402,7 @@ class EquipmentIntegrationTests {
 
     @Test
     void secondEdgeGatewayOfTheEnvironmentServesTheDevicesLeftByTheFirst() throws Exception {
-        var plant = plant();
+        var plant = plant(PlanCode.ENTERPRISE);
         var token = plant.manager().token();
         var storage = plant.environment(plant.storage());
         var monitors = containerMonitors(plant, plant.storage(), 20).stream().map(Long::intValue).toList();
@@ -410,7 +431,7 @@ class EquipmentIntegrationTests {
 
     @Test
     void edgeGatewaySynchronizesOnlyTheDevicesItServes() throws Exception {
-        var plant = plant();
+        var plant = plant(PlanCode.ENTERPRISE);
         var token = plant.manager().token();
         var storage = plant.environment(plant.storage());
         var monitors = containerMonitors(plant, plant.storage(), 16);
@@ -575,11 +596,16 @@ class EquipmentIntegrationTests {
     }
 
     private Plant plant() throws Exception {
+        return plant(PlanCode.BASIC);
+    }
+
+    /** Laboratory of a quality manager subscribed to the plan; Standard Lab (BASIC) allows 5 IoT devices. */
+    private Plant plant(PlanCode plan) throws Exception {
         var manager = account("ROLE_QA_MANAGER");
         var unique = UUID.randomUUID().toString();
         var end = OffsetDateTime.now().plusDays(10);
         subscriptions.save(Subscription.activate(new ActivateSubscriptionCommand(manager.id(), null,
-                PlanCode.BASIC, BillingCycle.MONTHLY, "cus_fixture_" + unique, "sub_fixture_" + unique,
+                plan, BillingCycle.MONTHLY, "cus_fixture_" + unique, "sub_fixture_" + unique,
                 "cs_fixture_" + unique, end.minusMonths(1).toString(), end.toString())));
         var created = call("POST", "/laboratories", manager.token(), """
                 {"name":"Equipment laboratory %s","ruc":"%s","address":"Test address","phone":"999123456",

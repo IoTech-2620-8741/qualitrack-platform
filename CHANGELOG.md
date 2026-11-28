@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Compliance & Alerting (ca): a deviation that joins an open alert after its condition returned to normal recurs the alert: it is recorded as `DEVIATION_ALERT_RECURRED`, notified as `ALERT_RECURRED` with the severity and value of the new deviation (e-mailed when critical, like an opening) and audited by RA. Before, the staff was not told again and the alert kept showing the value it was opened with (#49).
+
+- Compliance & Alerting (ca): the alerts keep the value of their latest deviation, returned as `lastRecordedValue` beside `lastDetectedAt`; the e-mail notice of a critical alert shows the latest deviation. **Add the nullable column `deviation_alerts.last_recorded_value` (DOUBLE) to the production database before this release is deployed**; with `ddl-auto=update` it is created empty (#49).
+
+- IAM (iam): `POST /laboratories/{laboratoryId}/edge-gateways/{equipmentId}/api-key/rotations` replaces the API key of an Edge Gateway that already has one, for example when the station lost it. The new key is returned once and the previous one stops working at once; 409 when the Gateway has no key yet (#49).
+
+- Equipment (equipment) and Payments & Subscriptions (subscription): registering an environmental device or a container monitor beyond the allowance of the active plan (Standard Lab: 5, Enterprise: unlimited) answers 409. Process equipment and Edge Gateways are not counted, and the devices registered before keep working. Equipment reads the allowance through its ACL service from `SubscriptionContextFacade.getActiveEquipmentLimit` (#49).
+
+### Fixed
+
+- IAM (iam): an Edge Gateway with a valid API key that is not operational or not located in an environment got 401 `Invalid Edge Gateway credentials`. It now gets 403 `EDGE_GATEWAY_NOT_ALLOWED` with the reason, for example its `MAINTENANCE` status; an unknown Gateway or a wrong key still gets 401 (#49).
+
+- Tracking & Telemetry (tracking): saving an empty set of thresholds created a profile version without thresholds, which the devices ignore while they keep applying the previous one. The thresholds of an environment or a container monitor now need at least one, or they are refused with 400 (#49).
+
 ## [2.1.1] - 2026-11-26
 
 ### Fixed

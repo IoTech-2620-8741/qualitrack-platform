@@ -128,16 +128,18 @@ public class EnvironmentalProfile extends AbstractDomainAggregateRoot<Environmen
     /**
      * Replaces every threshold of the profile (US56, US57, US58) and increases the version.
      *
-     * <p>An empty list removes every threshold, as long as no actuation rule depends on them.</p>
+     * <p>The profile keeps at least one threshold: the devices ignore a profile without thresholds and keep applying
+     * the previous one, while the cloud would evaluate nothing.</p>
      *
-     * @param newThresholds full set of thresholds that replaces the current one
+     * @param newThresholds full set of thresholds that replaces the current one, with one threshold at least
      * @param userId        user that makes the change
      * @param now           moment of the change
-     * @throws IllegalArgumentException when a metric is not reported by the configured device, is repeated, or loses
-     *                                  the threshold an actuation rule depends on
+     * @throws IllegalArgumentException when the list is empty, or a metric is not reported by the configured device,
+     *                                  is repeated, or loses the threshold an actuation rule depends on
      */
     public void replaceThresholds(List<EnvironmentalThreshold> newThresholds, Long userId, Instant now) {
         if (newThresholds == null) throw new IllegalArgumentException("The thresholds are required");
+        if (newThresholds.isEmpty()) throw new IllegalArgumentException("At least one threshold is required");
         var metrics = new HashSet<MonitoredMetric>();
         for (var threshold : newThresholds) {
             if (!threshold.metric().isReportedBy(deviceKind())) {

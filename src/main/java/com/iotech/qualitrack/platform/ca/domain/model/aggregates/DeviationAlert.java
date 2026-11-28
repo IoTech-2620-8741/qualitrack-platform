@@ -6,6 +6,7 @@ import com.iotech.qualitrack.platform.ca.domain.model.commands.ResolveAlertComma
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertOrigin;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertSeverity;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertStatus;
+import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.DeviationOutcome;
 import com.iotech.qualitrack.platform.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 import lombok.Getter;
 
@@ -110,6 +111,11 @@ public class DeviationAlert extends AbstractDomainAggregateRoot<DeviationAlert> 
     private Instant lastDetectedAt;
 
     /**
+     * Value of the latest deviation of the incident; null for the alerts stored before it was kept.
+     */
+    private Double lastRecordedValue;
+
+    /**
      * When the condition returned to normal after the latest deviation; null while it is still deviated.
      */
     private Instant normalizedAt;
@@ -180,7 +186,8 @@ public class DeviationAlert extends AbstractDomainAggregateRoot<DeviationAlert> 
             String resolutionNotes
     ) {
         this(id, null, null, null, equipmentId, batchId, null, null, parameterName, recordedValue, thresholdValue,
-                unit, timestamp, severity, status, 1, null, null, acknowledgedBy, null, resolvedBy, null, resolutionNotes);
+                unit, timestamp, severity, status, 1, null, null, null, acknowledgedBy, null, resolvedBy, null,
+                resolutionNotes);
     }
 
     /**
@@ -204,6 +211,7 @@ public class DeviationAlert extends AbstractDomainAggregateRoot<DeviationAlert> 
             AlertStatus status,
             Integer deviationCount,
             Instant lastDetectedAt,
+            Double lastRecordedValue,
             Instant normalizedAt,
             Long acknowledgedBy,
             Instant acknowledgedAt,
@@ -228,6 +236,7 @@ public class DeviationAlert extends AbstractDomainAggregateRoot<DeviationAlert> 
         this.status = status;
         this.deviationCount = deviationCount == null || deviationCount < 1 ? 1 : deviationCount;
         this.lastDetectedAt = lastDetectedAt;
+        this.lastRecordedValue = lastRecordedValue;
         this.normalizedAt = normalizedAt;
         this.acknowledgedBy = acknowledgedBy;
         this.acknowledgedAt = acknowledgedAt;
@@ -261,16 +270,19 @@ public class DeviationAlert extends AbstractDomainAggregateRoot<DeviationAlert> 
         this.status = AlertStatus.UNRESOLVED;
         this.deviationCount = 1;
         this.lastDetectedAt = command.detectedAt();
+        this.lastRecordedValue = command.recordedValue();
     }
 
     /**
      * Adds a new deviation of the same device and parameter to this open incident. The severity only rises; the
-     * value and limit are those of the deviation that set the current severity.
+     * value and limit are those of the deviation that set the current severity, and the latest deviation keeps its
+     * own value and time.
      *
      * @param command The new deviation.
-     * @return true when the deviation raised the severity of the incident
+     * @return ESCALATED when the deviation raised the severity, RECURRED when the condition had returned to normal
+     *         before it, and REPEATED otherwise
      */
-    public boolean registerDeviation(CreateDeviationAlertCommand command) {
+    public DeviationOutcome registerDeviation(CreateDeviationAlertCommand command) {
         Objects.requireNonNull(command, "Create deviation alert command is required");
         if (!isOpen()) {
             throw new IllegalStateException("Resolved alerts do not receive new deviations");
@@ -279,20 +291,19 @@ public class DeviationAlert extends AbstractDomainAggregateRoot<DeviationAlert> 
         if (lastDetectedAt == null || command.detectedAt().isAfter(lastDetectedAt)) {
             this.lastDetectedAt = command.detectedAt();
             this.lastMeasurementId = command.measurementId();
+            this.lastRecordedValue = command.recordedValue();
         }
-        if (normalizedAt != null && !command.detectedAt().isBefore(normalizedAt)) {
+        var recurred = normalizedAt != null && !command.detectedAt().isBefore(normalizedAt);
+        if (recurred) {
             this.normalizedAt = null;
         }
-        if (command.severity().ordinal() < this.severity.ordinal()) {
-            return false;
-        }
-        var escalated = command.severity().ordinal() > this.severity.ordinal();
-        if (escalated) {
+        if (command.severity().ordinal() > this.severity.ordinal()) {
             this.severity = command.severity();
             this.recordedValue = command.recordedValue();
             this.thresholdValue = command.thresholdValue();
+            return DeviationOutcome.ESCALATED;
         }
-        return escalated;
+        return recurred ? DeviationOutcome.RECURRED : DeviationOutcome.REPEATED;
     }
 
     /**

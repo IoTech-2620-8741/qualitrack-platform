@@ -32,6 +32,7 @@ public final class DeviationAlertPersistenceAssembler {
                 entity.getStatus(),
                 entity.getDeviationCount(),
                 entity.getLastDetectedAt(),
+                entity.getLastRecordedValue(),
                 entity.getNormalizedAt(),
                 entity.getAcknowledgedBy(),
                 entity.getAcknowledgedAt(),
@@ -58,6 +59,7 @@ public final class DeviationAlertPersistenceAssembler {
         entity.setLastMeasurementId(alert.getLastMeasurementId());
         entity.setDeviationCount(alert.getDeviationCount());
         entity.setLastDetectedAt(alert.getLastDetectedAt());
+        entity.setLastRecordedValue(alert.getLastRecordedValue());
         entity.setNormalizedAt(alert.getNormalizedAt());
         entity.setAcknowledgedAt(alert.getAcknowledgedAt());
         entity.setResolvedAt(alert.getResolvedAt());

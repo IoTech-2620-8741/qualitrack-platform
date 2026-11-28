@@ -3,6 +3,7 @@ package com.iotech.qualitrack.platform.ra.application.internal.eventhandlers;
 import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertAcknowledgedIntegrationEvent;
 import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertCreatedIntegrationEvent;
 import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertEscalatedIntegrationEvent;
+import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertRecurredIntegrationEvent;
 import com.iotech.qualitrack.platform.ca.interfaces.events.DeviationAlertResolvedIntegrationEvent;
 import com.iotech.qualitrack.platform.ca.interfaces.events.NotificationPreferenceUpdatedIntegrationEvent;
 import com.iotech.qualitrack.platform.ra.domain.model.valueobjects.AuditAction;
@@ -53,6 +54,23 @@ public class CaAuditEventHandler {
     @EventListener(DeviationAlertEscalatedIntegrationEvent.class)
     public void on(DeviationAlertEscalatedIntegrationEvent event) {
         log.info("RA received deviation alert escalated event: {}", event);
+
+        auditLogCommandService.handle(new RecordAuditLogEntryCommand(
+                AuditAction.UPDATE,
+                "DEVIATION_ALERT",
+                event.alertId(),
+                currentUser.userId(),
+                event.toString()
+        ));
+    }
+
+    /**
+     * Records that the condition of a deviation alert returned to normal and deviated again.
+     * Maps to {@link AuditAction#UPDATE} on {@code DEVIATION_ALERT}.
+     */
+    @EventListener(DeviationAlertRecurredIntegrationEvent.class)
+    public void on(DeviationAlertRecurredIntegrationEvent event) {
+        log.info("RA received deviation alert recurred event: {}", event);
 
         auditLogCommandService.handle(new RecordAuditLogEntryCommand(
                 AuditAction.UPDATE,

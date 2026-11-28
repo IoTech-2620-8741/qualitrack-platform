@@ -10,6 +10,7 @@ import com.iotech.qualitrack.platform.ca.domain.model.commands.PublishNotificati
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertAcknowledgedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertCreatedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertEscalatedEvent;
+import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertRecurredEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertResolvedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.AlertSeverity;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.NotificationContent;
@@ -20,8 +21,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 /**
- * Notifies the laboratory of each step of an alert (US83): opened, escalated, acknowledged and resolved. Critical
- * alerts are also e-mailed (US84). A failure to notify never undoes the change of the alert.
+ * Notifies the laboratory of each step of an alert (US83): opened, escalated, deviated again after returning to normal,
+ * acknowledged and resolved. Critical alerts are also e-mailed (US84). A failure to notify never undoes the change of
+ * the alert.
  */
 @Slf4j
 @Service
@@ -57,6 +59,27 @@ public class AlertNotificationEventHandler {
     @EventListener(DeviationAlertEscalatedEvent.class)
     public void on(DeviationAlertEscalatedEvent event) {
         notify(event.alertId(), NotificationType.ALERT_ESCALATED, null);
+        if (event.severity() == AlertSeverity.CRITICAL) criticalAlertEmailScheduler.schedule(event.alertId());
+    }
+
+    /**
+     * The condition had returned to normal and deviated again: told like an opening, with the severity and value of
+     * the new deviation.
+     */
+    @EventListener(DeviationAlertRecurredEvent.class)
+    public void on(DeviationAlertRecurredEvent event) {
+        try {
+            deviationAlertRepository.findById(event.alertId()).ifPresent(alert -> {
+                var content = contentOf(alert, NotificationType.ALERT_RECURRED, null);
+                notificationCommandService.handle(new PublishNotificationCommand(alert.getLaboratoryId(),
+                        new NotificationContent(content.type(), event.severity(), content.subjectId(),
+                                content.environmentName(), content.subjectName(), content.parameterName(),
+                                event.recordedValue(), content.unit(), null, null), null));
+            });
+        } catch (RuntimeException exception) {
+            log.warn("Notification {} of alert {} not created: {}", NotificationType.ALERT_RECURRED, event.alertId(),
+                    exception.getMessage());
+        }
         if (event.severity() == AlertSeverity.CRITICAL) criticalAlertEmailScheduler.schedule(event.alertId());
     }
 

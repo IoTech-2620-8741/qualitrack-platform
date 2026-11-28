@@ -29,6 +29,8 @@ public record DeviationAlertResource(
         @Schema(description = "UNRESOLVED, ACKNOWLEDGED or RESOLVED", example = "UNRESOLVED") AlertStatus status,
         @Schema(description = "Deviations correlated with the incident", example = "3") Integer deviationCount,
         @Schema(description = "When the latest deviation was measured", nullable = true) Instant lastDetectedAt,
+        @Schema(description = "Value of the latest deviation; null for alerts stored before it was kept", example = "31.2",
+                nullable = true) Double lastRecordedValue,
         @Schema(description = "When the condition returned to normal; null while it is deviated", nullable = true) Instant normalizedAt,
         @Schema(description = "User attending the alert", nullable = true) Long acknowledgedBy,
         @Schema(description = "When the attention started", nullable = true) Instant acknowledgedAt,

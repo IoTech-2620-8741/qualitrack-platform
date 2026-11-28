@@ -202,7 +202,7 @@ class OnboardingIntegrationTests {
         for (String day : java.util.List.of("2026-08-31", "2026-09-01", "2026-09-05", "2026-09-06")) {
             deviations.save(new DeviationAlert(null, lab, environmentId, null, device.getId(), null, null, null, "PARAM-" + day,
                     9.3, 8.0, "C", day + "T12:00:00Z", AlertSeverity.CRITICAL, AlertStatus.UNRESOLVED, 1, null, null, null,
-                    null, null, null, null));
+                    null, null, null, null, null));
             maintenance.save(new MaintenanceRecord(null, device.getId(), null, java.time.LocalDate.parse(day),
                     "Fixture technician", null, "MAINT-" + day, MaintenanceType.CALIBRATION));
             audit.save(new AuditLogEntry(null, AuditAction.UPDATE, "EQUIPMENT", device.getId(), account.id(), day + "T12:00:00", "LOG-" + day));

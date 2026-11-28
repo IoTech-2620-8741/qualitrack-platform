@@ -8,8 +8,6 @@ import com.iotech.qualitrack.platform.iam.domain.model.valueobjects.EdgeGatewayI
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
-
 /**
  * Application service for authenticating Edge Gateways
  * using their external identifier and API key.
@@ -38,39 +36,70 @@ public class EdgeGatewayAuthenticationService {
     /**
      * Authenticates an Edge Gateway using its API key.
      *
-     * <p>The Gateway must exist, be operational, have
-     * an assigned environment and possess a matching
-     * API key hash in IAM.</p>
+     * <p>The Gateway must exist and possess a matching API
+     * key hash in IAM; otherwise the request is rejected.
+     * A Gateway with a valid key that is not operational or
+     * has no environment is refused with the reason, so the
+     * station knows why it cannot connect.</p>
      *
      * @param deviceId Gateway external identifier
      * @param apiKey API key received through X-API-Key
-     * @return authenticated Gateway identity, if valid
+     * @return the authenticated Gateway, the rejection or the refusal
      */
-    public Optional<AuthenticatedGateway> authenticate(
+    public GatewayAuthentication authenticate(
             String deviceId,
             String apiKey) {
 
         if (deviceId == null || deviceId.isBlank()
                 || apiKey == null || apiKey.isBlank()) {
-            return Optional.empty();
+            return new Rejected();
         }
 
-        return equipmentService.findEdgeGatewayByExternalId(deviceId)
-                .filter(EdgeGatewayIdentity::canConnect)
-                .flatMap(gateway ->
-                        apiKeyStore.findApiKeyHashByEquipmentId(
-                                        gateway.equipmentId()
-                                )
-                                .filter(hash ->
-                                        hashingService.matches(apiKey, hash)
-                                )
-                                .map(hash -> new AuthenticatedGateway(
-                                        gateway.equipmentId(),
-                                        gateway.sensorExternalId(),
-                                        gateway.laboratoryId(),
-                                        gateway.environmentId()
-                                ))
-                );
+        var gateway = equipmentService.findEdgeGatewayByExternalId(deviceId)
+                .filter(found -> apiKeyStore.findApiKeyHashByEquipmentId(found.equipmentId())
+                        .filter(hash -> hashingService.matches(apiKey, hash))
+                        .isPresent());
+        if (gateway.isEmpty()) {
+            return new Rejected();
+        }
+        var identity = gateway.get();
+        if (!identity.canConnect()) {
+            return new Refused(identity.connectionRefusal());
+        }
+        return new Authenticated(new AuthenticatedGateway(
+                identity.equipmentId(),
+                identity.sensorExternalId(),
+                identity.laboratoryId(),
+                identity.environmentId()
+        ));
+    }
+
+    /**
+     * Result of the authentication of an Edge Gateway request.
+     */
+    public sealed interface GatewayAuthentication permits Authenticated, Rejected, Refused {
+    }
+
+    /**
+     * The Gateway and its API key are valid and it may connect.
+     *
+     * @param gateway the authenticated Gateway
+     */
+    public record Authenticated(AuthenticatedGateway gateway) implements GatewayAuthentication {
+    }
+
+    /**
+     * Unknown Gateway, missing key or a key that does not match: the request is unauthorized.
+     */
+    public record Rejected() implements GatewayAuthentication {
+    }
+
+    /**
+     * The key is valid, but the Gateway may not connect now (not operational or not located).
+     *
+     * @param reason why the Gateway may not connect
+     */
+    public record Refused(String reason) implements GatewayAuthentication {
     }
 
     /**

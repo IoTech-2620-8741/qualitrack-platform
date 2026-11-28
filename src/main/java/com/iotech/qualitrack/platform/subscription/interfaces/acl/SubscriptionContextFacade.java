@@ -47,4 +47,12 @@ public interface SubscriptionContextFacade {
      * @return active plan name, or null if no active subscription exists
      */
     String getActivePlanCode(Long laboratoryId);
+
+    /**
+     * Gets how many IoT devices the active plan of a laboratory allows, the equipment allowance of its plan.
+     *
+     * @param laboratoryId laboratory identifier
+     * @return the allowance, or null when the plan has no limit or the laboratory has no active subscription
+     */
+    Integer getActiveEquipmentLimit(Long laboratoryId);
 }

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-28
+
 ### Added
 
 - Compliance & Alerting (ca): a deviation that joins an open alert after its condition returned to normal recurs the alert: it is recorded as `DEVIATION_ALERT_RECURRED`, notified as `ALERT_RECURRED` with the severity and value of the new deviation (e-mailed when critical, like an opening) and audited by RA. Before, the staff was not told again and the alert kept showing the value it was opened with (#49).

@@ -5,6 +5,7 @@ import com.iotech.qualitrack.platform.ca.application.internal.outboundservices.a
 import com.iotech.qualitrack.platform.ca.application.internal.outboundservices.acl.CaExternalIamService;
 import com.iotech.qualitrack.platform.ca.application.internal.outboundservices.acl.CaExternalLaboratoryService;
 import com.iotech.qualitrack.platform.ca.application.internal.outboundservices.notifications.AlertEmailNotifier;
+import com.iotech.qualitrack.platform.ca.domain.model.aggregates.DeviationAlert;
 import com.iotech.qualitrack.platform.ca.domain.model.aggregates.Notification;
 import com.iotech.qualitrack.platform.ca.domain.model.commands.MarkAllNotificationsAsReadCommand;
 import com.iotech.qualitrack.platform.ca.domain.model.commands.MarkNotificationAsReadCommand;
@@ -130,8 +131,8 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                 .map(CaExternalEquipmentService.AlertSource::name).orElse(null);
         var delivered = (int) addressees.stream()
                 .filter(recipient -> send(new AlertEmailNotifier.AlertNotice(recipient.email(), alert.getId(),
-                        environmentName, deviceName, alert.getParameterName(), alert.getRecordedValue(),
-                        alert.getThresholdValue(), alert.getUnit(), alert.getTimestamp())))
+                        environmentName, deviceName, alert.getParameterName(), latestValue(alert),
+                        alert.getThresholdValue(), alert.getUnit(), latestDetection(alert))))
                 .count();
         var sentAt = Instant.now(complianceClock).toString();
         var delivery = new AlertEmailDelivery(alert.getId(), addressees.size(), delivered, sentAt);
@@ -143,6 +144,17 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                     "The e-mail provider did not accept the notices; check that e-mail is configured"));
         }
         return Result.success(delivery);
+    }
+
+    /**
+     * Value of the latest deviation of the alert: the one that opened it, escalated it or made it recur.
+     */
+    private static Double latestValue(DeviationAlert alert) {
+        return alert.getLastRecordedValue() != null ? alert.getLastRecordedValue() : alert.getRecordedValue();
+    }
+
+    private static String latestDetection(DeviationAlert alert) {
+        return alert.getLastDetectedAt() != null ? alert.getLastDetectedAt().toString() : alert.getTimestamp();
     }
 
     private boolean send(AlertEmailNotifier.AlertNotice notice) {

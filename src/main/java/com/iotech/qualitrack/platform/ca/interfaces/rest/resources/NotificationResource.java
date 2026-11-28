@@ -6,7 +6,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
         + "Clients compose the text in the language of the person from the type and the values.")
 public record NotificationResource(
         Long id,
-        @Schema(description = "ALERT_OPENED, ALERT_ESCALATED, ALERT_ACKNOWLEDGED, ALERT_RESOLVED, BATCH_RELEASED or BATCH_REJECTED")
+        @Schema(description = "ALERT_OPENED, ALERT_ESCALATED, ALERT_RECURRED, ALERT_ACKNOWLEDGED, ALERT_RESOLVED, "
+                + "BATCH_RELEASED or BATCH_REJECTED")
         String type,
         @Schema(description = "Severity of the alert (WARNING or CRITICAL); null for a batch") String severity,
         @Schema(description = "ALERT or BATCH") String subjectType,

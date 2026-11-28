@@ -6,6 +6,7 @@ package com.iotech.qualitrack.platform.ca.domain.model.valueobjects;
 public enum NotificationType {
     ALERT_OPENED,
     ALERT_ESCALATED,
+    ALERT_RECURRED,
     ALERT_ACKNOWLEDGED,
     ALERT_RESOLVED,
     BATCH_RELEASED,
@@ -13,7 +14,8 @@ public enum NotificationType {
 
     public ComplianceEventSubject subject() {
         return switch (this) {
-            case ALERT_OPENED, ALERT_ESCALATED, ALERT_ACKNOWLEDGED, ALERT_RESOLVED -> ComplianceEventSubject.ALERT;
+            case ALERT_OPENED, ALERT_ESCALATED, ALERT_RECURRED, ALERT_ACKNOWLEDGED, ALERT_RESOLVED ->
+                    ComplianceEventSubject.ALERT;
             case BATCH_RELEASED, BATCH_REJECTED -> ComplianceEventSubject.BATCH;
         };
     }

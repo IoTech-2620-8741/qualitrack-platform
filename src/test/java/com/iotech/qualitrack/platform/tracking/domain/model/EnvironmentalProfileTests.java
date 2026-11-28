@@ -110,6 +110,8 @@ class EnvironmentalProfileTests {
                 .hasMessageContaining("needs a threshold");
         assertThatThrownBy(() -> profile.replaceThresholds(List.of(temperature, temperature), 9L, NOW))
                 .hasMessageContaining("Only one threshold");
+        assertThatThrownBy(() -> profile.replaceThresholds(List.of(), 9L, NOW))
+                .hasMessageContaining("At least one threshold");
         assertThatThrownBy(() -> profile.replaceActuationRules(List.of(ventilate, ventilate), 9L, NOW))
                 .hasMessageContaining("repeated");
         assertThatThrownBy(() -> new ActuationRule(TEMPERATURE, NORMAL, ActuationAction.VENTILATION_ON))

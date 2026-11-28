@@ -27,6 +27,15 @@ public interface EdgeGatewayApiKeyStore {
     void create(Long equipmentId, String apiKeyHash);
 
     /**
+     * Replaces the hash of the API key of an Edge Gateway, so the previous key stops working.
+     *
+     * @param equipmentId gateway equipment identifier
+     * @param apiKeyHash encoded hash of the new API key
+     * @return false when the Gateway has no API key to replace
+     */
+    boolean replace(Long equipmentId, String apiKeyHash);
+
+    /**
      * Retrieves the stored API key hash of an Edge Gateway.
      *
      * <p>The original API key is never returned because

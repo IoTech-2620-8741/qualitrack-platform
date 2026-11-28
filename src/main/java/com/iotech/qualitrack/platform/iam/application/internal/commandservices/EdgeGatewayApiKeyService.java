@@ -89,13 +89,7 @@ public class EdgeGatewayApiKeyService {
             throw alreadyProvisioned();
         }
 
-        // Generate a cryptographically secure random API key.
-        byte[] randomBytes = new byte[API_KEY_SIZE_BYTES];
-        SECURE_RANDOM.nextBytes(randomBytes);
-
-        String apiKey = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(randomBytes);
+        String apiKey = newApiKey();
 
         // Persist only the BCrypt hash.
         String apiKeyHash = hashingService.encode(apiKey);
@@ -108,6 +102,48 @@ public class EdgeGatewayApiKeyService {
         } catch (DataIntegrityViolationException exception) {
             // Handles concurrent provisioning requests.
             throw alreadyProvisioned();
+        }
+
+        return new IssuedApiKey(
+                gateway.sensorExternalId(),
+                apiKey
+        );
+    }
+
+    /**
+     * Replaces the API key of an Edge Gateway, for example when the station lost it or it was exposed.
+     *
+     * <p>The new key is returned once and the previous one stops working at once, so the Edge must be given the new
+     * one. The Gateway does not need to be operational: a key can be replaced while the station is in maintenance.</p>
+     *
+     * @param laboratoryId owning laboratory identifier
+     * @param equipmentId Edge Gateway equipment identifier
+     * @return API key issued for the Gateway
+     * @throws ApplicationException if the Gateway is not found or has no API key yet
+     */
+    @Transactional
+    public IssuedApiKey rotate(
+            Long laboratoryId,
+            Long equipmentId) {
+
+        var gateway = equipmentService.findEdgeGateway(
+                laboratoryId,
+                equipmentId
+        ).orElseThrow(() -> new ApplicationException(
+                ApplicationError.notFound(
+                        "EdgeGateway",
+                        equipmentId
+                )
+        ));
+
+        String apiKey = newApiKey();
+        if (!apiKeyStore.replace(gateway.equipmentId(), hashingService.encode(apiKey))) {
+            throw new ApplicationException(
+                    ApplicationError.conflict(
+                            "EdgeGatewayApiKey",
+                            "The Gateway has no API key yet; generate it first"
+                    )
+            );
         }
 
         return new IssuedApiKey(
@@ -143,6 +179,20 @@ public class EdgeGatewayApiKeyService {
         ));
 
         return apiKeyStore.existsByEquipmentId(gateway.equipmentId());
+    }
+
+    /**
+     * Generates a cryptographically secure random API key.
+     *
+     * @return the plaintext key, URL-safe Base64 without padding
+     */
+    private static String newApiKey() {
+        byte[] randomBytes = new byte[API_KEY_SIZE_BYTES];
+        SECURE_RANDOM.nextBytes(randomBytes);
+
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(randomBytes);
     }
 
     /**

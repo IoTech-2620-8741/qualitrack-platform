@@ -22,7 +22,10 @@ import java.util.List;
  * does not process JWTs or load UserDetailsImpl.</p>
  *
  * <p>The Gateway external identifier is obtained from
- * the request path and validated against its API key.</p>
+ * the request path and validated against its API key.
+ * An unknown Gateway or a wrong key answers 401; a valid
+ * key of a Gateway that is not operational or not located
+ * answers 403 with the reason.</p>
  */
 public class EdgeGatewayApiKeyAuthenticationFilter
         extends OncePerRequestFilter {
@@ -76,21 +79,31 @@ public class EdgeGatewayApiKeyAuthenticationFilter
         String deviceId = remainingPath.substring(0, separator);
         String apiKey = request.getHeader(API_KEY_HEADER);
 
-        var gateway = authenticationService.authenticate(
-                deviceId,
-                apiKey
-        );
+        var gateway = switch (authenticationService.authenticate(deviceId, apiKey)) {
+            case EdgeGatewayAuthenticationService.Authenticated authenticated -> authenticated.gateway();
+            case EdgeGatewayAuthenticationService.Rejected rejected -> {
+                response.sendError(
+                        HttpServletResponse.SC_UNAUTHORIZED,
+                        "Invalid Edge Gateway credentials"
+                );
+                yield null;
+            }
+            case EdgeGatewayAuthenticationService.Refused refused -> {
+                // Written here: an error dispatch of the stateless chain would turn the 403 into 401.
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"code\":\"EDGE_GATEWAY_NOT_ALLOWED\",\"message\":\""
+                        + refused.reason().replace("\\", "\\\\").replace("\"", "\\\"") + "\"}");
+                yield null;
+            }
+        };
 
-        if (gateway.isEmpty()) {
-            response.sendError(
-                    HttpServletResponse.SC_UNAUTHORIZED,
-                    "Invalid Edge Gateway credentials"
-            );
+        if (gateway == null) {
             return;
         }
 
         var authentication = new UsernamePasswordAuthenticationToken(
-                gateway.get(),
+                gateway,
                 null,
                 List.of(
                         new SimpleGrantedAuthority("ROLE_EDGE_GATEWAY")

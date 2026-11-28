@@ -13,6 +13,7 @@ import com.iotech.qualitrack.platform.ca.domain.model.entities.NotificationPrefe
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertAcknowledgedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertCreatedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertEscalatedEvent;
+import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertRecurredEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertResolvedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.NotificationPreferenceUpdatedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.ComplianceEventType;
@@ -76,12 +77,16 @@ public class CaCommandServiceImpl implements CaCommandService {
             var open = deviationAlertRepository.findOpenByEquipmentIdAndParameterName(device.deviceId(), command.parameterName());
             if (open.isPresent()) {
                 var alert = open.get();
-                var escalated = alert.registerDeviation(command);
+                var outcome = alert.registerDeviation(command);
                 var updatedAlert = deviationAlertRepository.save(alert);
 
                 complianceEventRepository.save(new ComplianceEvent(
                         updatedAlert.getId(),
-                        escalated ? ComplianceEventType.DEVIATION_ALERT_ESCALATED : ComplianceEventType.DEVIATION_REPEATED,
+                        switch (outcome) {
+                            case ESCALATED -> ComplianceEventType.DEVIATION_ALERT_ESCALATED;
+                            case RECURRED -> ComplianceEventType.DEVIATION_ALERT_RECURRED;
+                            case REPEATED -> ComplianceEventType.DEVIATION_REPEATED;
+                        },
                         "%s deviation of '%s' (%s %s) added to the open alert; %d deviations in the incident.".formatted(
                                 command.severity(), updatedAlert.getParameterName(), command.recordedValue(),
                                 updatedAlert.getUnit(), updatedAlert.getDeviationCount()),
@@ -89,8 +94,11 @@ public class CaCommandServiceImpl implements CaCommandService {
                         null
                 ));
 
-                if (escalated) {
-                    eventPublisher.publishEvent(DeviationAlertEscalatedEvent.from(updatedAlert));
+                switch (outcome) {
+                    case ESCALATED -> eventPublisher.publishEvent(DeviationAlertEscalatedEvent.from(updatedAlert));
+                    case RECURRED -> eventPublisher.publishEvent(
+                            DeviationAlertRecurredEvent.from(updatedAlert, command.severity()));
+                    case REPEATED -> { }
                 }
                 return Result.success(new DeviationRegistration(updatedAlert, false));
             }

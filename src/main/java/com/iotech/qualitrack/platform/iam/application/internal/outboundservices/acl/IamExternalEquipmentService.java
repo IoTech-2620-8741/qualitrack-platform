@@ -42,6 +42,6 @@ public class IamExternalEquipmentService {
 
     private static EdgeGatewayIdentity toIdentity(EquipmentContextFacade.EdgeGatewayReference gateway) {
         return new EdgeGatewayIdentity(gateway.equipmentId(), gateway.laboratoryId(), gateway.environmentId(),
-                gateway.sensorExternalId(), gateway.isOperational());
+                gateway.sensorExternalId(), gateway.isOperational(), gateway.status());
     }
 }

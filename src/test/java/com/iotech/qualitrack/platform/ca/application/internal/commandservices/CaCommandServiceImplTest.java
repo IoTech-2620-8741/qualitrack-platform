@@ -8,6 +8,7 @@ import com.iotech.qualitrack.platform.ca.domain.model.commands.ResolveAlertComma
 import com.iotech.qualitrack.platform.ca.domain.model.entities.ComplianceEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertCreatedEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertEscalatedEvent;
+import com.iotech.qualitrack.platform.ca.domain.model.events.DeviationAlertRecurredEvent;
 import com.iotech.qualitrack.platform.ca.domain.model.valueobjects.*;
 import com.iotech.qualitrack.platform.ca.domain.repositories.ComplianceEventRepository;
 import com.iotech.qualitrack.platform.ca.domain.repositories.DeviationAlertRepository;
@@ -68,8 +69,8 @@ class CaCommandServiceImplTest {
                 alert.getEquipmentId(), alert.getBatchId(), alert.getMeasurementId(), alert.getLastMeasurementId(),
                 alert.getParameterName(), alert.getRecordedValue(), alert.getThresholdValue(), alert.getUnit(),
                 alert.getTimestamp(), alert.getSeverity(), alert.getStatus(), alert.getDeviationCount(),
-                alert.getLastDetectedAt(), alert.getNormalizedAt(), alert.getAcknowledgedBy(), alert.getAcknowledgedAt(),
-                alert.getResolvedBy(), alert.getResolvedAt(), alert.getResolutionNotes());
+                alert.getLastDetectedAt(), alert.getLastRecordedValue(), alert.getNormalizedAt(), alert.getAcknowledgedBy(),
+                alert.getAcknowledgedAt(), alert.getResolvedBy(), alert.getResolvedAt(), alert.getResolutionNotes());
     }
 
     private void givenTheDeviceIsInTheEnvironment() {
@@ -134,6 +135,51 @@ class CaCommandServiceImplTest {
         verify(complianceEventRepository).save(event.capture());
         assertThat(event.getValue().getEventType()).isEqualTo(ComplianceEventType.DEVIATION_REPEATED);
         verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void aDeviationAfterTheConditionNormalizedRecursTheAlertWithItsOwnValue() {
+        givenTheDeviceIsInTheEnvironment();
+        var open = stored(new DeviationAlert(deviation(AlertSeverity.CRITICAL), 3L, AlertOrigin.ENVIRONMENT), 10L);
+        open.markNormalized(DETECTED_AT.plusSeconds(60));
+        when(deviationAlertRepository.findOpenByEquipmentIdAndParameterName(3L, "TEMPERATURE")).thenReturn(Optional.of(open));
+        givenSavingReturnsTheAlertWithId(10L);
+        var later = DETECTED_AT.plusSeconds(120);
+
+        var result = service.handle(new CreateDeviationAlertCommand(1L, 2L, 3L, 101L, "TEMPERATURE", 31.5, 30.0, "°C",
+                AlertSeverity.CRITICAL, later));
+
+        var alert = ((Result.Success<DeviationRegistration, ?>) result).value().alert();
+        assertThat(alert.getNormalizedAt()).isNull();
+        assertThat(alert.getRecordedValue()).isEqualTo(33.0);
+        assertThat(alert.getLastRecordedValue()).isEqualTo(31.5);
+        assertThat(alert.getLastDetectedAt()).isEqualTo(later);
+        var event = ArgumentCaptor.forClass(ComplianceEvent.class);
+        verify(complianceEventRepository).save(event.capture());
+        assertThat(event.getValue().getEventType()).isEqualTo(ComplianceEventType.DEVIATION_ALERT_RECURRED);
+        var recurred = ArgumentCaptor.forClass(DeviationAlertRecurredEvent.class);
+        verify(eventPublisher).publishEvent(recurred.capture());
+        assertThat(recurred.getValue().recordedValue()).isEqualTo(31.5);
+        assertThat(recurred.getValue().severity()).isEqualTo(AlertSeverity.CRITICAL);
+        assertThat(recurred.getValue().deviationCount()).isEqualTo(2);
+    }
+
+    @Test
+    void aWorseDeviationAfterTheConditionNormalizedOnlyEscalatesTheAlert() {
+        givenTheDeviceIsInTheEnvironment();
+        var open = stored(new DeviationAlert(deviation(AlertSeverity.WARNING), 3L, AlertOrigin.ENVIRONMENT), 10L);
+        open.markNormalized(DETECTED_AT.plusSeconds(60));
+        when(deviationAlertRepository.findOpenByEquipmentIdAndParameterName(3L, "TEMPERATURE")).thenReturn(Optional.of(open));
+        givenSavingReturnsTheAlertWithId(10L);
+
+        service.handle(new CreateDeviationAlertCommand(1L, 2L, 3L, 101L, "TEMPERATURE", 35.0, 34.0, "°C",
+                AlertSeverity.CRITICAL, DETECTED_AT.plusSeconds(120)));
+
+        var event = ArgumentCaptor.forClass(ComplianceEvent.class);
+        verify(complianceEventRepository).save(event.capture());
+        assertThat(event.getValue().getEventType()).isEqualTo(ComplianceEventType.DEVIATION_ALERT_ESCALATED);
+        verify(eventPublisher).publishEvent(any(DeviationAlertEscalatedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(DeviationAlertRecurredEvent.class));
     }
 
     @Test

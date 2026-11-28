@@ -181,4 +181,78 @@ public class EdgeGatewayApiKeysController {
                 .cacheControl(CacheControl.noStore())
                 .body(resource);
     }
+
+    /**
+     * Replaces the API key of an Edge Gateway that already has one.
+     *
+     * <p>The new key is returned only once and the previous one
+     * stops working at once.</p>
+     *
+     * @param laboratoryId laboratory identifier
+     * @param equipmentId Edge Gateway equipment identifier
+     * @return the new API key
+     */
+    @PostMapping("/{equipmentId}/api-key/rotations")
+    @Operation(
+            summary = "Replace Edge Gateway API key",
+            description = "Replaces the API key of an Edge Gateway, for example "
+                    + "when the station lost it. The new key is returned only "
+                    + "once and the previous one stops working at once."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "New API key generated",
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation =
+                                            IssuedEdgeGatewayApiKeyResource.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Authentication required"
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Insufficient laboratory permissions"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Edge Gateway not found",
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = ErrorResource.class
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Gateway has no API key yet",
+                    content = @Content(
+                            schema = @Schema(
+                                    implementation = ErrorResource.class
+                            )
+                    )
+            )
+    })
+    public ResponseEntity<IssuedEdgeGatewayApiKeyResource> rotate(
+            @PathVariable Long laboratoryId,
+            @PathVariable Long equipmentId) {
+
+        var issued = apiKeyService.rotate(
+                laboratoryId,
+                equipmentId
+        );
+
+        var resource = new IssuedEdgeGatewayApiKeyResource(
+                issued.sensorExternalId(),
+                issued.apiKey()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .cacheControl(CacheControl.noStore())
+                .body(resource);
+    }
 }

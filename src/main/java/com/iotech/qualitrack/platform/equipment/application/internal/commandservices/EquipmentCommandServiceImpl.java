@@ -2,6 +2,7 @@ package com.iotech.qualitrack.platform.equipment.application.internal.commandser
 
 import com.iotech.qualitrack.platform.equipment.application.commandservices.EquipmentCommandService;
 import com.iotech.qualitrack.platform.equipment.application.internal.outboundservices.acl.ExternalLabService;
+import com.iotech.qualitrack.platform.equipment.application.internal.outboundservices.acl.ExternalSubscriptionService;
 import com.iotech.qualitrack.platform.equipment.domain.model.aggregates.Equipment;
 import com.iotech.qualitrack.platform.equipment.domain.model.commands.AssignEquipmentToEnvironmentCommand;
 import com.iotech.qualitrack.platform.equipment.domain.model.commands.ChangeEquipmentStatusCommand;
@@ -41,6 +42,7 @@ public class EquipmentCommandServiceImpl implements EquipmentCommandService {
     private final EquipmentRepository equipmentRepository;
     private final EquipmentStatusChangeRepository statusChangeRepository;
     private final ExternalLabService externalLabService;
+    private final ExternalSubscriptionService externalSubscriptionService;
     private final CurrentUser currentUser;
     private final Clock clock;
     private final ApplicationEventPublisher eventPublisher;
@@ -48,12 +50,14 @@ public class EquipmentCommandServiceImpl implements EquipmentCommandService {
     public EquipmentCommandServiceImpl(EquipmentRepository equipmentRepository,
                                        EquipmentStatusChangeRepository statusChangeRepository,
                                        ExternalLabService externalLabService,
+                                       ExternalSubscriptionService externalSubscriptionService,
                                        CurrentUser currentUser,
                                        Clock equipmentClock,
                                        ApplicationEventPublisher eventPublisher) {
         this.equipmentRepository = equipmentRepository;
         this.statusChangeRepository = statusChangeRepository;
         this.externalLabService = externalLabService;
+        this.externalSubscriptionService = externalSubscriptionService;
         this.currentUser = currentUser;
         this.clock = equipmentClock;
         this.eventPublisher = eventPublisher;
@@ -85,6 +89,17 @@ public class EquipmentCommandServiceImpl implements EquipmentCommandService {
         }
         if (equipmentRepository.existsBySerialNumber(command.serialNumber())) {
             return Result.failure(serialNumberConflict(command.serialNumber()));
+        }
+        var limit = externalSubscriptionService.iotDeviceLimit(command.laboratoryId());
+        if (limit.isPresent()) {
+            // The plan counts the IoT devices of the laboratory: process equipment and Edge Gateways are not limited.
+            long registered = equipmentRepository.findAllByLabId(command.laboratoryId()).stream()
+                    .filter(Equipment::isIotDevice).count();
+            if (registered >= limit.getAsInt()) {
+                return Result.failure(ApplicationError.conflict(resourceName(command.deviceType()),
+                        "The plan of the laboratory allows %d IoT devices and %d are already registered"
+                                .formatted(limit.getAsInt(), registered)));
+            }
         }
         var device = equipmentRepository.save(new Equipment(command));
         eventPublisher.publishEvent(EquipmentRegisteredEvent.from(device));

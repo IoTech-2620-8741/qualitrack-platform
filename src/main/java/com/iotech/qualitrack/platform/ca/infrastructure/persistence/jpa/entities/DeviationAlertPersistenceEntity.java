@@ -49,6 +49,9 @@ public class DeviationAlertPersistenceEntity extends AuditableAbstractPersistenc
     @Column(name = "last_detected_at")
     private Instant lastDetectedAt;
 
+    @Column(name = "last_recorded_value")
+    private Double lastRecordedValue;
+
     @Column(name = "normalized_at")
     private Instant normalizedAt;
 

@@ -44,6 +44,17 @@ public class EdgeGatewayApiKeyStoreImpl
         repository.save(entity);
     }
 
+    @Override
+    public boolean replace(Long equipmentId, String apiKeyHash) {
+        return repository.findByEquipmentId(equipmentId)
+                .map(entity -> {
+                    entity.replaceApiKeyHash(apiKeyHash);
+                    repository.save(entity);
+                    return true;
+                })
+                .orElse(false);
+    }
+
     /**
      * Retrieves the BCrypt hash associated with an Edge Gateway.
      *

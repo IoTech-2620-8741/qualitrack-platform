@@ -44,4 +44,13 @@ public class EdgeGatewayApiKeyPersistenceEntity
         this.apiKeyHash = apiKeyHash;
     }
 
+    /**
+     * Keeps the hash of a new API key in place of the current one.
+     *
+     * @param apiKeyHash encoded hash of the new API key
+     */
+    public void replaceApiKeyHash(String apiKeyHash) {
+        this.apiKeyHash = apiKeyHash;
+    }
+
 }
